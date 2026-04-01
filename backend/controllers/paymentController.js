@@ -1,17 +1,29 @@
 const Joi = require('joi');
-const { Payment, Application } = require('../models');
-const AfricasTalking = require('africastalking');
-const Common = require('africastalking/lib/common');
+const { Payment, Application, User } = require('../models');
+const { sendEmail, sendStageEmail } = require('../utils/notifications');
 
+let payments = null;
 const credentials = {
   apiKey: process.env.AFRICASTALKING_API_KEY,
   username: process.env.AFRICASTALKING_USERNAME,
 };
 
-const africasTalking = AfricasTalking(credentials);
-const payments = africasTalking.PAYMENTS;
+if (credentials.apiKey && credentials.username) {
+  try {
+    const AfricasTalking = require('africastalking');
+    const Common = require('africastalking/lib/common');
+    const africasTalking = AfricasTalking(credentials);
+    payments = africasTalking.PAYMENTS;
+    global.AFRICAS_COMMON = Common;
+  } catch (error) {
+    console.warn('AfricasTalking initialization skipped: missing or invalid credentials', error.message);
+  }
+}
+
+// Fallback: if AfricasTalking is not usable, `payments` remains null and code will use createCheckoutToken()
 
 const createCheckoutToken = async (options) => {
+  const Common = global.AFRICAS_COMMON || require('africastalking/lib/common');
   const response = await fetch(Common.CHECKOUT_TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -106,6 +118,13 @@ const verifyPayment = async (req, res) => {
 
     // Check status
     if (payment.status === 'completed') {
+      const user = await User.findByPk(payment.user_id);
+      if (user && user.email) {
+        await sendStageEmail('visa_payment_received', user.email, {
+          name: user.name,
+          jobTitle: 'your selected job',
+        });
+      }
       res.json({ message: 'Payment verified successfully', payment });
     } else {
       res.json({ message: 'Payment pending', payment });

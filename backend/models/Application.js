@@ -30,6 +30,25 @@ const Application = sequelize.define('Application', {
   cover_letter: {
     type: DataTypes.TEXT,
   },
+  cv_url: {
+    type: DataTypes.STRING,
+  },
+  passport_url: {
+    type: DataTypes.STRING,
+  },
+  national_id_url: {
+    type: DataTypes.STRING,
+  },
+  certificate_urls: {
+    type: DataTypes.JSON,
+  },
+  zoom_meet_url: {
+    type: DataTypes.STRING,
+  },
+  interview_attended: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

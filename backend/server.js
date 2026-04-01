@@ -28,6 +28,7 @@ app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/interviews', require('./routes/interviews'));
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/about', require('./routes/about'));
 app.use('/api/admin', require('./routes/admin'));
 
 // Error handling middleware

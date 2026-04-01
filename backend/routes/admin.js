@@ -1,9 +1,20 @@
 const express = require('express');
 const adminMiddleware = require('../middleware/admin');
+const {
+  getAllSettings,
+  getSettingByKey,
+  createSetting,
+  updateSetting,
+  deleteSetting,
+} = require('../controllers/adminController');
 
 const router = express.Router();
 
-// Placeholder for additional admin routes if needed
-// For now, jobs, applications, interviews are separate
+// Settings routes
+router.get('/settings', adminMiddleware, getAllSettings);
+router.get('/settings/:key', adminMiddleware, getSettingByKey);
+router.post('/settings', adminMiddleware, createSetting);
+router.put('/settings/:key', adminMiddleware, updateSetting);
+router.delete('/settings/:key', adminMiddleware, deleteSetting);
 
 module.exports = router;
