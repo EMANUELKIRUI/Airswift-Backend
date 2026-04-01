@@ -86,4 +86,4 @@ module.exports = {
   updateJob,
   deleteJob,
   getAllJobsAdmin,
-};en 
+}; 
