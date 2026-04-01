@@ -17,12 +17,13 @@ Job.belongsTo(JobCategory, { foreignKey: 'category_id', as: 'category' });
 JobCategory.hasMany(Job, { foreignKey: 'category_id' });
 
 Job.belongsTo(User, { foreignKey: 'created_by', as: 'admin' });
-Profile.belongsTo(User, { foreignKey: 'user_id' });
-
-Job.belongsTo(User, { foreignKey: 'created_by', as: 'admin' });
 
 Application.belongsTo(Job, { foreignKey: 'job_id' });
 Application.belongsTo(User, { foreignKey: 'user_id' });
+
+Interview.belongsTo(Application, { foreignKey: 'application_id' });
+
+Payment.belongsTo(User, { foreignKey: 'user_id' });
 
 Interview.belongsTo(Application, { foreignKey: 'application_id' });
 
@@ -33,6 +34,7 @@ module.exports = {
   User,
   Profile,
   Job,
+  JobCategory,
   Application,
   Interview,
   Payment,
