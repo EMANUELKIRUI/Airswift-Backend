@@ -71,19 +71,6 @@ const updateApplicationStatus = async (req, res) => {
 
     const application = await Application.findByPk(req.params.id, { include: [{ model: Job }, { model: require('../models').User }] });
 
-    // If interview scheduled, create interview fee payment
-    if (status === 'interview') {
-      const profile = await Profile.findOne({ where: { user_id: application.user_id } });
-      if (profile && profile.phone_number) {
-        await Payment.create({
-          user_id: application.user_id,
-          phone_number: profile.phone_number,
-          amount: 3000,
-          service_type: 'interview_fee',
-        });
-      }
-    }
-
     // If hired, create visa fee payment
     if (status === 'hired') {
       const profile = await Profile.findOne({ where: { user_id: application.user_id } });

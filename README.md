@@ -36,6 +36,13 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 - `EMAIL_USER`, `EMAIL_PASS`
 - `PORT`
 
+## Default Admin Credentials
+
+A default admin user is created on startup if it does not already exist:
+
+- Email: `emanuelkirui1@gmail.com`
+- Password: `Ee0795565529@`
+
 ## API Endpoints
 
 ### Auth

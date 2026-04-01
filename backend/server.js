@@ -30,17 +30,6 @@ app.use('/api/interviews', require('./routes/interviews'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Africa's Talking payment callback
-app.post('/api/payment/callback', async (req, res) => {
-  const { status, metadata } = req.body;
-
-  if (status === 'Success' && metadata && metadata.payment_id) {
-    await Payment.update({ status: 'completed' }, { where: { id: metadata.payment_id } });
-  }
-
-  res.status(200).send('OK');
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
