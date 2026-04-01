@@ -20,7 +20,7 @@ const Payment = sequelize.define('Payment', {
     allowNull: false,
   },
   service_type: {
-    type: DataTypes.ENUM('premium', 'cv_boost', 'visa_fee'),
+    type: DataTypes.ENUM('premium', 'cv_boost', 'interview_fee', 'visa_fee'),
   },
   status: {
     type: DataTypes.ENUM('pending', 'completed', 'failed'),

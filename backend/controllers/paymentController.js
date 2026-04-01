@@ -3,7 +3,7 @@ const { Payment } = require('../models');
 
 const paymentSchema = Joi.object({
   amount: Joi.number().positive().required(),
-  service_type: Joi.string().valid('premium', 'cv_boost').required(),
+  service_type: Joi.string().valid('premium', 'cv_boost', 'interview_fee', 'visa_fee').required(),
 });
 
 const initiatePayment = async (req, res) => {
