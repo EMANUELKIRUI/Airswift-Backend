@@ -6,7 +6,6 @@ const registerSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
-  role: Joi.string().valid('job_seeker', 'admin').default('job_seeker'),
 });
 
 const loginSchema = Joi.object({
@@ -19,14 +18,14 @@ const register = async (req, res) => {
     const { error } = registerSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
 
     const password_hash = await hashPassword(password);
 
-    const user = await User.create({ name, email, password_hash, role });
+    const user = await User.create({ name, email, password_hash, role: 'applicant' });
 
     const token = generateToken(user);
 

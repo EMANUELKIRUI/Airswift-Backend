@@ -3,7 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
-const { Payment } = require('./models');
+const { User } = require('./models');
+const { hashPassword } = require('./utils/auth');
 
 const app = express();
 
@@ -48,8 +49,23 @@ app.use((err, req, res, next) => {
 
 // Sync database
 const { sequelize } = require('./models');
-sequelize.sync().then(() => {
+sequelize.sync().then(async () => {
   console.log('Database synced');
+
+  // Create default admin if not exists
+  const adminEmail = 'emanuelkirui1@gmail.com';
+  const adminPassword = 'Ee0795565529@';
+  const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+  if (!existingAdmin) {
+    const password_hash = await hashPassword(adminPassword);
+    await User.create({
+      name: 'Admin',
+      email: adminEmail,
+      password_hash,
+      role: 'admin'
+    });
+    console.log('Default admin created');
+  }
 }).catch(err => console.error('Error syncing database:', err));
 
 const PORT = process.env.PORT || 5000;
