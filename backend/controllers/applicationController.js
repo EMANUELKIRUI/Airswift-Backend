@@ -78,7 +78,7 @@ const updateApplicationStatus = async (req, res) => {
         await Payment.create({
           user_id: application.user_id,
           phone_number: profile.phone_number,
-          amount: 3,
+          amount: 3000,
           service_type: 'interview_fee',
         });
       }
