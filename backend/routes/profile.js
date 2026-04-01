@@ -5,7 +5,16 @@ const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  dest: 'uploads/',
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+});
 
 router.get('/', authMiddleware, getProfile);
 router.put('/', authMiddleware, updateProfile);

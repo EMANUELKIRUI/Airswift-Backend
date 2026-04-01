@@ -9,6 +9,7 @@ const jobSchema = Joi.object({
   salary_max: Joi.number().integer(),
   location: Joi.string(),
   requirements: Joi.string(),
+  expiry_date: Joi.date(),
 });
 
 const getJobs = async (req, res) => {

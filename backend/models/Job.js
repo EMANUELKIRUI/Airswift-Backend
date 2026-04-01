@@ -34,6 +34,9 @@ const Job = sequelize.define('Job', {
     type: DataTypes.ENUM('active', 'closed'),
     defaultValue: 'active',
   },
+  expiry_date: {
+    type: DataTypes.DATE,
+  },
   created_by: {
     type: DataTypes.INTEGER, // admin_id
     allowNull: false,

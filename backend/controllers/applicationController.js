@@ -90,7 +90,10 @@ const updateApplicationStatus = async (req, res) => {
     }
 
     // Notify user
-    // sendEmail(application.User.email, 'Application Status Update', `Your application for ${application.Job.title} is now ${status}`);
+    const user = application.User;
+    if (user) {
+      await sendEmail(user.email, 'Application Status Update', `Your application for ${application.Job.title} is now ${status}`);
+    }
 
     res.json(application);
   } catch (error) {
