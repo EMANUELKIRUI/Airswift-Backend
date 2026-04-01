@@ -15,6 +15,9 @@ const Payment = sequelize.define('Payment', {
       key: 'id',
     },
   },
+  phone_number: {
+    type: DataTypes.STRING,
+  },
   amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,

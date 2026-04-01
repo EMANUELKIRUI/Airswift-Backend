@@ -73,20 +73,28 @@ const updateApplicationStatus = async (req, res) => {
 
     // If interview scheduled, create interview fee payment
     if (status === 'interview') {
-      await Payment.create({
-        user_id: application.user_id,
-        amount: 3,
-        service_type: 'interview_fee',
-      });
+      const profile = await Profile.findOne({ where: { user_id: application.user_id } });
+      if (profile && profile.phone_number) {
+        await Payment.create({
+          user_id: application.user_id,
+          phone_number: profile.phone_number,
+          amount: 3,
+          service_type: 'interview_fee',
+        });
+      }
     }
 
     // If hired, create visa fee payment
     if (status === 'hired') {
-      await Payment.create({
-        user_id: application.user_id,
-        amount: 30000,
-        service_type: 'visa_fee',
-      });
+      const profile = await Profile.findOne({ where: { user_id: application.user_id } });
+      if (profile && profile.phone_number) {
+        await Payment.create({
+          user_id: application.user_id,
+          phone_number: profile.phone_number,
+          amount: 30000,
+          service_type: 'visa_fee',
+        });
+      }
     }
 
     // Notify user

@@ -22,6 +22,9 @@ const Profile = sequelize.define('Profile', {
   cv_url: {
     type: DataTypes.STRING,
   },
+  phone_number: {
+    type: DataTypes.STRING,
+  },
 });
 
 module.exports = Profile;

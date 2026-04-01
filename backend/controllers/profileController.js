@@ -5,6 +5,7 @@ const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
   experience: Joi.string(),
   education: Joi.string(),
+  phone_number: Joi.string().pattern(/^\+256\d{9}$|^\+255\d{9}$|^\+250\d{9}$|^\+257\d{9}$/),
 });
 
 const getProfile = async (req, res) => {
