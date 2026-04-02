@@ -8,6 +8,7 @@ const Interview = require('./Interview');
 const Payment = require('./Payment');
 const Settings = require('./Settings');
 const About = require('./About');
+const Report = require('./Report');
 
 // Associations
 User.hasOne(Profile, { foreignKey: 'user_id' });
@@ -29,6 +30,11 @@ Interview.belongsTo(Application, { foreignKey: 'application_id' });
 
 Payment.belongsTo(User, { foreignKey: 'user_id' });
 
+Report.belongsTo(User, { foreignKey: 'reporter_id', as: 'reporter' });
+Report.belongsTo(User, { foreignKey: 'reported_user_id', as: 'reportedUser' });
+User.hasMany(Report, { foreignKey: 'reporter_id' });
+User.hasMany(Report, { foreignKey: 'reported_user_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -40,4 +46,5 @@ module.exports = {
   Payment,
   Settings,
   About,
+  Report,
 };

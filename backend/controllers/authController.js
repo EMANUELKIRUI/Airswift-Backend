@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { User } = require('../models');
+const { User, Report } = require('../models');
 const { hashPassword, comparePassword, generateToken } = require('../utils/auth');
 
 const registerSchema = Joi.object({
@@ -43,10 +43,26 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!user) {
+      await Report.create({
+        reporter_id: null,
+        reported_user_id: null,
+        type: 'login_issue',
+        description: `Failed login for non-existent user ${email}`,
+      });
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
 
     const isMatch = await comparePassword(password, user.password_hash);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+    if (!isMatch) {
+      await Report.create({
+        reporter_id: user.id,
+        reported_user_id: user.id,
+        type: 'login_issue',
+        description: `Failed login attempt for user ${email}`,
+      });
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
 
     const token = generateToken(user);
 
