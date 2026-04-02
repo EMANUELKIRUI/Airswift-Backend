@@ -8,6 +8,9 @@ const { hashPassword } = require('./utils/auth');
 
 const app = express();
 
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet());
 app.use(cors());
@@ -20,6 +23,11 @@ const limiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: "API is running" });
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
