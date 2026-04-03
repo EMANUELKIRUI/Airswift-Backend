@@ -31,8 +31,21 @@ const registerUser = async (req, res) => {
     // Send OTP email
     await sendEmail(email, "Verify your email", otpTemplate(otp));
 
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, email: user.email, name: user.name },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES }
+    );
+
     res.status(201).json({
-      message: "User registered. OTP sent to email.",
+      message: "User registered successfully",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
