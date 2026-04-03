@@ -17,7 +17,7 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 - **PostgreSQL** with Sequelize ORM
 - **JWT** for authentication
 - **Multer** for file uploads
-- **Nodemailer** for emails
+- **Brevo** for emails
 - **Redis** for background jobs (planned)
 
 ## Setup
@@ -32,10 +32,11 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 ## Environment Variables
 
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
-- `JWT_SECRET`
+- `JWT_SECRET` (e.g. `supersecretkey123`)
+- `JWT_EXPIRES` (e.g. `7d`)
 - `EMAIL_USER`, `EMAIL_PASS`
-- `SENDINBLUE_API_KEY` (e.g. `your_sendinblue_api_key_here`)
-- `SENDINBLUE_SMTP_USER` (optional, default `apikey`)
+- `BREVO_API_KEY` (e.g. `xkeysib-...`)
+- `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY`
 - `PORT`
 
 ## Default Admin Credentials
@@ -48,8 +49,13 @@ A default admin user is created on startup if it does not already exist:
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- `POST /api/auth/register` - Register new user (sends OTP)
+- `POST /api/auth/verify-otp` - Verify email with OTP
+- `POST /api/auth/login` - Login user (returns JWT token)
+- `POST /api/auth/resend-otp` - Resend OTP
+- `GET /api/auth/dashboard` - Protected route example (requires JWT token)
+
+**Authentication**: Include JWT token in Authorization header: `Bearer <token>`
 
 ### Profile
 - `GET /api/profile`

@@ -10,7 +10,7 @@ const {
   markInterviewAttended,
   uploadApplicantDocs,
 } = require('../controllers/applicationController');
-const authMiddleware = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
 const upload = multer({
@@ -28,15 +28,15 @@ const upload = multer({
 const router = express.Router();
 
 // User routes
-router.post('/apply', authMiddleware, applyForJob);
-router.get('/my', authMiddleware, getMyApplications);
-router.post('/upload-documents', authMiddleware, upload.fields([
+router.post('/apply', verifyToken, applyForJob);
+router.get('/my', verifyToken, getMyApplications);
+router.post('/upload-documents', verifyToken, upload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'national_id', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
   { name: 'certificate', maxCount: 5 },
 ]), uploadApplicantDocs);
-router.post('/:id/attend-interview', authMiddleware, markInterviewAttended);
+router.post('/:id/attend-interview', verifyToken, markInterviewAttended);
 
 // Admin routes
 router.get('/admin/all', adminMiddleware, getAllApplicationsAdmin);

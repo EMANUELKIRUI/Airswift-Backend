@@ -14,10 +14,14 @@ const applySchema = Joi.object({
 
 const applyForJob = async (req, res) => {
   try {
+    const { job_id, cover_letter } = req.body;
+
+    if (!job_id) {
+      return res.status(400).json({ message: 'Please select a job' });
+    }
+
     const { error } = applySchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
-
-    const { job_id, cover_letter } = req.body;
 
     // Check if job exists and is active
     const job = await Job.findByPk(job_id);

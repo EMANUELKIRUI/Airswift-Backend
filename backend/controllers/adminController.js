@@ -94,10 +94,79 @@ const deleteSetting = async (req, res) => {
   }
 };
 
+const { Application, Job, User } = require('../models');
+const { sendEmail } = require('../services/emailService');
+
+const getAllApplications = async (req, res) => {
+  try {
+    const applications = await Application.findAll({
+      order: [['created_at', 'DESC']],
+      include: [
+        { model: Job, attributes: ['id', 'title', 'location'] },
+        { model: User, attributes: ['id', 'name', 'email', 'role'] },
+      ],
+    });
+
+    res.json(applications);
+  } catch (error) {
+    console.error('getAllApplications error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const valid = ['shortlisted', 'rejected'];
+
+    if (!valid.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Use shortlisted or rejected.' });
+    }
+
+    const app = await Application.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ message: 'Application not found' });
+
+    app.status = status;
+    await app.save();
+
+    res.json({ message: `Application ${status}` });
+  } catch (error) {
+    console.error('updateStatus error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const sendInterview = async (req, res) => {
+  try {
+    const { email, name, meetLink, date } = req.body;
+    if (!email || !name || !meetLink || !date) {
+      return res.status(400).json({ message: 'email, name, meetLink, and date are required' });
+    }
+
+    const html = `
+      <h2>Interview Invitation</h2>
+      <p>Hello ${name},</p>
+      <p>You have been shortlisted.</p>
+      <p><b>Date:</b> ${date}</p>
+      <p><a href="${meetLink}">Join Interview</a></p>
+    `;
+
+    await sendEmail(email, 'Interview Invitation', html);
+
+    res.json({ message: 'Interview email sent' });
+  } catch (error) {
+    console.error('sendInterview error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllSettings,
   getSettingByKey,
   createSetting,
   updateSetting,
   deleteSetting,
+  getAllApplications,
+  updateStatus,
+  sendInterview,
 };

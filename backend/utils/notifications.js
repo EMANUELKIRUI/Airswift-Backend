@@ -1,114 +1,13 @@
-const https = require('https');
+const { sendEmail: sendBrevoEmail } = require('../services/emailService');
 
 const sendEmail = async (to, subject, text) => {
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-
-  if (!serviceId || !templateId || !publicKey) {
-    throw new Error('EmailJS configuration missing');
-  }
-
-  const data = JSON.stringify({
-    service_id: serviceId,
-    template_id: templateId,
-    user_id: publicKey,
-    template_params: {
-      to_email: to,
-      subject: subject,
-      message: text,
-    },
-  });
-
-  const options = {
-    hostname: 'api.emailjs.com',
-    port: 443,
-    path: '/api/v1.0/email/send',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': data.length,
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          resolve();
-        } else {
-          reject(new Error(`EmailJS error: ${res.statusCode} ${body}`));
-        }
-      });
-    });
-
-    req.on('error', (e) => {
-      reject(e);
-    });
-
-    req.write(data);
-    req.end();
-  });
+  return sendBrevoEmail(to, subject, `<p>${text.replace(/\n/g, '<br>')}</p>`);
 };
 
 // OTP email function
 const sendOTPEmail = async (to_email, otp) => {
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-
-  if (!serviceId || !templateId || !publicKey) {
-    throw new Error('EmailJS configuration missing');
-  }
-
-  const data = JSON.stringify({
-    service_id: serviceId,
-    template_id: templateId,
-    user_id: publicKey,
-    template_params: {
-      to_email: to_email,
-      otp: otp,
-      from_name: "AIRSWIFT",
-    },
-  });
-
-  const options = {
-    hostname: 'api.emailjs.com',
-    port: 443,
-    path: '/api/v1.0/email/send',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': data.length,
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          resolve();
-        } else {
-          reject(new Error(`EmailJS error: ${res.statusCode} ${body}`));
-        }
-      });
-    });
-
-    req.on('error', (e) => {
-      reject(e);
-    });
-
-    req.write(data);
-    req.end();
-  });
+  const html = `<html><head></head><body><p>Your OTP code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p></body></html>`;
+  return sendBrevoEmail(to_email, 'Your OTP Code', html);
 };
 
 // Example OTP generator

@@ -54,9 +54,17 @@ const getJobs = async (req, res) => {
     const jobs = await Job.findAll({
       where,
       order,
-      include: [{ model: JobCategory, as: 'category', attributes: ['id', 'name'] }],
+      attributes: ['id', 'title', 'location'],
     });
-    res.json(jobs);
+
+    // Map output to _id for frontend compatibility
+    const formattedJobs = jobs.map((job) => ({
+      _id: job.id.toString(),
+      title: job.title,
+      location: job.location,
+    }));
+
+    res.json(formattedJobs);
   } catch (error) {
     console.error('getJobs error:', error);
     res.status(500).json({ message: 'Server error' });

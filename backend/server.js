@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
@@ -39,9 +38,8 @@ app.use("/api/auth/login", loginLimiter);
 
 // routes
 app.use("/api/auth", require("./routes/auth"));
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.log(err));
+app.use("/api/jobs", require("./routes/jobs"));
+app.use("/api/applications", require("./routes/applications"));
+app.use("/api/admin", require("./routes/admin"));
 
 app.listen(5000, () => console.log("Server running on port 5000"));
