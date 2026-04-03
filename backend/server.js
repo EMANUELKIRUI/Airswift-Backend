@@ -7,14 +7,10 @@ require("dotenv").config();
 const app = express();
 
 app.use(cookieParser());
-// CORS configuration - flexible for development and production
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://airswift-frontend.vercel.app']
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true
-};
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: "https://airswift-frontend.vercel.app",
+  credentials: true,
+}));
 app.use(express.json());
 
 // Root route
