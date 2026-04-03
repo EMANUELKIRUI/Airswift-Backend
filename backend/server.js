@@ -8,7 +8,7 @@ const app = express();
 
 app.use(cookieParser());
 app.use(cors({
-  origin: "https://airswift-frontend-p6il5gtt0-emanuelkirui973-3799s-projects.vercel.app",
+  origin: "https://airswift-frontend.vercel.app",
   credentials: true
 }));
 app.use(express.json());

@@ -4,7 +4,7 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 
 ## 🚀 Deployment
 
-**Frontend:** `https://airswift-frontend-p6il5gtt0-emanuelkirui973-3799s-projects.vercel.app/`  
+**Frontend:** `https://airswift-frontend.vercel.app/`  
 **Backend API:** `https://airswift-backend-fjt3.onrender.com`
 
 ## Features
