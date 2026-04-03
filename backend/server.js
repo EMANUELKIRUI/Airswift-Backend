@@ -4,6 +4,10 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
+// Initialize Firebase
+const { initializeFirebase } = require("./config/firebase");
+initializeFirebase();
+
 const app = express();
 
 app.use(cookieParser());
@@ -38,6 +42,7 @@ app.use("/api/auth/login", loginLimiter);
 
 // routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/firebase-auth", require("./routes/firebaseAuth"));
 app.use("/api/jobs", require("./routes/jobs"));
 app.use("/api/applications", require("./routes/applications"));
 app.use("/api/admin", require("./routes/admin"));

@@ -46,6 +46,19 @@ const User = sequelize.define('User', {
   resetTokenExpire: {
     type: DataTypes.DATE,
   },
+  firebaseUid: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: true,
+  },
+  authProvider: {
+    type: DataTypes.STRING,
+    defaultValue: 'local', // 'local' or 'firebase'
+  },
+  profilePicture: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
