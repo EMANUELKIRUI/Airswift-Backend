@@ -8,7 +8,10 @@ const app = express();
 
 app.use(cookieParser());
 app.use(cors({
-  origin: "https://airswift-frontend.vercel.app",
+  origin: [
+    "http://localhost:3000",
+    "https://airswift-frontend.vercel.app"
+  ],
   credentials: true,
 }));
 app.use(express.json());
