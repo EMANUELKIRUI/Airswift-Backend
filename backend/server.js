@@ -4,17 +4,17 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
-// Initialize Firebase
-const { initializeFirebase } = require("./config/firebase");
-initializeFirebase();
-
 const app = express();
 
 app.use(cookieParser());
-app.use(cors({
-  origin: "https://airswift-frontend.vercel.app",
+// CORS configuration - flexible for development and production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://airswift-frontend.vercel.app']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true
-}));
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Root route
@@ -42,7 +42,8 @@ app.use("/api/auth/login", loginLimiter);
 
 // routes
 app.use("/api/auth", require("./routes/auth"));
-app.use("/api/firebase-auth", require("./routes/firebaseAuth"));
+app.use("/api/auth/google", require("./routes/googleAuth"));
+app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/jobs", require("./routes/jobs"));
 app.use("/api/applications", require("./routes/applications"));
 app.use("/api/admin", require("./routes/admin"));

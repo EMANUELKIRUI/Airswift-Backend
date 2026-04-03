@@ -42,6 +42,10 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 - `EMAIL_USER`, `EMAIL_PASS`
 - `BREVO_API_KEY` (e.g. `xkeysib-...`)
 - `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI` (e.g. `https://airswift-frontend.vercel.app/auth/google/callback`)
+- `FRONTEND_URL` (e.g. `https://airswift-frontend.vercel.app`)
 - `PORT`
 
 ## Default Admin Credentials
@@ -59,6 +63,11 @@ A default admin user is created on startup if it does not already exist:
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/login` - Login user (returns JWT token)
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP
 - `GET https://airswift-backend-fjt3.onrender.com/api/auth/dashboard` - Protected route example (requires JWT token)
+
+### Google OAuth (new)
+- `GET https://airswift-backend-fjt3.onrender.com/api/auth/google/url` - Get Google authorization URL
+- `GET https://airswift-backend-fjt3.onrender.com/api/auth/google/callback` - Redirect URI for Google OAuth code flow
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/google/verify-id-token` - Verify Google ID token and issue JWT
 
 **Authentication**: Include JWT token in Authorization header: `Bearer <token>`
 
