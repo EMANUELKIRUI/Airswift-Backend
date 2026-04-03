@@ -2,6 +2,10 @@
 
 A centralized job portal backend where admins manage jobs and users apply for Canada-based positions.
 
+## 🚀 Deployment
+
+**Live API:** `https://airswift-backend-fjt3.onrender.com`
+
 ## Features
 
 - **Admin-controlled job postings** for Canada immigration jobs
@@ -49,39 +53,39 @@ A default admin user is created on startup if it does not already exist:
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/register` - Register new user (sends OTP)
-- `POST /api/auth/verify-otp` - Verify email with OTP
-- `POST /api/auth/login` - Login user (returns JWT token)
-- `POST /api/auth/resend-otp` - Resend OTP
-- `GET /api/auth/dashboard` - Protected route example (requires JWT token)
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/register` - Register new user (sends OTP)
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/verify-otp` - Verify email with OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/login` - Login user (returns JWT token)
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP
+- `GET https://airswift-backend-fjt3.onrender.com/api/auth/dashboard` - Protected route example (requires JWT token)
 
 **Authentication**: Include JWT token in Authorization header: `Bearer <token>`
 
 ### Profile
-- `GET /api/profile`
-- `PUT /api/profile`
-- `POST /api/profile/upload-cv`
+- `GET https://airswift-backend-fjt3.onrender.com/api/profile`
+- `PUT https://airswift-backend-fjt3.onrender.com/api/profile`
+- `POST https://airswift-backend-fjt3.onrender.com/api/profile/upload-cv`
 
 ### Jobs
-- `GET /api/jobs`
-- `GET /api/jobs/:id`
-- `POST /api/admin/jobs` (admin)
-- `PUT /api/admin/jobs/:id` (admin)
-- `DELETE /api/admin/jobs/:id` (admin)
+- `GET https://airswift-backend-fjt3.onrender.com/api/jobs`
+- `GET https://airswift-backend-fjt3.onrender.com/api/jobs/:id`
+- `POST https://airswift-backend-fjt3.onrender.com/api/admin/jobs` (admin)
+- `PUT https://airswift-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
+- `DELETE https://airswift-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
 
 ### Applications
-- `POST /api/applications/apply`
-- `GET /api/applications/my`
-- `GET /api/admin/applications` (admin)
-- `PUT /api/admin/applications/:id/status` (admin)
+- `POST https://airswift-backend-fjt3.onrender.com/api/applications/apply`
+- `GET https://airswift-backend-fjt3.onrender.com/api/applications/my`
+- `GET https://airswift-backend-fjt3.onrender.com/api/admin/applications` (admin)
+- `PUT https://airswift-backend-fjt3.onrender.com/api/admin/applications/:id/status` (admin)
 
 ### Interviews
-- `POST /api/admin/interviews/schedule` (admin)
-- `GET /api/interviews/my`
+- `POST https://airswift-backend-fjt3.onrender.com/api/admin/interviews/schedule` (admin)
+- `GET https://airswift-backend-fjt3.onrender.com/api/interviews/my`
 
 ### Payments
-- `POST /api/payment/initiate`
-- `POST /api/payment/verify`
+- `POST https://airswift-backend-fjt3.onrender.com/api/payment/initiate`
+- `POST https://airswift-backend-fjt3.onrender.com/api/payment/verify`
 
 ## Workflows
 
