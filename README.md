@@ -34,6 +34,8 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - `JWT_SECRET`
 - `EMAIL_USER`, `EMAIL_PASS`
+- `SENDINBLUE_API_KEY` (e.g. `your_sendinblue_api_key_here`)
+- `SENDINBLUE_SMTP_USER` (optional, default `apikey`)
 - `PORT`
 
 ## Default Admin Credentials

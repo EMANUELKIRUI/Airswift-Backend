@@ -1,75 +1,47 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
-const { User } = require('./models');
-const { hashPassword } = require('./utils/auth');
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const rateLimit = require("express-rate-limit");
+const cookieParser = require("cookie-parser");
+require("dotenv").config();
 
 const app = express();
 
-// Trust proxy for rate limiting
-app.set('trust proxy', 1);
-
-// Middleware
-app.use(helmet());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+  origin: "http://localhost:3000",
+  credentials: true
+}));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ message: "API is running" });
+  res.json({ message: "Airswift Backend API is running" });
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/profile', require('./routes/profile'));
-app.use('/api/jobs', require('./routes/jobs'));
-app.use('/api/applications', require('./routes/applications'));
-app.use('/api/interviews', require('./routes/interviews'));
-app.use('/api/payment', require('./routes/payment'));
-app.use('/api/about', require('./routes/about'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/reports', require('./routes/reports'));
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 100, // limit requests
+  message: "Too many requests, try again later"
 });
 
-// Sync database
-const { sequelize } = require('./models');
-sequelize.sync().then(async () => {
-  console.log('Database synced');
+app.use(limiter);
 
-  // Create default admin if not exists
-  const adminEmail = 'emanuelkirui1@gmail.com';
-  const adminPassword = 'Ee0795565529@';
-  const existingAdmin = await User.findOne({ where: { email: adminEmail } });
-  if (!existingAdmin) {
-    const password_hash = await hashPassword(adminPassword);
-    await User.create({
-      name: 'Admin',
-      email: adminEmail,
-      password_hash,
-      role: 'admin'
-    });
-    console.log('Default admin created');
-  }
-}).catch(err => console.error('Error syncing database:', err));
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Specific limiter for login
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Too many login attempts, try again later"
 });
 
-module.exports = app;
+app.use("/api/auth/login", loginLimiter);
+
+// routes
+app.use("/api/auth", require("./routes/auth"));
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log(err));
+
+app.listen(5000, () => console.log("Server running on port 5000"));

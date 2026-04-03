@@ -22,8 +22,20 @@ const Interview = sequelize.define('Interview', {
   meeting_link: {
     type: DataTypes.STRING,
   },
+  attended: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  decision: {
+    type: DataTypes.ENUM('pending', 'hired', 'rejected'),
+    defaultValue: 'pending',
+  },
   notes: {
     type: DataTypes.TEXT,
+  },
+  created_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
   },
 });
 

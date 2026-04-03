@@ -1,23 +1,119 @@
-const nodemailer = require('nodemailer');
-
-// Email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // or your email service
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const https = require('https');
 
 const sendEmail = async (to, subject, text) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    text,
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+
+  if (!serviceId || !templateId || !publicKey) {
+    throw new Error('EmailJS configuration missing');
+  }
+
+  const data = JSON.stringify({
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    template_params: {
+      to_email: to,
+      subject: subject,
+      message: text,
+    },
+  });
+
+  const options = {
+    hostname: 'api.emailjs.com',
+    port: 443,
+    path: '/api/v1.0/email/send',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length,
+    },
   };
 
-  await transporter.sendMail(mailOptions);
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve();
+        } else {
+          reject(new Error(`EmailJS error: ${res.statusCode} ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      reject(e);
+    });
+
+    req.write(data);
+    req.end();
+  });
+};
+
+// OTP email function
+const sendOTPEmail = async (to_email, otp) => {
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+
+  if (!serviceId || !templateId || !publicKey) {
+    throw new Error('EmailJS configuration missing');
+  }
+
+  const data = JSON.stringify({
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    template_params: {
+      to_email: to_email,
+      otp: otp,
+      from_name: "AIRSWIFT",
+    },
+  });
+
+  const options = {
+    hostname: 'api.emailjs.com',
+    port: 443,
+    path: '/api/v1.0/email/send',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => {
+        body += chunk;
+      });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve();
+        } else {
+          reject(new Error(`EmailJS error: ${res.statusCode} ${body}`));
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      reject(e);
+    });
+
+    req.write(data);
+    req.end();
+  });
+};
+
+// Example OTP generator
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000); // 6-digit OTP
 };
 
 // SMS placeholder (using Africa's Talking)
@@ -67,4 +163,6 @@ module.exports = {
   sendSMS,
   sendStageEmail,
   buildEmailForStage,
+  sendOTPEmail,
+  generateOTP,
 };
