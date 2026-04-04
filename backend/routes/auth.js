@@ -20,9 +20,10 @@ router.post("/logout", logout);
 
 // Health-check/test route
 router.get("/me", (req, res) => {
+  // later you can use JWT to get real user
   res.json({
-    user: "test user",
-    status: "ok"
+    user: null,
+    message: "Auth route working"
   });
 });
 
