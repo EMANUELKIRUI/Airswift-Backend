@@ -10,27 +10,31 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+
     const existingUser = await User.findOne({ where: { email } });
+
     if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
+      return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = generateOTP();
-
     const user = await User.create({
       name,
       email,
-      password: hashedPassword,
-      otp,
-      otpExpires: Date.now() + 10 * 60 * 1000, // 10 min
+      password: hashedPassword
     });
 
-    await sendEmail(email, "Your OTP Code", `<p>Your OTP is <strong>${otp}</strong></p>`);
+    return res.status(201).json({ user });
 
-    res.json({ message: "OTP sent to email", user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("REGISTER ERROR:", err);
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
   }
 };
 
