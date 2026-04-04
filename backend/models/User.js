@@ -57,6 +57,9 @@ const User = sequelize.define('User', {
   firebaseUid: {
     type: DataTypes.STRING,
   },
+  googleId: {
+    type: DataTypes.STRING,
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,

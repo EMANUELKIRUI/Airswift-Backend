@@ -90,7 +90,10 @@ const loginUser = async (req, res) => {
     sameSite: "None",
   });
 
-  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  res.json({
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    accessToken,
+  });
 };
 
 const forgotPassword = async (req, res) => {

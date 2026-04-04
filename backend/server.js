@@ -7,6 +7,10 @@ const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
 const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./utils/voiceInterview");
 const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const User = require("./models/User");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
@@ -18,6 +22,33 @@ const io = socketIo(server, {
     credentials: true,
   },
 });
+
+// Passport Google Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: "/api/auth/google/callback"
+},
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    const email = profile.emails[0].value;
+
+    let user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      user = await User.create({
+        name: profile.displayName,
+        email,
+        password: null,
+        googleId: profile.id
+      });
+    }
+
+    return done(null, user);
+  } catch (err) {
+    return done(err, null);
+  }
+}));
 
 // Socket.io for WebRTC video interviews
 const interviewRooms = new Map();
@@ -260,6 +291,7 @@ app.use(cors({
   origin: "https://airswift-frontend.vercel.app",
   credentials: true
 }));
+app.use(passport.initialize());
 app.use(express.json());
 
 // Root route

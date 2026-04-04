@@ -1,4 +1,5 @@
 const router = require("express").Router();
+const passport = require("passport");
 const {
   registerUser,
   verifyOTP,
@@ -17,6 +18,26 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);
+
+// Google OAuth routes
+router.get("/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"]
+  })
+);
+
+router.get("/google/callback",
+  passport.authenticate("google", { session: false }),
+  (req, res) => {
+    const token = jwt.sign(
+      { id: req.user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.redirect(`${process.env.FRONTEND_URL}?token=${token}`);
+  }
+);
 
 const jwt = require('jsonwebtoken');
 
