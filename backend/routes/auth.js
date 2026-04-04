@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const passport = require("passport");
+const jwt = require('jsonwebtoken');
 const {
   registerUser,
   verifyOTP,
@@ -27,19 +28,23 @@ router.get("/google",
 );
 
 router.get("/google/callback",
-  passport.authenticate("google", { session: false }),
+  passport.authenticate("google", {
+    failureRedirect: "/login-failed",
+    session: false
+  }),
   (req, res) => {
-    console.log("🔥 CALLBACK HIT");
-    console.log("USER:", req.user);
-
     try {
+      if (!req.user) {
+        return res.status(400).json({
+          message: "No user returned from Google"
+        });
+      }
+
       const token = jwt.sign(
         { id: req.user.id },
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
-
-      console.log("TOKEN CREATED");
 
       return res.redirect(
         `https://airswift-frontend.vercel.app?token=${token}`
@@ -55,8 +60,6 @@ router.get("/google/callback",
     }
   }
 );
-
-const jwt = require('jsonwebtoken');
 
 // Health-check/test route
 router.get("/me", (req, res) => {
