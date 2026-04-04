@@ -59,6 +59,7 @@ const User = sequelize.define('User', {
   },
   googleId: {
     type: DataTypes.STRING,
+    allowNull: true
   },
   created_at: {
     type: DataTypes.DATE,

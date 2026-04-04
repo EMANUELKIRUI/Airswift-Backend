@@ -27,15 +27,30 @@ router.get("/google",
 );
 
 router.get("/google/callback",
-  passport.authenticate("google", { session: false }),
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: "/login-failed"
+  }),
   (req, res) => {
-    const token = jwt.sign(
-      { id: req.user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    try {
+      if (!req.user) {
+        return res.status(400).json({ message: "Google auth failed" });
+      }
 
-    res.redirect(`${process.env.FRONTEND_URL}?token=${token}`);
+      const token = jwt.sign(
+        { id: req.user.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.redirect(
+        `https://airswift-frontend.vercel.app?token=${token}`
+      );
+
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Server error in callback" });
+    }
   }
 );
 

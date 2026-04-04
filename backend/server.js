@@ -31,7 +31,9 @@ passport.use(new GoogleStrategy({
 },
 async (accessToken, refreshToken, profile, done) => {
   try {
-    const email = profile.emails[0].value;
+    const email = profile.emails?.[0]?.value;
+
+    if (!email) return done(new Error("No email from Google"), null);
 
     let user = await User.findOne({ where: { email } });
 
@@ -39,12 +41,12 @@ async (accessToken, refreshToken, profile, done) => {
       user = await User.create({
         name: profile.displayName,
         email,
-        password: null,
         googleId: profile.id
       });
     }
 
     return done(null, user);
+
   } catch (err) {
     return done(err, null);
   }
