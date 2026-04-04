@@ -18,13 +18,24 @@ router.post("/reset-password/:token", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);
 
+const jwt = require('jsonwebtoken');
+
 // Health-check/test route
 router.get("/me", (req, res) => {
-  // later you can use JWT to get real user
-  res.json({
-    user: null,
-    message: "Auth route working"
-  });
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ user: null });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    res.json({
+      user: { id: decoded.id, email: decoded.email }
+    });
+  } catch (err) {
+    return res.status(401).json({ user: null });
+  }
 });
 
 // Protected route example
