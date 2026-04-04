@@ -44,12 +44,14 @@ Return JSON format:
 }
 `;
 
-    const response = await getOpenAIClient().responses.create({
-      model: "gpt-4.1-mini",
-      input: prompt,
+    const response = await getOpenAIClient().chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 500,
+      temperature: 0.3,
     });
 
-    const content = response.output_text.trim();
+    const content = response.choices[0].message.content.trim();
     return JSON.parse(content);
   } catch (error) {
     console.error("Error analyzing CV:", error);

@@ -30,12 +30,14 @@ Questions should be:
 Return as JSON array of questions.
 `;
 
-    const response = await getOpenAIClient().responses.create({
-      model: "gpt-4.1-mini",
-      input: prompt,
+    const response = await getOpenAIClient().chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 800,
+      temperature: 0.7,
     });
 
-    const questions = JSON.parse(response.output_text.trim());
+    const questions = JSON.parse(response.choices[0].message.content.trim());
     return questions;
   } catch (error) {
     console.error('Error generating interview questions:', error);
@@ -68,12 +70,14 @@ Consider:
 Return only a number (1-10).
 `;
 
-    const response_score = await getOpenAIClient().responses.create({
-      model: "gpt-4.1-mini",
-      input: prompt,
+    const response_score = await getOpenAIClient().chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 10,
+      temperature: 0,
     });
 
-    const score = parseInt(response_score.output_text.trim());
+    const score = parseInt(response_score.choices[0].message.content.trim());
     return Math.max(1, Math.min(10, score)); // Ensure 1-10 range
   } catch (error) {
     console.error('Error scoring interview response:', error);
