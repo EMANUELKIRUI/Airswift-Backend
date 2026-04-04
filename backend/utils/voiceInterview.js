@@ -1,8 +1,17 @@
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai = null;
+
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    openai = new OpenAI({ apiKey });
+  }
+  return openai;
+}
 
 /**
  * Generate AI interview question or response
@@ -31,7 +40,7 @@ async function askAI(conversation, prompt) {
       }
     ];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4',
       messages: messages,
       max_tokens: 500,
@@ -65,7 +74,7 @@ async function analyzeVoiceResponse(transcript, conversation) {
       "notes": ""
     }`;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 250,
@@ -118,7 +127,7 @@ async function generateInterviewSummary(conversation, jobRole) {
 
     Format as JSON with keys: overallScore, strengths, improvements, recommendation, feedback`;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 600,

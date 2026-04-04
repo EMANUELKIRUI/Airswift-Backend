@@ -1,8 +1,17 @@
 const OpenAI = require('openai');
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let client = null;
+
+function getOpenAIClient() {
+  if (!client) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    client = new OpenAI({ apiKey });
+  }
+  return client;
+}
 
 const generateInterviewQuestions = async (jobTitle, jobDescription, candidateSkills = []) => {
   try {
@@ -21,7 +30,7 @@ Questions should be:
 Return as JSON array of questions.
 `;
 
-    const response = await client.responses.create({
+    const response = await getOpenAIClient().responses.create({
       model: "gpt-4.1-mini",
       input: prompt,
     });
@@ -59,7 +68,7 @@ Consider:
 Return only a number (1-10).
 `;
 
-    const response_score = await client.responses.create({
+    const response_score = await getOpenAIClient().responses.create({
       model: "gpt-4.1-mini",
       input: prompt,
     });

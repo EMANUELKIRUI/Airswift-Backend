@@ -1,8 +1,17 @@
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai = null;
+
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    openai = new OpenAI({ apiKey });
+  }
+  return openai;
+}
 
 function parseJSONResponse(rawText) {
   try {
@@ -25,7 +34,7 @@ const analyzeSpeech = async (req, res) => {
 
     const prompt = `Analyze this interview answer:\n\nText:\n${transcript}\n\nReturn JSON ONLY:\n{\n  "confidence_score": 0-100,\n  "filler_words_count": number,\n  "clarity_score": 0-100,\n  "communication_rating": "poor | average | good | excellent",\n  "notes": ""\n}`;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0,

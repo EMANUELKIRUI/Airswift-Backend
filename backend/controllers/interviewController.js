@@ -226,9 +226,18 @@ const scheduleInterview = async (req, res) => {
 
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai = null;
+
+function getOpenAIClient() {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    openai = new OpenAI({ apiKey });
+  }
+  return openai;
+}
 
 // AI Interview Bot - Interactive Q&A
 const askAIInterview = async (req, res) => {
@@ -246,7 +255,7 @@ const askAIInterview = async (req, res) => {
 
     const conversation = [systemMessage, ...messages];
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: "gpt-4",
       messages: conversation,
       max_tokens: 500,
@@ -295,7 +304,7 @@ Please analyze this CV and provide a detailed assessment in the following JSON f
 Be thorough and objective in your analysis. Consider technical skills, experience, education, and cultural fit.
 `;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 800,
@@ -373,7 +382,7 @@ Return ONLY valid JSON in this exact format:
 }
 `;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1000,
