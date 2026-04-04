@@ -9,5 +9,3 @@ router.post('/verify', authMiddleware, verifyPayment);
 router.post('/callback', paymentCallback);
 
 module.exports = router;
-
-module.exports = router;
