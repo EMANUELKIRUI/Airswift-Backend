@@ -30,6 +30,8 @@ passport.use(new GoogleStrategy({
   callbackURL: "https://airswift-backend-fjt3.onrender.com/api/auth/google/callback"
 },
 async (accessToken, refreshToken, profile, done) => {
+  console.log("Google profile:", profile);
+
   try {
     const email = profile.emails?.[0]?.value;
 

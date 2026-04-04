@@ -29,14 +29,20 @@ router.get("/google",
 router.get("/google/callback",
   passport.authenticate("google", {
     session: false,
-    failureRedirect: "/login-failed"
+    failureRedirect: "/auth-failed"
   }),
-  (req, res) => {
+  async (req, res) => {
     try {
+      console.log("req.user:", req.user);
+
       if (!req.user) {
         return res.status(400).json({
           message: "Google auth failed - no user returned"
         });
+      }
+
+      if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET missing in environment variables");
       }
 
       const token = jwt.sign(
@@ -50,7 +56,7 @@ router.get("/google/callback",
       );
 
     } catch (err) {
-      console.error("GOOGLE CALLBACK ERROR:", err);
+      console.error("🔥 GOOGLE CALLBACK ERROR:", err);
 
       return res.status(500).json({
         message: "Server error in callback",
