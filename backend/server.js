@@ -257,7 +257,10 @@ io.on("connection", (socket) => {
 
 app.use(cookieParser());
 app.use(cors({
-  origin: 'https://airswift-frontend.vercel.app',
+  origin: [
+    "https://airswift-frontend.vercel.app",
+    "http://localhost:3000"
+  ],
   credentials: true
 }));
 app.use(express.json());
