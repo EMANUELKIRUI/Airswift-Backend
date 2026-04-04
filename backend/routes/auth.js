@@ -34,7 +34,9 @@ router.get("/google/callback",
   (req, res) => {
     try {
       if (!req.user) {
-        return res.status(400).json({ message: "Google auth failed" });
+        return res.status(400).json({
+          message: "Google auth failed - no user returned"
+        });
       }
 
       const token = jwt.sign(
@@ -48,8 +50,12 @@ router.get("/google/callback",
       );
 
     } catch (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Server error in callback" });
+      console.error("GOOGLE CALLBACK ERROR:", err);
+
+      return res.status(500).json({
+        message: "Server error in callback",
+        error: err.message
+      });
     }
   }
 );
