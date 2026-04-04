@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
 const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./utils/voiceInterview");
+const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
 require("dotenv").config();
 
 const app = express();
@@ -83,7 +84,7 @@ io.on("connection", (socket) => {
 
       // Generate next question or continue conversation
       const nextPrompt = `Based on the candidate's response: "${transcript}"
-      Analysis: Content: ${analysis.contentScore}/10, Communication: ${analysis.communicationScore}/10, Technical: ${analysis.technicalScore}/10
+      Analysis: Confidence: ${analysis.confidence_score}/100, Clarity: ${analysis.clarity_score}/100, Rating: ${analysis.communication_rating}
 
       ${session.conversation.length > 6 ? 'This is getting towards the end of the interview. Ask a final question or wrap up.' : 'Continue with the next relevant question.'}`;
 
@@ -265,6 +266,10 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+// Speech analysis endpoint for real-time interview insights
+app.post('/api/analyze-speech', analyzeSpeech);
+app.post('/api/tts', streamElevenLabsTTS);
 
 // Rate limiting
 const limiter = rateLimit({

@@ -56,22 +56,36 @@ async function analyzeVoiceResponse(transcript, conversation) {
     const prompt = `Analyze this candidate response in the context of the interview: "${transcript}"
     Previous conversation: ${JSON.stringify(conversation.slice(-3))}
 
-    Provide a brief analysis of:
-    1. Content quality (1-10)
-    2. Communication skills (1-10)
-    3. Technical knowledge (1-10)
-    4. Next question suggestion
-
-    Format as JSON with keys: contentScore, communicationScore, technicalScore, nextQuestion`;
+    Return JSON ONLY:
+    {
+      "confidence_score": 0-100,
+      "filler_words_count": number,
+      "clarity_score": 0-100,
+      "communication_rating": "poor | average | good | excellent",
+      "notes": ""
+    }`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4.1-mini',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 300,
-      temperature: 0.3,
+      max_tokens: 250,
+      temperature: 0,
     });
 
-    const analysis = JSON.parse(response.choices[0].message.content);
+    const raw = response.choices[0].message.content;
+    let analysis;
+    try {
+      analysis = JSON.parse(raw);
+    } catch (parseError) {
+      const match = raw.match(/\{[\s\S]*\}/);
+      analysis = match ? JSON.parse(match[0]) : {
+        confidence_score: 50,
+        filler_words_count: 0,
+        clarity_score: 50,
+        communication_rating: 'average',
+        notes: 'Unable to parse analysis response.'
+      };
+    }
     return analysis;
   } catch (error) {
     console.error('Voice analysis error:', error);

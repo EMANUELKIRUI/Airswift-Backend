@@ -92,9 +92,14 @@
 
             <div class="response">
                 <h4>Your Response:</h4>
-                <textarea id="response-text" placeholder="Type your response here... (In real app, this would be speech-to-text)"></textarea>
+                <textarea id="response-text" placeholder="Type or record your answer here..."></textarea>
+                <div style="margin: 10px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                    <button id="recordBtn">Start Recording</button>
+                    <span id="recording-status" style="font-size: 14px; color: #555;">Microphone idle</span>
+                </div>
                 <button id="submit-response">Submit Response</button>
                 <button id="end-interview" style="background-color: #dc3545;">End Interview</button>
+                <audio id="tts-player" controls style="width: 100%; margin-top: 15px; display: none;"></audio>
             </div>
 
             <div id="analysis-container" style="display: none;">
@@ -113,6 +118,10 @@
         const socket = io('http://localhost:4000');
         let currentSessionId = null;
         let isInterviewActive = false;
+        let recordingActive = false;
+        let transcriptAudioBase64 = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
 
         const statusDiv = document.getElementById('status');
         const setupSection = document.getElementById('setup-section');
@@ -121,6 +130,105 @@
         const questionDiv = document.getElementById('current-question');
         const analysisDiv = document.getElementById('current-analysis');
         const analysisContainer = document.getElementById('analysis-container');
+        const recordingStatus = document.getElementById('recording-status');
+        const ttsPlayer = document.getElementById('tts-player');
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = true;
+            recognition.continuous = true;
+
+            recognition.addEventListener('result', (event) => {
+                const transcript = Array.from(event.results)
+                    .map((result) => result[0].transcript)
+                    .join(' ');
+                document.getElementById('response-text').value = transcript;
+            });
+
+            recognition.addEventListener('start', () => {
+                recordingStatus.textContent = 'Listening...';
+                recordingStatus.style.color = '#155724';
+            });
+
+            recognition.addEventListener('end', () => {
+                recordingStatus.textContent = 'Recording stopped';
+                recordingStatus.style.color = '#856404';
+                recordingActive = false;
+                document.getElementById('recordBtn').textContent = 'Start Recording';
+            });
+
+            recognition.addEventListener('error', (event) => {
+                console.error('Speech recognition error:', event.error);
+                recordingStatus.textContent = `Speech recognition error: ${event.error}`;
+                recordingStatus.style.color = '#721c24';
+                recordingActive = false;
+                document.getElementById('recordBtn').textContent = 'Start Recording';
+            });
+        }
+
+        async function initMicrophone() {
+            if (mediaRecorder) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.addEventListener('dataavailable', (event) => {
+                    if (event.data && event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                });
+
+                mediaRecorder.addEventListener('stop', async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        transcriptAudioBase64 = reader.result.split(',')[1];
+                    };
+                    reader.readAsDataURL(audioBlob);
+                });
+            } catch (error) {
+                console.error('Microphone init error:', error);
+                recordingStatus.textContent = 'Unable to access microphone';
+                recordingStatus.style.color = '#721c24';
+            }
+        }
+
+        async function toggleRecording() {
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                alert('Your browser does not support microphone recording.');
+                return;
+            }
+
+            await initMicrophone();
+
+            if (recordingActive) {
+                mediaRecorder.stop();
+                if (recognition) recognition.stop();
+                recordingActive = false;
+                document.getElementById('recordBtn').textContent = 'Start Recording';
+                recordingStatus.textContent = 'Processing audio...';
+            } else {
+                audioChunks = [];
+                transcriptAudioBase64 = null;
+                mediaRecorder.start();
+                if (recognition) recognition.start();
+                recordingActive = true;
+                document.getElementById('recordBtn').textContent = 'Stop Recording';
+            }
+        }
+
+        function playTtsAudio(audioBuffer) {
+            const blob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+            const url = URL.createObjectURL(blob);
+            ttsPlayer.src = url;
+            ttsPlayer.style.display = 'block';
+            ttsPlayer.play().catch((error) => console.warn('TTS playback error:', error));
+        }
 
         // Socket event listeners
         socket.on('connect', () => {
@@ -141,20 +249,35 @@
             interviewSection.style.display = 'block';
         });
 
-        socket.on('voice-response-processed', (data) => {
+        socket.on('voice-response-processed', async (data) => {
             questionDiv.textContent = data.nextQuestion;
 
             // Show analysis
             const analysis = data.analysis;
             analysisDiv.innerHTML = `
-                <strong>Content:</strong> ${analysis.contentScore}/10<br>
-                <strong>Communication:</strong> ${analysis.communicationScore}/10<br>
-                <strong>Technical:</strong> ${analysis.technicalScore}/10<br>
-                <strong>Next Question:</strong> ${analysis.nextQuestion}
+                <strong>Confidence:</strong> ${analysis.confidence_score}/100<br>
+                <strong>Filler words:</strong> ${analysis.filler_words_count}<br>
+                <strong>Clarity:</strong> ${analysis.clarity_score}/100<br>
+                <strong>Communication:</strong> ${analysis.communication_rating}<br>
+                <strong>Notes:</strong> ${analysis.notes || 'No notes provided.'}
             `;
             analysisContainer.style.display = 'block';
 
             updateStatus(`Response processed (${data.conversationLength} exchanges)`, 'active');
+
+            try {
+                const ttsResponse = await fetch('http://localhost:4000/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: data.nextQuestion })
+                });
+                if (ttsResponse.ok) {
+                    const arrayBuffer = await ttsResponse.arrayBuffer();
+                    playTtsAudio(arrayBuffer);
+                }
+            } catch (err) {
+                console.warn('Unable to play ElevenLabs TTS audio:', err);
+            }
         });
 
         socket.on('voice-interview-completed', (data) => {
@@ -185,6 +308,8 @@
         });
 
         // Button event listeners
+        document.getElementById('recordBtn').addEventListener('click', toggleRecording);
+
         document.getElementById('startBtn').addEventListener('click', () => {
             const jobRole = document.getElementById('jobRole').value.trim();
             const candidateName = document.getElementById('candidateName').value.trim();
@@ -213,7 +338,7 @@
             socket.emit('voice-response', {
                 sessionId: currentSessionId,
                 transcript: response,
-                audioData: null // In real implementation, send audio blob
+                audioData: transcriptAudioBase64
             });
 
             document.getElementById('response-text').value = '';
