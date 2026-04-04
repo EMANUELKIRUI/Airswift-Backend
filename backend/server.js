@@ -27,7 +27,7 @@ const io = socketIo(server, {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: "https://airswift-backend-pdk2.onrender.com/api/auth/google/callback"
+  callbackURL: "https://airswift-backend-fjt3.onrender.com/api/auth/google/callback"
 },
 async (accessToken, refreshToken, profile, done) => {
   try {
