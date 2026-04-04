@@ -15,23 +15,57 @@ const Interview = sequelize.define('Interview', {
       key: 'id',
     },
   },
-  scheduled_date: {
-    type: DataTypes.DATE,
-    allowNull: false,
+  interviewer_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Admin who conducts interview
+    references: {
+      model: 'Users',
+      key: 'id',
+    },
   },
-  meeting_link: {
+  room_id: {
     type: DataTypes.STRING,
+    allowNull: false, // Unique room identifier
   },
-  attended: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
+  type: {
+    type: DataTypes.ENUM('video', 'voice_ai'),
+    defaultValue: 'video',
   },
-  decision: {
-    type: DataTypes.ENUM('pending', 'hired', 'rejected'),
-    defaultValue: 'pending',
+  status: {
+    type: DataTypes.ENUM('scheduled', 'in_progress', 'completed', 'cancelled'),
+    defaultValue: 'scheduled',
+  },
+  scheduled_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  started_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  ended_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  ai_questions: {
+    type: DataTypes.JSON, // Array of AI-generated questions
+    allowNull: true,
+  },
+  ai_responses: {
+    type: DataTypes.JSON, // Candidate responses
+    allowNull: true,
+  },
+  ai_score: {
+    type: DataTypes.INTEGER, // AI-generated score 0-100
+    defaultValue: 0,
   },
   notes: {
     type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  recording_url: {
+    type: DataTypes.STRING, // If interview is recorded
+    allowNull: true,
   },
   created_at: {
     type: DataTypes.DATE,

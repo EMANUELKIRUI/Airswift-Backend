@@ -15,6 +15,66 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 - **Interview scheduling** and notifications
 - **Payment integration** for interview fees and visa processing
 - **Email notifications** for status updates
+- **AI-Powered CV Analysis** with automated skill extraction and job matching
+- **Real-time Video Interviews** with WebRTC and Socket.io
+- **AI Voice Interviewer** with conversational AI and speech analysis
+- **Role-Based Access Control** with admin/user isolation
+- **Audit Logging System** for compliance and security
+- **CV Encryption** with AES-256 for data protection
+- **Autonomous Recruiter AI** for bulk application processing
+
+## 🧠 AI Voice Interview System
+
+A real-time conversational AI interviewer that conducts voice-based job interviews with intelligent analysis.
+
+### Architecture
+```
+Frontend (Mic + Speaker)
+   ↓ WebSocket / Socket.io
+Backend (Node.js)
+   ↓
+OpenAI (text reasoning)
+   ↓
+AI Voice (Speech Synthesis / ElevenLabs optional)
+   ↓
+Stream back audio/text
+```
+
+### Socket.io Events
+
+#### Start Interview
+```javascript
+socket.emit('start-voice-interview', {
+  jobRole: 'Software Engineer',
+  candidateName: 'John Doe'
+});
+```
+
+#### Voice Response
+```javascript
+socket.emit('voice-response', {
+  sessionId: 'voice_xxx_123',
+  transcript: 'I have 5 years experience...',
+  audioData: audioBlob // Optional
+});
+```
+
+#### End Interview
+```javascript
+socket.emit('end-voice-interview', {
+  sessionId: 'voice_xxx_123'
+});
+```
+
+### Features
+- **Conversational AI**: Natural interview flow with context awareness
+- **Real-time Analysis**: Content, communication, and technical skill scoring
+- **Voice Synthesis Ready**: Framework for ElevenLabs integration
+- **Session Management**: Persistent interview sessions with cleanup
+- **Fallback Handling**: Graceful degradation when AI services unavailable
+
+### Demo
+Run the demo: `open voice-interview-demo.html` (requires server running on port 4000)
 
 ## Tech Stack
 
@@ -32,6 +92,8 @@ A centralized job portal backend where admins manage jobs and users apply for Ca
 3. Set up PostgreSQL database
 4. Configure environment variables in `.env`
 5. Run database sync: `npm start` (syncs on startup)
+
+
 6. Start server: `npm start`
 
 ## Environment Variables

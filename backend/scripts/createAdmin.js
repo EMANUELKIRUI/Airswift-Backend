@@ -58,6 +58,7 @@ const createAdmin = async () => {
     process.exit(0);
   } catch (error) {
     console.error("❌ Error creating admin account:", error.message);
+    console.error("Full error:", error);
     await sequelize.close();
     process.exit(1);
   }

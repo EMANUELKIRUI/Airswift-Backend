@@ -96,6 +96,10 @@ const deleteSetting = async (req, res) => {
 
 const { Application, Job, User } = require('../models');
 const { sendEmail } = require('../services/emailService');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const { logAuditEvent } = require('../utils/auditLogger');
 
 const getAllApplications = async (req, res) => {
   try {
@@ -107,7 +111,23 @@ const getAllApplications = async (req, res) => {
       ],
     });
 
-    res.json(applications);
+    // Format applications for frontend compatibility
+    const formattedApplications = applications.map(app => ({
+      _id: app.id, // Add _id for frontend compatibility
+      id: app.id,
+      status: app.status.charAt(0).toUpperCase() + app.status.slice(1), // Capitalize status
+      cover_letter: app.cover_letter,
+      cv: app.cv,
+      nationalId: app.nationalId,
+      passport: app.passport,
+      score: app.score,
+      skills: app.skills,
+      created_at: app.created_at,
+      Job: app.Job,
+      User: app.User,
+    }));
+
+    res.json(formattedApplications);
   } catch (error) {
     console.error('getAllApplications error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -117,45 +137,163 @@ const getAllApplications = async (req, res) => {
 const updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const valid = ['shortlisted', 'rejected'];
+    const valid = ['pending', 'shortlisted', 'interview', 'rejected', 'hired'];
 
-    if (!valid.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status. Use shortlisted or rejected.' });
+    // Convert to lowercase for validation
+    const normalizedStatus = status.toLowerCase();
+
+    if (!valid.includes(normalizedStatus)) {
+      return res.status(400).json({ message: 'Invalid status.' });
     }
 
     const app = await Application.findByPk(req.params.id);
     if (!app) return res.status(404).json({ message: 'Application not found' });
 
-    app.status = status;
+    const oldStatus = app.status;
+    app.status = normalizedStatus;
     await app.save();
 
-    res.json({ message: `Application ${status}` });
+    // Log audit event
+    await logAuditEvent(req.user.id, 'application_status_update', 'application', app.id, {
+      old_status: oldStatus,
+      new_status: normalizedStatus
+    }, req);
+
+    res.json(app);
   } catch (error) {
     console.error('updateStatus error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+const getStats = async (req, res) => {
+  try {
+    const users = await User.count();
+    const applications = await Application.count();
+    const jobs = await Job.count();
+
+    res.json({ users, applications, jobs });
+  } catch (error) {
+    console.error('getStats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 const sendInterview = async (req, res) => {
   try {
-    const { email, name, meetLink, date } = req.body;
-    if (!email || !name || !meetLink || !date) {
-      return res.status(400).json({ message: 'email, name, meetLink, and date are required' });
+    const application = await Application.findByPk(req.params.id, {
+      include: [{ model: User, attributes: ['name', 'email'] }],
+    });
+
+    if (!application) return res.status(404).json({ message: 'Application not found' });
+
+    const applicant = application.User;
+    if (!applicant || !applicant.email) {
+      return res.status(400).json({ message: 'Applicant email not available' });
     }
 
-    const html = `
-      <h2>Interview Invitation</h2>
-      <p>Hello ${name},</p>
-      <p>You have been shortlisted.</p>
-      <p><b>Date:</b> ${date}</p>
-      <p><a href="${meetLink}">Join Interview</a></p>
-    `;
+    await sendEmail(
+      applicant.email,
+      'Interview Invitation',
+      `<p>Hello ${applicant.name},</p><p>You have been selected for an interview.</p><p>We will be in touch with scheduling details shortly.</p>`
+    );
 
-    await sendEmail(email, 'Interview Invitation', html);
-
-    res.json({ message: 'Interview email sent' });
+    res.json({ message: 'Email sent' });
   } catch (error) {
     console.error('sendInterview error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const generateOffer = async (req, res) => {
+  try {
+    const { salary, startDate, jobTitle } = req.body;
+
+    const application = await Application.findByPk(req.params.id, {
+      include: [
+        { model: User, attributes: ['name', 'email'] },
+        { model: Job, attributes: ['title', 'location'] }
+      ],
+    });
+
+    if (!application) return res.status(404).json({ message: 'Application not found' });
+
+    const applicant = application.User;
+    const job = application.Job;
+
+    // Create PDF document
+    const doc = new PDFDocument();
+    const filename = `offer-letter-${applicant.name.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+    const filepath = path.join(__dirname, '../temp', filename);
+
+    // Ensure temp directory exists
+    if (!fs.existsSync(path.join(__dirname, '../temp'))) {
+      fs.mkdirSync(path.join(__dirname, '../temp'), { recursive: true });
+    }
+
+    const stream = fs.createWriteStream(filepath);
+    doc.pipe(stream);
+
+    // PDF Content
+    doc.fontSize(20).text('AIRSWIFT JOB OFFER LETTER', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString()}`, { align: 'right' });
+    doc.moveDown();
+
+    doc.text(`Dear ${applicant.name},`);
+    doc.moveDown();
+
+    doc.text('We are pleased to offer you the position of:');
+    doc.font('Helvetica-Bold').text(jobTitle || job.title);
+    doc.font('Helvetica');
+    doc.moveDown();
+
+    doc.text('Location: ' + (job.location || 'Remote'));
+    doc.text('Salary: $' + (salary || 'TBD'));
+    doc.text('Start Date: ' + (startDate || 'TBD'));
+    doc.moveDown();
+
+    doc.text('Terms and Conditions:');
+    doc.text('• This offer is contingent upon successful completion of background checks');
+    doc.text('• Standard company benefits apply');
+    doc.text('• 30-day probationary period');
+    doc.moveDown();
+
+    doc.text('Please sign and return this offer letter to accept the position.');
+    doc.moveDown(2);
+
+    doc.text('Sincerely,');
+    doc.text('Airswift HR Team');
+    doc.text('hr@airswift.com');
+
+    doc.end();
+
+    // Wait for PDF to be written
+    stream.on('finish', async () => {
+      // Log audit event
+      await logAuditEvent(req.user.id, 'offer_letter_generated', 'application', req.params.id, {
+        salary,
+        startDate,
+        jobTitle,
+        applicant_name: applicant.name
+      }, req);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      const fileStream = fs.createReadStream(filepath);
+      fileStream.pipe(res);
+      
+      fileStream.on('end', () => {
+        // Clean up temp file after sending
+        fs.unlink(filepath, (err) => {
+          if (err) console.error('Error deleting temp file:', err);
+        });
+      });
+    });
+
+  } catch (error) {
+    console.error('generateOffer error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -168,5 +306,7 @@ module.exports = {
   deleteSetting,
   getAllApplications,
   updateStatus,
+  getStats,
   sendInterview,
+  generateOffer,
 };

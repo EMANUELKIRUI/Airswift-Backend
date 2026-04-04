@@ -1,14 +1,43 @@
 const express = require('express');
-const { scheduleInterview, getMyInterviews } = require('../controllers/interviewController');
-const authMiddleware = require('../middleware/auth');
+const {
+  createInterview,
+  getInterview,
+  updateInterview,
+  getAdminInterviews,
+  getMyInterviews,
+  scoreResponse,
+  scheduleInterview, // Legacy
+  askAIInterview,
+  scoreCV,
+  autonomousRecruiter,
+} = require('../controllers/interviewController');
+const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
 const router = express.Router();
 
-// Admin route
-router.post('/schedule', adminMiddleware, scheduleInterview);
+// Admin routes
+router.post('/', adminMiddleware, createInterview);
+router.get('/admin', adminMiddleware, getAdminInterviews);
+router.put('/:id', adminMiddleware, updateInterview);
 
-// User route
-router.get('/my', authMiddleware, getMyInterviews);
+// Public routes (with auth)
+router.get('/my', verifyToken, getMyInterviews);
+router.get('/:id', verifyToken, getInterview);
+
+// AI scoring endpoint
+router.post('/score', verifyToken, scoreResponse);
+
+// AI Interview Bot - Interactive Q&A
+router.post('/ask', verifyToken, askAIInterview);
+
+// CV AI Scorer
+router.post('/cv/score', verifyToken, scoreCV);
+
+// Autonomous Recruiter AI Agent
+router.post('/ai/recruiter-agent', adminMiddleware, autonomousRecruiter);
+
+// Legacy routes for backward compatibility
+router.post('/schedule', adminMiddleware, scheduleInterview);
 
 module.exports = router;

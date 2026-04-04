@@ -1,26 +1,24 @@
-const User = require("../models/User");
+const { User } = require("../models");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { Op } = require("sequelize");
 const { generateOTP } = require("../utils/generateOTP");
 const { sendEmail } = require("../services/emailService");
-const { otpTemplate } = require("../utils/templates/otpTemplate");
 
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check if user exists
-    let user = await User.findOne({ where: { email } });
-    if (user) return res.status(400).json({ message: "User already exists" });
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Generate OTP
     const otp = generateOTP();
 
-    // Create user
-    user = await User.create({
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
@@ -28,210 +26,147 @@ const registerUser = async (req, res) => {
       otpExpires: Date.now() + 10 * 60 * 1000, // 10 min
     });
 
-    // Send OTP email
-    await sendEmail(email, "Verify your email", otpTemplate(otp));
+    await sendEmail(email, "Your OTP Code", `<p>Your OTP is <strong>${otp}</strong></p>`);
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES }
-    );
-
-    res.status(201).json({
-      message: "User registered successfully",
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ message: "OTP sent to email", user: { id: user.id, email: user.email, name: user.name } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 const verifyOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
+  const { email, otp } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+  const user = await User.findOne({ where: { email } });
 
-    if (!user) return res.status(400).json({ message: "User not found" });
-
-    if (user.otp !== otp)
-      return res.status(400).json({ message: "Invalid OTP" });
-
-    if (user.otpExpires < Date.now())
-      return res.status(400).json({ message: "OTP expired" });
-
-    // Mark as verified
-    user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
-
-    await user.save();
-
-    res.json({ message: "Email verified successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
+    return res.status(400).json({ error: "Invalid or expired OTP" });
   }
+
+  user.isVerified = true;
+  user.otp = null;
+  user.otpExpires = null;
+
+  await user.save();
+
+  res.json({ message: "Email verified successfully" });
 };
 
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
-const user = await User.findOne({ where: { email } });
+  const user = await User.findOne({ where: { email } });
+  if (!user) return res.status(400).json({ error: "User not found" });
 
-  if (!user) return res.status(400).json({ message: "Invalid credentials" });
-
-  if (!user.isVerified) {
-    return res.status(403).json({
-      message: "Please verify your email first",
-    });
-  }
+  if (!user.isVerified) return res.status(400).json({ error: "Please verify your email first" });
 
   const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-  if (!isMatch)
-    return res.status(400).json({ message: "Invalid credentials" });
-
-  // 🔥 CREATE TOKEN
-  const token = jwt.sign(
-    { id: user.id, email: user.email, name: user.name },
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES }
+    { expiresIn: "15m" }
   );
 
-  res.json({
-    message: "Login successful",
-    token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
+  const refreshToken = jwt.sign(
+    { id: user.id },
+    process.env.REFRESH_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  res.cookie("token", accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
   });
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+  });
+
+  res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 };
 
-const resendOTP = async (req, res) => {
+const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   const user = await User.findOne({ where: { email } });
+  if (!user) return res.json({ message: "If user exists, email sent" });
 
-  if (!user) return res.status(400).json({ message: "User not found" });
+  const resetToken = crypto.randomBytes(32).toString("hex");
 
-  const otp = generateOTP();
-
-  user.otp = otp;
-  user.otpExpires = Date.now() + 10 * 60 * 1000;
+  user.resetToken = resetToken;
+  user.resetTokenExpires = Date.now() + 15 * 60 * 1000;
 
   await user.save();
 
-  await sendEmail(email, "Resend OTP", otpTemplate(otp));
+  const resetLink = `https://airswift-frontend.vercel.app/reset-password/${resetToken}`;
 
-  res.json({ message: "OTP resent successfully" });
-};
+  await sendEmail(email, "Reset your password", `<p>Reset your password: <a href="${resetLink}">${resetLink}</a></p>`);
 
-const requestPasswordReset = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(400).json({ message: "User not found" });
-    }
-
-    // Generate reset token (similar to OTP)
-    const resetToken = generateOTP();
-    user.resetToken = resetToken;
-    user.resetTokenExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
-
-    await user.save();
-
-    // Send reset token via email
-    await sendEmail(
-      email,
-      "Password Reset Request",
-      `Your password reset code is: ${resetToken}\nThis code expires in 15 minutes.`
-    );
-
-    res.json({ message: "Password reset code sent to email" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  res.json({ message: "Reset link sent" });
 };
 
 const resetPassword = async (req, res) => {
+  const user = await User.findOne({
+    where: {
+      resetToken: req.params.token,
+      resetTokenExpires: {
+        [Op.gt]: new Date(),
+      },
+    },
+  });
+
+  if (!user) return res.status(400).json({ error: "Invalid token" });
+
+  user.password = await bcrypt.hash(req.body.password, 10);
+  user.resetToken = null;
+  user.resetTokenExpires = null;
+
+  await user.save();
+
+  res.json({ message: "Password reset successful" });
+};
+
+const refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken;
+
+  if (!token) return res.status(401).json({ error: "No token" });
+
   try {
-    const { email, resetToken, newPassword } = req.body;
+    const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
 
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(400).json({ message: "User not found" });
-    }
+    const user = await User.findByPk(decoded.id);
+    if (!user || user.refreshToken !== token) return res.status(401).json({ error: "Invalid token" });
 
-    if (user.resetToken !== resetToken) {
-      return res.status(400).json({ message: "Invalid reset token" });
-    }
+    const newAccessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
 
-    if (user.resetTokenExpire < Date.now()) {
-      return res.status(400).json({ message: "Reset token expired" });
-    }
+    res.cookie("token", newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    });
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    user.password = hashedPassword;
-    user.resetToken = null;
-    user.resetTokenExpire = null;
-
-    await user.save();
-
-    res.json({ message: "Password reset successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
   }
 };
 
-const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const user = await User.findByPk(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Current password is incorrect" });
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-
-    await user.save();
-
-    res.json({ message: "Password changed successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+const logout = (req, res) => {
+  res.clearCookie("token");
+  res.clearCookie("refreshToken");
+  res.json({ message: "Logged out successfully" });
 };
 
-module.exports = {
-  registerUser,
-  verifyOTP,
-  loginUser,
-  resendOTP,
-  requestPasswordReset,
-  resetPassword,
-  changePassword,
-};
+module.exports = { registerUser, verifyOTP, loginUser, forgotPassword, resetPassword, refreshToken, logout };

@@ -8,7 +8,9 @@ const {
   deleteSetting,
   getAllApplications,
   updateStatus,
+  getStats,
   sendInterview,
+  generateOffer,
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -22,7 +24,20 @@ router.delete('/settings/:key', adminMiddleware, deleteSetting);
 
 // Admin application control routes
 router.get('/applications', adminMiddleware, getAllApplications);
+router.put('/application/:id', adminMiddleware, updateStatus);
 router.patch('/applications/:id', adminMiddleware, updateStatus);
-router.post('/send-interview', adminMiddleware, sendInterview);
+router.get('/stats', adminMiddleware, getStats);
+router.post('/send-interview/:id', adminMiddleware, sendInterview);
+router.post('/generate-offer/:id', adminMiddleware, generateOffer);
+
+router.get('/dashboard', adminMiddleware, (req, res) => {
+  res.json({
+    message: 'Welcome Admin',
+    stats: {
+      users: 120,
+      applications: 45,
+    },
+  });
+});
 
 module.exports = router;

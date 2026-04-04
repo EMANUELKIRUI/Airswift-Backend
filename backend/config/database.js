@@ -1,7 +1,7 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Use SQLite for development if no PostgreSQL config
+// Use SQLite for development if no PostgreSQL config is provided
 const sequelize = process.env.DB_HOST
   ? new Sequelize(
       process.env.DB_NAME,

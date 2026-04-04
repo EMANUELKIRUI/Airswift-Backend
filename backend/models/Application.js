@@ -33,13 +33,29 @@ const Application = sequelize.define('Application', {
   cv_url: {
     type: DataTypes.STRING,
   },
+  cv: {
+    type: DataTypes.STRING,
+  },
   passport_url: {
+    type: DataTypes.STRING,
+  },
+  passport: {
     type: DataTypes.STRING,
   },
   national_id_url: {
     type: DataTypes.STRING,
   },
+  nationalId: {
+    type: DataTypes.STRING,
+  },
   certificate_urls: {
+    type: DataTypes.JSON,
+  },
+  score: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  skills: {
     type: DataTypes.JSON,
   },
   zoom_meet_url: {

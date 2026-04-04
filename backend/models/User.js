@@ -21,7 +21,12 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
+    allowNull: true,
+  },
+  role: {
+    type: DataTypes.STRING,
     allowNull: false,
+    defaultValue: 'user',
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
@@ -33,31 +38,24 @@ const User = sequelize.define('User', {
   otpExpires: {
     type: DataTypes.DATE,
   },
-  role: {
+  resetToken: {
     type: DataTypes.STRING,
-    defaultValue: 'user',
+  },
+  resetTokenExpires: {
+    type: DataTypes.DATE,
   },
   refreshToken: {
     type: DataTypes.STRING,
   },
-  resetToken: {
-    type: DataTypes.STRING,
-  },
-  resetTokenExpire: {
-    type: DataTypes.DATE,
-  },
-  firebaseUid: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: true,
-  },
   authProvider: {
     type: DataTypes.STRING,
-    defaultValue: 'local', // 'local' or 'firebase'
+    defaultValue: 'local',
   },
   profilePicture: {
     type: DataTypes.STRING,
-    allowNull: true,
+  },
+  firebaseUid: {
+    type: DataTypes.STRING,
   },
   created_at: {
     type: DataTypes.DATE,

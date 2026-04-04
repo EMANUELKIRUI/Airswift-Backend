@@ -2,6 +2,10 @@ const Joi = require('joi');
 const { Op } = require('sequelize');
 const { Application, Job, Profile, Payment, User } = require('../models');
 const { sendEmail, sendStageEmail } = require('../utils/notifications');
+const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
+const { encryptCV, decryptCV } = require('../utils/cvEncryption');
+const { logAuditEvent } = require('../utils/auditLogger');
+const fs = require('fs').promises;
 
 // For document upload path building
 const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
@@ -14,32 +18,79 @@ const applySchema = Joi.object({
 
 const applyForJob = async (req, res) => {
   try {
-    const { job_id, cover_letter } = req.body;
+    const job_id = req.body.job_id || req.body.jobId;
+    const { cover_letter } = req.body;
 
     if (!job_id) {
       return res.status(400).json({ message: 'Please select a job' });
     }
 
-    const { error } = applySchema.validate(req.body);
+    const { error } = applySchema.validate({ job_id, cover_letter });
     if (error) return res.status(400).json({ message: error.details[0].message });
 
     // Check if job exists and is active
     const job = await Job.findByPk(job_id);
     if (!job || job.status !== 'active') return res.status(404).json({ message: 'Job not found or inactive' });
 
-    // Check if user has profile and CV
-    const profile = await Profile.findOne({ where: { user_id: req.user.id } });
-    if (!profile || !profile.cv_url) return res.status(400).json({ message: 'Complete your profile and upload CV first' });
-
-    // Optional: ensure at least one identity document is available if already started docs
-    const hasDoc = !!profile.cv_url;
-    if (!hasDoc) return res.status(400).json({ message: 'Please upload required documents (Passport, National ID, CV, certificate) before applying' });
-
-    // Check if already applied
+    // Check if the user already applied to this job
     const existingApplication = await Application.findOne({ where: { job_id, user_id: req.user.id } });
     if (existingApplication) return res.status(400).json({ message: 'Already applied for this job' });
 
-    const application = await Application.create({ job_id, user_id: req.user.id, cover_letter });
+    if (!req.files?.cv?.[0] || !req.files?.nationalId?.[0] || !req.files?.passport?.[0]) {
+      return res.status(400).json({ message: 'CV, National ID, and Passport files are required' });
+    }
+
+    // Encrypt CV files before storing
+    let encryptedCV = null;
+    let encryptedNationalId = null;
+    let encryptedPassport = null;
+
+    try {
+      if (req.files.cv && req.files.cv[0]) {
+        const cvBuffer = await fs.readFile(req.files.cv[0].path);
+        encryptedCV = encryptCV(cvBuffer);
+      }
+      if (req.files.nationalId && req.files.nationalId[0]) {
+        const nationalIdBuffer = await fs.readFile(req.files.nationalId[0].path);
+        encryptedNationalId = encryptCV(nationalIdBuffer);
+      }
+      if (req.files.passport && req.files.passport[0]) {
+        const passportBuffer = await fs.readFile(req.files.passport[0].path);
+        encryptedPassport = encryptCV(passportBuffer);
+      }
+    } catch (encryptError) {
+      console.error("File encryption failed:", encryptError);
+      return res.status(500).json({ message: 'File encryption failed' });
+    }
+
+    const application = await Application.create({
+      job_id,
+      user_id: req.user.id,
+      cover_letter,
+      cv: encryptedCV, // Store encrypted data
+      nationalId: encryptedNationalId,
+      passport: encryptedPassport,
+    });
+
+    // AI CV Analysis
+    try {
+      const cvText = await extractTextFromPDF(req.files.cv[0].path);
+      const jobDescription = job.description || job.title; // Use job description or title as fallback
+      const aiResult = await analyzeCV(cvText, jobDescription);
+
+      application.score = aiResult.matchScore || 0;
+      application.skills = aiResult.skills || [];
+      await application.save();
+    } catch (aiError) {
+      console.error("AI analysis failed:", aiError);
+      // Continue without AI analysis if it fails
+    }
+
+    // Log audit event
+    await logAuditEvent(req.user.id, 'application_submitted', 'application', application.id, {
+      job_id,
+      job_title: job.title
+    }, req);
 
     // Notify applicant with stage template
     await sendStageEmail('application_submitted', req.user.email || req.user.email, {
@@ -64,6 +115,58 @@ const getMyApplications = async (req, res) => {
     });
     res.json(applications);
   } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Download encrypted CV file (admin only)
+const downloadCV = async (req, res) => {
+  try {
+    const application = await Application.findByPk(req.params.id, {
+      include: [{ model: User, attributes: ['name', 'email'] }]
+    });
+
+    if (!application) return res.status(404).json({ message: 'Application not found' });
+
+    const { fileType } = req.query; // 'cv', 'nationalId', 'passport'
+    let encryptedData;
+    let filename;
+
+    switch (fileType) {
+      case 'cv':
+        encryptedData = application.cv;
+        filename = `CV-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        break;
+      case 'nationalId':
+        encryptedData = application.nationalId;
+        filename = `NationalID-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        break;
+      case 'passport':
+        encryptedData = application.passport;
+        filename = `Passport-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid file type' });
+    }
+
+    if (!encryptedData) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Decrypt the file
+    const decryptedBuffer = decryptCV(Buffer.from(encryptedData));
+
+    // Log audit event
+    await logAuditEvent(req.user.id, 'cv_download', 'application', application.id, {
+      file_type: fileType,
+      applicant_name: application.User.name
+    }, req);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(decryptedBuffer);
+  } catch (error) {
+    console.error('downloadCV error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -226,12 +329,15 @@ const uploadApplicantDocs = async (req, res) => {
     const application = await Application.findOne({ where: { id: application_id, user_id: req.user.id } });
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    const passportUrl = req.files?.passport?.[0] ? `${UPLOAD_BASE_URL}/uploads/${req.files.passport[0].filename}` : application.passport_url;
-    const nationalIdUrl = req.files?.national_id?.[0] ? `${UPLOAD_BASE_URL}/uploads/${req.files.national_id[0].filename}` : application.national_id_url;
-    const cvUrl = req.files?.cv?.[0] ? `${UPLOAD_BASE_URL}/uploads/${req.files.cv[0].filename}` : application.cv_url;
-    const certificateUrls = req.files?.certificate ? req.files.certificate.map((f) => `${UPLOAD_BASE_URL}/uploads/${f.filename}`) : application.certificate_urls;
+    const passportUrl = req.files?.passport?.[0] ? req.files.passport[0].path : application.passport || application.passport_url;
+    const nationalIdUrl = req.files?.nationalId?.[0] ? req.files.nationalId[0].path : application.nationalId || application.national_id_url;
+    const cvUrl = req.files?.cv?.[0] ? req.files.cv[0].path : application.cv || application.cv_url;
+    const certificateUrls = req.files?.certificate ? req.files.certificate.map((f) => f.path) : application.certificate_urls;
 
     await application.update({
+      passport: passportUrl,
+      nationalId: nationalIdUrl,
+      cv: cvUrl,
       passport_url: passportUrl,
       national_id_url: nationalIdUrl,
       cv_url: cvUrl,
@@ -249,6 +355,7 @@ module.exports = {
   applyForJob,
   getMyApplications,
   getAllApplicationsAdmin,
+  downloadCV,
   updateApplicationStatus,
   sendMessageToApplicants,
   scheduleInterview,

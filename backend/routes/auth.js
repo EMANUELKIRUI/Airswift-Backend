@@ -3,32 +3,24 @@ const {
   registerUser,
   verifyOTP,
   loginUser,
-  resendOTP,
-  requestPasswordReset,
+  forgotPassword,
   resetPassword,
-  changePassword,
+  refreshToken,
+  logout
 } = require("../controllers/authController");
-const { logout, checkAuth, getCurrentUser } = require("../controllers/commonAuthController");
-const { verifyToken } = require("../middleware/auth");
+const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware");
 
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/login", loginUser);
-router.post("/resend-otp", resendOTP);
-
-// Password reset endpoints
-router.post("/forgot-password", requestPasswordReset);
-router.post("/reset-password", resetPassword);
-router.post("/change-password", verifyToken, changePassword);
-
-// Common auth endpoints
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+router.post("/refresh", refreshToken);
 router.post("/logout", logout);
-router.get("/check", checkAuth);
-router.get("/me", verifyToken, getCurrentUser);
 
 // Protected route example
-router.get("/dashboard", verifyToken, (req, res) => {
-  res.json({ message: "Welcome user", user: req.user });
+router.get("/profile", authMiddleware, (req, res) => {
+  res.json({ message: "Protected data", user: req.user });
 });
 
 module.exports = router;
