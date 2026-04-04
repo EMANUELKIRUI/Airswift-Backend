@@ -261,7 +261,9 @@ app.use(cors({
     "https://airswift-frontend.vercel.app",
     "https://airswift-frontend-k10sz6d6n-emanuelkirui973-3799s-projects.vercel.app"
   ],
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.use(express.json());
 
