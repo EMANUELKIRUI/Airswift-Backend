@@ -27,36 +27,26 @@ router.get("/google",
 );
 
 router.get("/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: "/auth-failed"
-  }),
-  async (req, res) => {
+  passport.authenticate("google", { session: false }),
+  (req, res) => {
+    console.log("🔥 CALLBACK HIT");
+    console.log("USER:", req.user);
+
     try {
-      console.log("req.user:", req.user);
-
-      if (!req.user) {
-        return res.status(400).json({
-          message: "Google auth failed - no user returned"
-        });
-      }
-
-      if (!process.env.JWT_SECRET) {
-        throw new Error("JWT_SECRET missing in environment variables");
-      }
-
       const token = jwt.sign(
         { id: req.user.id },
         process.env.JWT_SECRET,
         { expiresIn: "7d" }
       );
 
+      console.log("TOKEN CREATED");
+
       return res.redirect(
         `https://airswift-frontend.vercel.app?token=${token}`
       );
 
     } catch (err) {
-      console.error("🔥 GOOGLE CALLBACK ERROR:", err);
+      console.log("🔥 CALLBACK ERROR:", err);
 
       return res.status(500).json({
         message: "Server error in callback",
