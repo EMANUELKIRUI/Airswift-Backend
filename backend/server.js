@@ -257,13 +257,8 @@ io.on("connection", (socket) => {
 
 app.use(cookieParser());
 app.use(cors({
-  origin: [
-    "https://airswift-frontend.vercel.app",
-    "https://airswift-frontend-k10sz6d6n-emanuelkirui973-3799s-projects.vercel.app"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: "https://airswift-frontend.vercel.app",
+  credentials: true
 }));
 app.use(express.json());
 
