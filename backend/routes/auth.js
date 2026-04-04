@@ -18,6 +18,14 @@ router.post("/reset-password/:token", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);
 
+// Health-check/test route
+router.get("/me", (req, res) => {
+  res.json({
+    user: "test user",
+    status: "ok"
+  });
+});
+
 // Protected route example
 router.get("/profile", authMiddleware, (req, res) => {
   res.json({ message: "Protected data", user: req.user });
