@@ -11,6 +11,7 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("./models/User");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 const app = express();
@@ -284,6 +285,32 @@ io.on("connection", (socket) => {
     // Sync database models
     await sequelize.sync({ alter: true });
     console.log("Database synced");
+
+    // Create default admin user if it doesn't exist
+    const adminEmail = "admin@airswift.com";
+    const adminPassword = "Admin123!";
+    const adminName = "Admin User";
+
+    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+    if (!existingAdmin) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(adminPassword, salt);
+
+      await User.create({
+        name: adminName,
+        email: adminEmail,
+        password: hashedPassword,
+        role: "admin",
+        isVerified: true,
+        authProvider: "local",
+      });
+
+      console.log("✅ Default admin user created");
+      console.log(`📧 Email: ${adminEmail}`);
+      console.log(`🔑 Password: ${adminPassword}`);
+    } else {
+      console.log("ℹ️  Admin user already exists");
+    }
   } catch (error) {
     console.error("Database connection error:", error);
     process.exit(1);
