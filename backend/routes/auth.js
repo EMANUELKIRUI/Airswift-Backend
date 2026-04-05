@@ -1,5 +1,4 @@
 const router = require("express").Router();
-const passport = require("passport");
 const jwt = require('jsonwebtoken');
 const {
   registerUser,
@@ -19,47 +18,6 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);
-
-// Google OAuth routes
-router.get("/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"]
-  })
-);
-
-router.get("/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: "/login-failed",
-    session: false
-  }),
-  (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(400).json({
-          message: "No user returned from Google"
-        });
-      }
-
-      const token = jwt.sign(
-        { id: req.user.id },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
-
-      return res.redirect(
-        `https://airswift-frontend.vercel.app?token=${token}`
-      );
-
-    } catch (err) {
-      console.log("🔥 CALLBACK ERROR:", err);
-
-      return res.status(500).json({
-        message: "Server error in callback",
-        error: err.message
-      });
-    }
-  }
-);
 
 // Health-check/test route
 router.get("/me", (req, res) => {

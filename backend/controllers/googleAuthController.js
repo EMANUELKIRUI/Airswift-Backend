@@ -58,65 +58,106 @@ const GoogleAuthController = {
   async callback(req, res) {
     try {
       const code = req.query.code;
+      const error = req.query.error;
+      
+      // Handle Google OAuth error responses
+      if (error) {
+        console.error('❌ Google OAuth error:', error);
+        const errorMessages = {
+          'access_denied': 'User denied access',
+          'invalid_scope': 'Invalid scope requested',
+          'server_error': 'Google server error',
+        };
+        return res.status(400).json({ 
+          message: errorMessages[error] || `Google auth failed: ${error}` 
+        });
+      }
+      
       if (!code) {
-        return res.status(400).json({ message: 'Code is required' });
+        return res.status(400).json({ message: 'Authorization code is required' });
       }
 
+      console.log('📝 Processing authorization code...');
       const tokens = await getTokens(code);
-      console.log('Tokens received:', tokens);
 
       if (!tokens || !tokens.id_token) {
-        console.error('No ID token in response:', tokens);
-        return res.status(400).json({ message: 'Access token not returned from Google' });
+        console.error('❌ No ID token in response:', tokens);
+        return res.status(400).json({ 
+          message: 'Failed to obtain ID token from Google',
+          hint: 'Check if GOOGLE_REDIRECT_URI matches Google Console settings'
+        });
       }
 
       const profile = await verifyIdToken(tokens.id_token);
 
       if (!profile) {
-        return res.status(400).json({ message: 'Invalid ID token' });
+        return res.status(400).json({ message: 'Failed to verify ID token' });
       }
 
       const user = await findOrCreateUser(profile);
       const token = createToken(user);
 
-      // Redirect to frontend callback with token
+      // Redirect to frontend with token
       const frontendRedirect = process.env.FRONTEND_URL || 'http://localhost:3000';
       const redirectUrl = `${frontendRedirect}/auth/success?token=${token}`;
+      
+      console.log('✅ Google auth successful, redirecting to:', redirectUrl);
       res.redirect(redirectUrl);
     } catch (error) {
-      console.error('Google auth callback error:', error);
-      res.status(500).json({ message: 'Google login failed', error: error.message });
+      console.error('❌ Google auth callback error:', error.message);
+      console.error('   Stack:', error.stack);
+      
+      // Redirect to frontend with error
+      const frontendRedirect = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const redirectUrl = `${frontendRedirect}/auth/error?message=${encodeURIComponent(error.message)}`;
+      res.redirect(redirectUrl);
     }
   },
 
   async verifyId(req, res) {
     try {
       const { idToken } = req.body;
+      
       if (!idToken) {
-        return res.status(400).json({ message: 'ID token is required' });
+        return res.status(400).json({ 
+          message: 'ID token is required',
+          hint: 'Send Google ID token in request body: { "idToken": "..." }'
+        });
       }
 
+      console.log('📝 Verifying Google ID token from frontend...');
+      
       const profile = await verifyIdToken(idToken);
+      
       if (!profile) {
-        return res.status(401).json({ message: 'Invalid ID token' });
+        return res.status(401).json({ message: 'Invalid or expired ID token' });
       }
 
       const user = await findOrCreateUser(profile);
       const token = createToken(user);
 
+      console.log('✅ Frontend token verification successful for:', profile.email);
+
       res.json({
+        success: true,
         message: 'Google authentication successful',
         token,
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
           authProvider: user.authProvider,
+          profilePicture: user.profilePicture,
         },
       });
     } catch (error) {
-      console.error('Google ID token verification error:', error);
-      res.status(500).json({ message: 'Failed to verify ID token', error: error.message });
+      console.error('❌ ID token verification error:', error.message);
+      res.status(500).json({ 
+        message: 'Failed to verify ID token',
+        error: error.message,
+        hint: 'Ensure the token is valid and not expired'
+      });
     }
   },
 
