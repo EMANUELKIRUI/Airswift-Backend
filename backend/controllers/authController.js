@@ -38,24 +38,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-const verifyOTP = async (req, res) => {
-  const { email, otp } = req.body;
-
-  const user = await User.findOne({ where: { email } });
-
-  if (!user || user.otp !== otp || user.otpExpires < Date.now()) {
-    return res.status(400).json({ error: "Invalid or expired OTP" });
-  }
-
-  user.isVerified = true;
-  user.otp = null;
-  user.otpExpires = null;
-
-  await user.save();
-
-  res.json({ message: "Email verified successfully" });
-};
-
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
@@ -174,4 +156,4 @@ const logout = (req, res) => {
   res.json({ message: "Logged out successfully" });
 };
 
-module.exports = { registerUser, verifyOTP, loginUser, forgotPassword, resetPassword, refreshToken, logout };
+module.exports = { registerUser, loginUser, forgotPassword, resetPassword, refreshToken, logout };

@@ -2,7 +2,6 @@ const router = require("express").Router();
 const jwt = require('jsonwebtoken');
 const {
   registerUser,
-  verifyOTP,
   loginUser,
   forgotPassword,
   resetPassword,
@@ -12,7 +11,6 @@ const {
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
 router.post("/register", registerUser);
-router.post("/verify-otp", verifyOTP);
 router.post("/login", loginUser);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);

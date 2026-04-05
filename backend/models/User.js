@@ -30,13 +30,7 @@ const User = sequelize.define('User', {
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
-  otp: {
-    type: DataTypes.STRING,
-  },
-  otpExpires: {
-    type: DataTypes.DATE,
+    defaultValue: true,
   },
   resetToken: {
     type: DataTypes.STRING,
