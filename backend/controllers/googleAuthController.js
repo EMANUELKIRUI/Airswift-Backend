@@ -28,14 +28,14 @@ const findOrCreateUser = async (profile) => {
       email,
       password: '',
       isVerified: true,
-      firebaseUid: googleId,
+      googleId: googleId,
       authProvider: 'google',
       profilePicture: profile.picture || null,
     });
   } else {
     // Update provider info for existing user
     await user.update({
-      firebaseUid: googleId,
+      googleId: googleId,
       authProvider: 'google',
       profilePicture: profile.picture || user.profilePicture,
     });

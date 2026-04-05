@@ -1,6 +1,6 @@
 const express = require('express');
 const adminMiddleware = require('../middleware/admin');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/authMiddleware');
 const {
   getAbout,
   getAboutSection,

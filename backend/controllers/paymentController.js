@@ -182,4 +182,5 @@ module.exports = {
   initiatePayment,
   verifyPayment,
   paymentCallback,
+  makePayment: initiatePayment, // Alias for initiatePayment
 };
