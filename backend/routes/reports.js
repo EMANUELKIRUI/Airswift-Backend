@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 const {
   createReport,
@@ -10,8 +10,8 @@ const {
 
 const router = express.Router();
 
-router.post('/', authMiddleware, createReport);
-router.get('/my-reports', authMiddleware, getMyReports);
+router.post('/', verifyToken, createReport);
+router.get('/my-reports', verifyToken, getMyReports);
 router.get('/', adminMiddleware, getAllReports);
 router.put('/:id/status', adminMiddleware, updateReportStatus);
 

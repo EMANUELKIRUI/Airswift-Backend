@@ -1,6 +1,6 @@
 const express = require('express');
 const { getJobs, getJobById, createJob, updateJob, deleteJob, getAllJobsAdmin, getJobCategories, createJobCategory, updateJobCategory, deleteJobCategory, getJobCategoryDashboard, getInterviewPipeline } = require('../controllers/jobController');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
 const router = express.Router();

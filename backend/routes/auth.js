@@ -10,7 +10,7 @@ const {
   refreshToken,
   logout
 } = require("../controllers/authController");
-const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware");
+const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
@@ -80,7 +80,7 @@ router.get("/me", (req, res) => {
 });
 
 // Protected route example
-router.get("/profile", authMiddleware, (req, res) => {
+router.get("/profile", verifyToken, (req, res) => {
   res.json({ message: "Protected data", user: req.user });
 });
 

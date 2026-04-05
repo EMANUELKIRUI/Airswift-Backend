@@ -9,6 +9,7 @@ const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./uti
 const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { User } = require("./models");
 require("dotenv").config();
 
 const app = express();
