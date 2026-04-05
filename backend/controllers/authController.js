@@ -3,7 +3,6 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Op } = require("sequelize");
-const { generateOTP } = require("../utils/generateOTP");
 const { sendEmail } = require("../services/emailService");
 
 const registerUser = async (req, res) => {
