@@ -12,6 +12,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("SMTP ERROR:", error);
+  } else {
+    console.log("SMTP READY");
+  }
+});
+
 /**
  * Send email with Gmail SMTP
  * @param {string} to - Recipient email address
