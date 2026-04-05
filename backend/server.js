@@ -5,6 +5,7 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
+const { connectDB } = require("./config/db");
 const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./utils/voiceInterview");
 const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
 const jwt = require("jsonwebtoken");
@@ -12,6 +13,9 @@ const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { sendOTP } = require("./services/emailService");
 require("dotenv").config();
+
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 app.set('trust proxy', 1);

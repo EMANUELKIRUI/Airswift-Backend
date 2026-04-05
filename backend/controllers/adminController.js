@@ -168,9 +168,10 @@ const updateStatus = async (req, res) => {
 
 const getStats = async (req, res) => {
   try {
-    const users = await User.count();
-    const applications = await Application.count();
-    const jobs = await Job.count();
+    const User = require('../models/User');
+    const users = await User.countDocuments();
+    const applications = await Application.countDocuments();
+    const jobs = await Job.countDocuments();
 
     res.json({ users, applications, jobs });
   } catch (error) {

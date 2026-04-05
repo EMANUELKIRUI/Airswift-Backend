@@ -1,60 +1,40 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require("mongoose");
 
-const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: true,
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
     },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
+    },
+    role: {
+      type: String,
+      default: "user",
+      enum: ["user", "admin", "recruiter"],
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    resetToken: String,
+    resetTokenExpiry: Date,
+    refreshToken: String,
+    authProvider: {
+      type: String,
+      default: "local",
+    },
+    profilePicture: String,
+    firebaseUid: String,
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  role: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    defaultValue: 'user',
-  },
-  isVerified: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-  },
-  resetToken: {
-    type: DataTypes.STRING,
-  },
-  resetTokenExpires: {
-    type: DataTypes.DATE,
-  },
-  refreshToken: {
-    type: DataTypes.STRING,
-  },
-  authProvider: {
-    type: DataTypes.STRING,
-    defaultValue: 'local',
-  },
-  profilePicture: {
-    type: DataTypes.STRING,
-  },
-  firebaseUid: {
-    type: DataTypes.STRING,
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-});
+  { timestamps: true }
+);
 
-module.exports = User;
+module.exports = mongoose.model("User", userSchema);
