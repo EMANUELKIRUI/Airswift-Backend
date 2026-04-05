@@ -2,6 +2,8 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendOTP } = require("../services/emailService");
+const { sendEmail } = require("../utils/email");
+const { otpTemplate } = require("../utils/templates/otpTemplate");
 
 // ✅ REGISTER - Send OTP
 const registerUser = async (req, res) => {
@@ -37,9 +39,19 @@ const registerUser = async (req, res) => {
       resetTokenExpiry: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
-    await sendOTP(email, otp);
+    let emailSent = false;
+    try {
+      await sendEmail(email, "Your Airswift OTP Code", otpTemplate(otp));
+      emailSent = true;
+    } catch (error) {
+      console.error(`REGISTER EMAIL ERROR for ${email}:`, error.message);
+    }
 
-    res.json({ message: "OTP sent" });
+    const responseMessage = emailSent
+      ? "OTP sent"
+      : "User registered, but OTP email could not be delivered";
+
+    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
     return res.status(500).json({
@@ -104,9 +116,20 @@ const sendLoginOTP = async (req, res) => {
     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
-    await sendOTP(email, otp);
 
-    res.json({ message: "Login OTP sent" });
+    let emailSent = false;
+    try {
+      await sendOTP(email, otp);
+      emailSent = true;
+    } catch (error) {
+      console.error(`SEND LOGIN OTP EMAIL ERROR for ${email}:`, error.message);
+    }
+
+    const responseMessage = emailSent
+      ? "Login OTP sent"
+      : "OTP generated, but email delivery failed";
+
+    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
     console.error("SEND LOGIN OTP ERROR:", err);
     return res.status(500).json({
@@ -211,9 +234,19 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    await sendOTP(email, resetToken);
+    let emailSent = false;
+    try {
+      await sendOTP(email, resetToken);
+      emailSent = true;
+    } catch (error) {
+      console.error(`FORGOT PASSWORD EMAIL ERROR for ${email}:`, error.message);
+    }
 
-    res.json({ message: "Reset OTP sent" });
+    const responseMessage = emailSent
+      ? "Reset OTP sent"
+      : "Reset token generated, but email delivery failed";
+
+    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
     console.error("FORGOT PASSWORD ERROR:", err);
     return res.status(500).json({
