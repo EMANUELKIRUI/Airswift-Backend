@@ -319,6 +319,7 @@ const loginLimiter = rateLimit({
 app.use("/api/auth/login", loginLimiter);
 
 // routes
+app.use("/api/auth/google", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/jobs", require("./routes/jobs"));
@@ -328,7 +329,6 @@ app.use("/api/profile", require("./routes/profile"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/about", require("./routes/about"));
 app.use("/api/auth-status", require("./routes/authStatus"));
-app.use("/api/auth/google", require("./routes/googleAuth"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
