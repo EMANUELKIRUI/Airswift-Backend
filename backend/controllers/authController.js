@@ -8,11 +8,13 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required" });
-    }
+    console.log("REGISTER BODY:", req.body);
 
-    console.log("REGISTER REQUEST:", email);
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "Name, email and password are required",
+      });
+    }
 
     const existing = await User.findOne({ email });
 
