@@ -22,8 +22,14 @@ const getGoogleAuthUrl = () => {
 };
 
 const getTokens = async (code) => {
-  const { tokens } = await oAuth2Client.getToken(code);
-  return tokens;
+  try {
+    const { tokens } = await oAuth2Client.getToken(code);
+    console.log('Raw tokens from Google:', tokens);
+    return tokens;
+  } catch (error) {
+    console.error('Error getting tokens:', error);
+    throw error;
+  }
 };
 
 const verifyIdToken = async (idToken) => {

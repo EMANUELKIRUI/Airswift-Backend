@@ -63,6 +63,13 @@ const GoogleAuthController = {
       }
 
       const tokens = await getTokens(code);
+      console.log('Tokens received:', tokens);
+
+      if (!tokens || !tokens.id_token) {
+        console.error('No ID token in response:', tokens);
+        return res.status(400).json({ message: 'Access token not returned from Google' });
+      }
+
       const profile = await verifyIdToken(tokens.id_token);
 
       if (!profile) {
