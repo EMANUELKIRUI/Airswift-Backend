@@ -335,7 +335,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 // app.use("/api/auth/login", loginLimiter);
 
 // routes
-app.use("/api/auth/google", require("./routes/googleAuth"));
+// app.use("/api/auth/google", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/jobs", require("./routes/jobs"));
