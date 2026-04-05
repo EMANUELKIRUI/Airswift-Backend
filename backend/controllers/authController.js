@@ -13,6 +13,8 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
+    console.log("REGISTER REQUEST:", email);
+
     const existingUser = await User.findOne({ where: { email } });
 
     if (existingUser) {
