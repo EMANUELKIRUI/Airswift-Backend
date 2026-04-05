@@ -13,7 +13,7 @@ const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechCont
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
-const { sendOTP } = require("./services/emailService");
+const { sendOTP, verifyTransporter } = require("./services/emailService");
 
 // Connect to MongoDB
 connectDB();
@@ -259,6 +259,9 @@ io.on("connection", (socket) => {
     // Sync database models
     await sequelize.sync({ force: false, alter: false });
     console.log("Database synced");
+
+    // Verify email service
+    await verifyTransporter();
 
     // Create default admin user if MongoDB is available
     try {
