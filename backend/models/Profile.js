@@ -5,10 +5,6 @@ const Profile = sequelize.define('Profile', {
   user_id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
-    references: {
-      model: 'Users',
-      key: 'id',
-    },
   },
   skills: {
     type: DataTypes.JSON,

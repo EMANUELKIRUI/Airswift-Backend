@@ -14,9 +14,10 @@ const AuditLog = require('./AuditLog');
 // Associations (Note: User is now a Mongoose model, skip Sequelize associations for it)
 // For gradual migration, associations are preserved for Sequelize models only
 
-// Profile associations (keeping Sequelize associations for now)
+// Profile associations (skipping since User is now Mongoose model)
 try {
-  Profile.belongsTo(User, { foreignKey: 'user_id' });
+  // Profile.belongsTo(User, { foreignKey: 'user_id' });
+  console.log("Skipping Profile-User association (User is Mongoose model)");
 } catch (e) {
   console.log("Skipping Profile-User association (User is Mongoose model)");
 }

@@ -257,33 +257,39 @@ io.on("connection", (socket) => {
     console.log("Database connected");
     
     // Sync database models
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ force: false, alter: false });
     console.log("Database synced");
 
-    // Create default admin user if it doesn't exist
-    const adminEmail = "admin@airswift.com";
-    const adminPassword = "Admin123!";
-    const adminName = "Admin User";
+    // Create default admin user if MongoDB is available
+    try {
+      const adminEmail = "admin@airswift.com";
+      const adminPassword = "Admin123!";
+      const adminName = "Admin User";
 
-    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
-    if (!existingAdmin) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(adminPassword, salt);
+      const existingAdmin = await User.findOne({ where: { email: adminEmail } }).timeout(5000);
+      if (!existingAdmin) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
-      await User.create({
-        name: adminName,
-        email: adminEmail,
-        password: hashedPassword,
-        role: "admin",
-        isVerified: true,
-        authProvider: "local",
-      });
+        await User.create({
+          name: adminName,
+          email: adminEmail,
+          password: hashedPassword,
+          role: "admin",
+          isVerified: true,
+          authProvider: "local",
+        });
 
-      console.log("✅ Default admin user created");
-      console.log(`📧 Email: ${adminEmail}`);
-      console.log(`🔑 Password: ${adminPassword}`);
-    } else {
-      console.log("ℹ️  Admin user already exists");
+        console.log("✅ Default admin user created");
+        console.log(`📧 Email: ${adminEmail}`);
+        console.log(`🔑 Password: ${adminPassword}`);
+      } else {
+        console.log("ℹ️  Admin user already exists");
+      }
+    } catch (mongoError) {
+      console.warn("⚠️  Could not access MongoDB for admin user creation:");
+      console.warn(`   ${mongoError.message}`);
+      console.warn("   Admin user creation skipped - proceed with caution");
     }
   } catch (error) {
     console.error("Database connection error:", error);
