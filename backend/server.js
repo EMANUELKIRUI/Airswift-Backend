@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -12,7 +14,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { sendOTP } = require("./services/emailService");
-require("dotenv").config();
 
 // Connect to MongoDB
 connectDB();
@@ -298,12 +299,20 @@ const allowedOrigins = [
   "https://www.airswift-frontend.vercel.app",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-];
+].filter(Boolean);
 
-app.use(cors({
-  origin: "https://airswift-frontend.vercel.app",
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS policy: Origin not allowed"));
+    },
+    credentials: true,
+  })
+);
+app.options("*", cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 // Root route

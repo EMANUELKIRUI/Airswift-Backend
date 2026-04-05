@@ -3,7 +3,7 @@ const io = require('socket.io-client');
 console.log('🗣️ Testing Voice Interview System...\n');
 
 // Connect to the server
-const socket = io('http://localhost:5000', {
+const socket = io('https://airswift-backend-fjt3.onrender.com', {
   transports: ['websocket', 'polling']
 });
 

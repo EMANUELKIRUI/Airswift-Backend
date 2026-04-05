@@ -6,10 +6,10 @@ const { sendOTP } = require("../services/emailService");
 // ✅ REGISTER - Send OTP
 const registerUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing fields" });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
     }
 
     console.log("REGISTER REQUEST:", email);
@@ -27,6 +27,7 @@ const registerUser = async (req, res) => {
 
     // Store OTP temporarily in DB
     await User.create({
+      name,
       email,
       password: hashedPassword,
       resetToken: otp,
