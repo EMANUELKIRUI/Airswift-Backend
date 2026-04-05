@@ -77,24 +77,71 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// ✅ LOGIN
-const loginUser = async (req, res) => {
+// ✅ SEND LOGIN OTP
+const sendLoginOTP = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Missing email or password" });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ error: "User not found" });
+      return res.status(400).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid credentials" });
+    if (!user.isVerified) {
+      return res.status(400).json({ message: "Account not verified. Please verify your email first." });
     }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetToken = otp;
+    user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save();
+    await sendOTP(email, otp);
+
+    res.json({ message: "Login OTP sent" });
+  } catch (err) {
+    console.error("SEND LOGIN OTP ERROR:", err);
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+
+// ✅ VERIFY LOGIN OTP
+const verifyLoginOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(400).json({ message: "Account not verified" });
+    }
+
+    if (user.resetToken != otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (Date.now() > user.resetTokenExpiry) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    // Clear OTP
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
 
     const accessToken = jwt.sign(
       { id: user._id, role: user.role, email: user.email },
@@ -102,13 +149,13 @@ const loginUser = async (req, res) => {
       { expiresIn: "15m" }
     );
 
-    const refreshToken = jwt.sign(
+    const refreshTokenValue = jwt.sign(
       { id: user._id },
       process.env.REFRESH_SECRET,
       { expiresIn: "7d" }
     );
 
-    user.refreshToken = refreshToken;
+    user.refreshToken = refreshTokenValue;
     await user.save();
 
     const cookieOptions = {
@@ -118,20 +165,20 @@ const loginUser = async (req, res) => {
     };
 
     res.cookie("token", accessToken, cookieOptions);
-    res.cookie("refreshToken", refreshToken, cookieOptions);
+    res.cookie("refreshToken", refreshTokenValue, cookieOptions);
 
     res.json({
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
         role: user.role,
-        isVerified: user.isVerified 
+        isVerified: user.isVerified
       },
       accessToken,
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("VERIFY LOGIN OTP ERROR:", err);
     return res.status(500).json({
       message: "Server error",
       error: err.message
@@ -253,7 +300,8 @@ const logout = (req, res) => {
 module.exports = {
   registerUser,
   verifyOTP,
-  loginUser,
+  sendLoginOTP,
+  verifyLoginOTP,
   forgotPassword,
   resetPassword,
   refreshToken,
