@@ -24,7 +24,8 @@ const registerUser = async (req, res) => {
     const user = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      isVerified: true
     });
 
     return res.status(201).json({ user });
@@ -61,8 +62,6 @@ const loginUser = async (req, res) => {
 
   const user = await User.findOne({ where: { email } });
   if (!user) return res.status(400).json({ error: "User not found" });
-
-  if (!user.isVerified) return res.status(400).json({ error: "Please verify your email first" });
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });

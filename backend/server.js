@@ -13,6 +13,7 @@ const { User } = require("./models");
 require("dotenv").config();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
@@ -301,22 +302,22 @@ app.post('/api/analyze-speech', analyzeSpeech);
 app.post('/api/tts', streamElevenLabsTTS);
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 100, // limit requests
-  message: "Too many requests, try again later"
-});
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 min
+//   max: 100, // limit requests
+//   message: "Too many requests, try again later"
+// });
 
-app.use(limiter);
+// app.use(limiter);
 
 // Specific limiter for login
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: "Too many login attempts, try again later"
-});
+// const loginLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 5,
+//   message: "Too many login attempts, try again later"
+// });
 
-app.use("/api/auth/login", loginLimiter);
+// app.use("/api/auth/login", loginLimiter);
 
 // routes
 app.use("/api/auth/google", require("./routes/googleAuth"));
