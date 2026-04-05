@@ -13,7 +13,11 @@ router.get('/status', (req, res) => {
         redirect_uri: process.env.GOOGLE_REDIRECT_URI ? '✓ Configured' : '✗ Missing GOOGLE_REDIRECT_URI',
       },
       local_auth: {
-        brevo_api_key: process.env.BREVO_API_KEY ? '✓ Configured' : '✗ Missing BREVO_API_KEY (email)',
+        smtp_host: process.env.SMTP_HOST ? '✓ Configured' : '✗ Missing SMTP_HOST',
+        smtp_port: process.env.SMTP_PORT ? '✓ Configured' : '✗ Missing SMTP_PORT',
+        smtp_user: process.env.SMTP_USER ? '✓ Configured' : '✗ Missing SMTP_USER',
+        smtp_pass: process.env.SMTP_PASS ? '✓ Configured' : '✗ Missing SMTP_PASS',
+        from_email: process.env.FROM_EMAIL ? '✓ Configured' : '✗ Missing FROM_EMAIL',
       },
     },
     auth_methods: {

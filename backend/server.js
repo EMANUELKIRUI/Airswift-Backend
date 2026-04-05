@@ -10,6 +10,7 @@ const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechCont
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
+const { sendOTP } = require("./services/emailService");
 require("dotenv").config();
 
 const app = express();
@@ -17,7 +18,7 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: "https://airswift-frontend.vercel.app",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -286,15 +287,29 @@ io.on("connection", (socket) => {
 })();
 
 app.use(cookieParser());
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://airswift-frontend.vercel.app",
+  "https://www.airswift-frontend.vercel.app",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
 app.use(cors({
   origin: "https://airswift-frontend.vercel.app",
-  credentials: true
+  credentials: true,
 }));
 app.use(express.json());
 
 // Root route
 app.get('/', (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// API test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: "API is working!", timestamp: new Date().toISOString() });
 });
 
 // Speech analysis endpoint for real-time interview insights
@@ -333,6 +348,28 @@ app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
+
+// Test route for OTP
+app.post("/api/test-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    await sendOTP(email, otp);
+
+    console.log("OTP sent:", otp);
+
+    res.json({
+      success: true,
+      message: "OTP sent successfully",
+      otp, // remove in production
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT} with WebSocket support`));

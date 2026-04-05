@@ -62,17 +62,14 @@ const loginUser = async (req, res) => {
   user.refreshToken = refreshToken;
   await user.save();
 
-  res.cookie("token", accessToken, {
+  const cookieOptions = {
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
-  });
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+  };
 
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "None",
-  });
+  res.cookie("token", accessToken, cookieOptions);
+  res.cookie("refreshToken", refreshToken, cookieOptions);
 
   res.json({
     user: { id: user.id, name: user.name, email: user.email, role: user.role },

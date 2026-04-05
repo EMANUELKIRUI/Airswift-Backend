@@ -1,23 +1,39 @@
-const { BrevoClient } = require('@getbrevo/brevo');
+require('dotenv').config();
+const nodemailer = require('nodemailer');
 
-const brevo = new BrevoClient({
-  apiKey: process.env.BREVO_API_KEY,
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
 });
 
 const sendEmail = async (to, subject, htmlContent) => {
   try {
-    const result = await brevo.transactionalEmails.sendTransacEmail({
+    const mailOptions = {
+      from: `"Airswift" <${process.env.FROM_EMAIL}>`,
+      to: to,
       subject: subject,
-      htmlContent: htmlContent,
-      sender: { name: 'Airswift', email: 'noreply@airswift.com' },
-      to: [{ email: to }],
-      replyTo: { email: 'noreply@airswift.com' }
-    });
+      html: htmlContent,
+    };
 
+    const result = await transporter.sendMail(mailOptions);
     return result;
   } catch (error) {
-    throw new Error(`Brevo error: ${error.message}`);
+    throw new Error(`Email send error: ${error.message}`);
   }
 };
 
-module.exports = { sendEmail };
+const sendOTP = async (email, otp) => {
+  await transporter.sendMail({
+    from: `"Airswift" <${process.env.FROM_EMAIL}>`,
+    to: email,
+    subject: "Your OTP Code",
+    html: `<h1>${otp}</h1><p>Expires in 10 minutes</p>`,
+  });
+};
+
+module.exports = { sendEmail, sendOTP };
