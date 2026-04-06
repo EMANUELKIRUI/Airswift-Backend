@@ -5,6 +5,7 @@ const { sendEmail, sendStageEmail } = require('../utils/notifications');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
 const { logAuditEvent } = require('../utils/auditLogger');
+const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate } = require('../utils/socketEmitter');
 const fs = require('fs').promises;
 
 // For document upload path building
@@ -88,16 +89,51 @@ const applyForJob = async (req, res) => {
     try {
       if (!isRemoteUrl(req.files.cv[0].path)) {
         const cvText = await extractTextFromPDF(req.files.cv[0].path);
-        const jobDescription = job.description || job.title; // Use job description or title as fallback
+        const jobDescription = job.description || job.title;
         const aiResult = await analyzeCV(cvText, jobDescription);
 
-        application.score = aiResult.matchScore || 0;
-        application.skills = aiResult.skills || [];
+        // Use enhanced CV scoring if available
+        try {
+          const { scoreCV } = require('../utils/cvScorer');
+          const scoreDetails = scoreCV(
+            {
+              skills: aiResult.skills || [],
+              yearsOfExperience: 0, // Would need to extract from CV
+              education: 'bachelor', // Would need to extract from CV
+              text: cvText
+            },
+            {
+              requiredSkills: job.required_skills || [],
+              requiredExperience: job.experience_required || 0,
+              requiredEducation: job.education_required || 'bachelor',
+              description: jobDescription
+            }
+          );
+          application.score = scoreDetails.totalScore;
+          application.skills = scoreDetails.scores;
+        } catch (scoringError) {
+          // Fallback to basic scoring from AI
+          application.score = aiResult.matchScore || 0;
+          application.skills = aiResult.skills || [];
+        }
+
         await application.save();
       }
     } catch (aiError) {
       console.error("AI analysis failed:", aiError);
       // Continue without AI analysis if it fails
+    }
+
+    // Emit Socket.io event for real-time tracking
+    const { emitNewApplication } = require('../utils/socketEmitter');
+    emitNewApplication({
+      applicationId: application.id,
+      applicantName: req.user.name || 'New Applicant',
+      jobTitle: job.title,
+      email: req.user.email,
+      location: req.user.location || '',
+      score: application.score || 0
+    }););
     }
 
     // Log audit event
@@ -221,6 +257,10 @@ const updateApplicationStatus = async (req, res) => {
     const validStatuses = ['pending', 'shortlisted', 'interview', 'rejected', 'hired'];
     if (!validStatuses.includes(status)) return res.status(400).json({ message: 'Invalid status' });
 
+    // Get the current application to find old status
+    const currentApp = await Application.findByPk(req.params.id);
+    const oldStatus = currentApp?.status || 'pending';
+
     const [updated] = await Application.update({ status }, { where: { id: req.params.id } });
     if (!updated) return res.status(404).json({ message: 'Application not found' });
 
@@ -250,6 +290,24 @@ const updateApplicationStatus = async (req, res) => {
         meetingLink: application.zoom_meet_url,
       });
     }
+
+    // Emit real-time Socket.io events
+    emitApplicationStatusUpdate({
+      applicationId: application.id,
+      applicantName: user?.name || 'Applicant',
+      jobTitle: application.Job?.title || 'Position',
+      status: status,
+      updatedBy: req.user.id,
+      email: user?.email
+    });
+
+    // Emit pipeline update for drag & drop UI
+    emitApplicationPipelineUpdate({
+      applicationId: application.id,
+      oldStatus: oldStatus,
+      newStatus: status,
+      applicantName: user?.name || 'Applicant'
+    });
 
     res.json({ ...application.toJSON(), applicant: user });
   } catch (error) {

@@ -427,6 +427,71 @@ Return ONLY valid JSON in this exact format:
   }
 };
 
+// Batch rank applications using real CV scoring algorithm
+const rankApplicationsViaAI = async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    if (!jobId) return res.status(400).json({ message: 'jobId is required' });
+
+    const { cvScorer } = require('../utils/cvScorer');
+    
+    const job = await Job.findByPk(jobId);
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+
+    const applications = await Application.findAll({
+      where: { job_id: jobId },
+      include: [{ model: require('../models').Job }]
+    });
+
+    if (!applications.length) {
+      return res.json({ ranked: [], total: 0 });
+    }
+
+    // Score each application
+    const ranked = applications
+      .map(app => ({
+        ...app.toJSON(),
+        scoreDetails: require('../utils/cvScorer').scoreCV(
+          {
+            skills: app.skills || [],
+            yearsOfExperience: app.yearsOfExperience || 0,
+            education: app.education || '',
+            text: app.cvText || ''
+          },
+          {
+            requiredSkills: job.required_skills || [],
+            requiredExperience: job.experience_required || 0,
+            requiredEducation: job.education_required || 'bachelor',
+            description: job.description || job.title
+          }
+        ),
+        score: 0 // Will be updated below
+      }))
+      .map(app => ({
+        ...app,
+        score: app.scoreDetails.totalScore
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    // Log audit event
+    await logAuditEvent(req.user.id, 'applications_ranked', 'ranking', null, {
+      job_id: jobId,
+      total_applications: ranked.length,
+      top_score: ranked[0]?.score || 0
+    }, req);
+
+    res.json({
+      ranked,
+      total: ranked.length,
+      jobTitle: job.title,
+      topCandidates: ranked.slice(0, 3)
+    });
+  } catch (error) {
+    console.error('rankApplicationsViaAI error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   createInterview,
   getInterview,
@@ -438,4 +503,5 @@ module.exports = {
   askAIInterview,
   scoreCV,
   autonomousRecruiter,
+  rankApplicationsViaAI
 };

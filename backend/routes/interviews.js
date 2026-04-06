@@ -10,6 +10,7 @@ const {
   askAIInterview,
   scoreCV,
   autonomousRecruiter,
+  rankApplicationsViaAI,
 } = require('../controllers/interviewController');
 const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
@@ -36,6 +37,9 @@ router.post('/cv/score', verifyToken, scoreCV);
 
 // Autonomous Recruiter AI Agent
 router.post('/ai/recruiter-agent', adminMiddleware, autonomousRecruiter);
+
+// Rank applications for a job
+router.post('/ai/rank-applications', adminMiddleware, rankApplicationsViaAI);
 
 // Legacy routes for backward compatibility
 router.post('/schedule', adminMiddleware, scheduleInterview);

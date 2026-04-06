@@ -14,6 +14,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { sendOTP, verifyTransporter } = require("./services/emailService");
+const { initializeSocket } = require("./utils/socketEmitter");
 
 // Connect to MongoDB
 connectDB();
@@ -29,14 +30,56 @@ const io = socketIo(server, {
   },
 });
 
-// Socket.io for WebRTC video interviews
+// Initialize Socket.io emitter utility
+initializeSocket(io);
+
+// Socket.io for WebRTC video interviews and applicant tracking
 const interviewRooms = new Map();
+const adminSessions = new Map(); // Track active admin connections for real-time updates
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   // Voice Interview Sessions Storage
   const voiceInterviewSessions = new Map();
+
+  // 👨‍💼 ADMIN APPLICANT TRACKING EVENTS
+  
+  // Admin joins tracking dashboard
+  socket.on("admin-connect", ({ adminId, userId }) => {
+    adminSessions.set(socket.id, { adminId, userId, connectedAt: new Date() });
+    console.log(`Admin ${adminId} connected to tracking dashboard - Socket: ${socket.id}`);
+    
+    socket.emit("admin-connected", {
+      message: "Connected to applicant tracking dashboard",
+      socketId: socket.id
+    });
+  });
+
+  // Broadcast applicant status update to all admins
+  socket.on("applicant-status-changed", (data) => {
+    console.log(`Applicant status changed:`, data);
+    io.emit("applicationUpdate", {
+      applicationId: data.applicationId,
+      status: data.status,
+      timestamp: new Date(),
+      updatedBy: data.adminId,
+      applicantName: data.applicantName,
+      jobTitle: data.jobTitle
+    });
+  });
+
+  // New application received
+  socket.on("new-application", (data) => {
+    console.log(`New application received:`, data);
+    io.emit("newApplication", {
+      applicationId: data.applicationId,
+      applicantName: data.applicantName,
+      jobTitle: data.jobTitle,
+      email: data.email,
+      timestamp: new Date()
+    });
+  });
 
   // 🎤 VOICE INTERVIEW EVENTS
 
@@ -366,6 +409,8 @@ app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
+app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/email", require("./routes/email"));
 
 // Test route for OTP
 app.post("/api/test-otp", async (req, res) => {
@@ -396,3 +441,6 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT} with WebSocket support`));
+
+// Export io for use in controllers
+module.exports = { app, server, io };

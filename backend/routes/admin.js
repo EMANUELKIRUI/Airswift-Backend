@@ -11,6 +11,15 @@ const {
   getStats,
   sendInterview,
   generateOffer,
+  getJobs,
+  createJob,
+  updateJob,
+  deleteJob,
+  analyzeSingleCV,
+  bulkAnalyzeCV,
+  updateApplicantStatusWithSocket,
+  sendEmailToApplicant,
+  sendBulkEmailToApplicants,
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -29,6 +38,23 @@ router.patch('/applications/:id', adminMiddleware, updateStatus);
 router.get('/stats', adminMiddleware, getStats);
 router.post('/send-interview/:id', adminMiddleware, sendInterview);
 router.post('/generate-offer/:id', adminMiddleware, generateOffer);
+
+// Job Management routes
+router.get('/jobs', adminMiddleware, getJobs);
+router.post('/jobs', adminMiddleware, createJob);
+router.put('/jobs/:id', adminMiddleware, updateJob);
+router.delete('/jobs/:id', adminMiddleware, deleteJob);
+
+// AI CV Scoring routes
+router.post('/cv-scoring/analyze', adminMiddleware, analyzeSingleCV);
+router.post('/cv-scoring/bulk-analyze', adminMiddleware, bulkAnalyzeCV);
+
+// Real-time applicant tracking routes
+router.patch('/applicants/status', adminMiddleware, updateApplicantStatusWithSocket);
+
+// Email communication routes
+router.post('/email/send', adminMiddleware, sendEmailToApplicant);
+router.post('/email/send-bulk', adminMiddleware, sendBulkEmailToApplicants);
 
 router.get('/dashboard', adminMiddleware, (req, res) => {
   res.json({
