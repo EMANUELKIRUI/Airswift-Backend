@@ -1,41 +1,26 @@
-const nodemailer = require("nodemailer");
+require('dotenv').config();
+const { Resend } = require("resend");
 
-// Create email transporter with Gmail SMTP
-console.log("EMAIL CONFIG:", process.env.EMAIL_USER);
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // 👈 App Password (NOT normal Gmail password)
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("SMTP ERROR:", error);
-  } else {
-    console.log("SMTP READY");
-  }
-});
+console.log("EMAIL CONFIG:", process.env.RESEND_API_KEY ? "✓ Configured" : "✗ Missing RESEND_API_KEY");
 
 /**
- * Send email with Gmail SMTP
+ * Send email with Resend service
  * @param {string} to - Recipient email address
  * @param {string} subject - Email subject
  * @param {string} html - Email HTML content
- * @returns {Promise} - Nodemailer response
+ * @returns {Promise} - Resend response
  */
 const sendEmail = async (to, subject, html) => {
   try {
-    const result = await transporter.sendMail({
-      from: `"Airswift" <${process.env.EMAIL_USER}>`,
+    const result = await resend.emails.send({
+      from: "Airswift <onboarding@resend.dev>",
       to,
       subject,
       html,
     });
-    
+
     console.log(`✅ Email sent to ${to}`);
     return result;
   } catch (error) {
@@ -45,15 +30,15 @@ const sendEmail = async (to, subject, html) => {
 };
 
 /**
- * Verify transporter connection
+ * Verify Resend service connection
  */
 const verifyTransporter = async () => {
   try {
-    await transporter.verify();
-    console.log("✅ Email transporter is ready to send messages");
+    await resend.domains.list();
+    console.log("✅ Resend email service is ready");
     return true;
   } catch (error) {
-    console.error("❌ Email transporter error:", error.message);
+    console.error("❌ Resend service error:", error.message);
     return false;
   }
 };
@@ -61,5 +46,4 @@ const verifyTransporter = async () => {
 module.exports = {
   sendEmail,
   verifyTransporter,
-  transporter,
 };
