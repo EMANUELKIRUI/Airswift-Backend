@@ -242,6 +242,46 @@ const loginUser = async (req, res) => {
   }
 };
 
+// ✅ ADMIN LOGIN
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const admin = await User.findOne({ email });
+
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: admin._id, role: "admin", email: admin.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        email: admin.email,
+        role: admin.role,
+      },
+    });
+  } catch (err) {
+    console.error("ADMIN LOGIN ERROR:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
 // ✅ SEND LOGIN OTP
 const sendLoginOTP = async (req, res) => {
   try {
@@ -585,5 +625,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   refreshToken,
-  logout
+  logout,
+  adminLogin
 };

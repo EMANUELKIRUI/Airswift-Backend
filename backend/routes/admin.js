@@ -1,5 +1,6 @@
 const express = require('express');
 const adminMiddleware = require('../middleware/admin');
+const { adminLogin } = require('../controllers/authController');
 const {
   getAllSettings,
   getSettingByKey,
@@ -24,6 +25,9 @@ const {
 } = require('../controllers/adminController');
 
 const router = express.Router();
+
+// Admin auth route
+router.post('/login', adminLogin);
 
 // Settings routes
 router.get('/settings', adminMiddleware, getAllSettings);
