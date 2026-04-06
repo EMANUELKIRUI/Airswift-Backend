@@ -4,6 +4,7 @@ const { generateInterviewQuestions, scoreInterviewResponse, generateOverallInter
 const { logAuditEvent } = require('../utils/auditLogger');
 const { sendStageEmail } = require('../utils/notifications');
 const { sendInterviewInvitation } = require('../services/emailService');
+const { createZoomMeeting } = require('../services/zoomService');
 const { emitInterviewScheduled } = require('../utils/socketEmitter');
 
 // Validation schemas
@@ -47,13 +48,28 @@ const createInterview = async (req, res) => {
       );
     }
 
+    let meetingLink = req.body.meeting_link;
+
+    if (type === 'video' && !meetingLink) {
+      try {
+        meetingLink = await createZoomMeeting({
+          topic: `Interview for ${application.Job.title}`,
+          startTime: scheduled_at,
+          duration: 30,
+          timezone: 'UTC',
+        });
+      } catch (zoomError) {
+        console.error('createZoomMeeting error:', zoomError);
+      }
+    }
+
     const interview = await Interview.create({
       application_id,
       interviewer_id: req.user.id,
       room_id: roomId,
       type,
       scheduled_at,
-      meeting_link: req.body.meeting_link,
+      meeting_link: meetingLink,
       ai_questions: aiQuestions,
     });
 
@@ -66,7 +82,7 @@ const createInterview = async (req, res) => {
             applicant.name || 'Candidate',
             application.Job.title,
             scheduled_at,
-            req.body.meeting_link
+            meetingLink
           );
         } catch (emailError) {
           console.error('sendInterviewInvitation error:', emailError);
@@ -79,7 +95,7 @@ const createInterview = async (req, res) => {
       interviewId: interview.id,
       scheduled_at,
       type,
-      meeting_link: req.body.meeting_link,
+      meeting_link: meetingLink,
       applicantId: application.user_id,
     });
 
@@ -92,7 +108,7 @@ const createInterview = async (req, res) => {
       application_id,
       type,
       room_id: roomId,
-      meeting_link: req.body.meeting_link,
+      meeting_link: meetingLink,
     }, req);
 
     res.status(201).json(interview);
