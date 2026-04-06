@@ -1,14 +1,13 @@
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
-const sequelize = require("../config/database");
+const connectDB = require("../config/db");
 const User = require("../models/User");
 
 const createAdmin = async () => {
   try {
-    // Sync database first
-    console.log("🔄 Syncing database...");
-    await sequelize.sync({ alter: true });
-    console.log("✅ Database synced\n");
+    // Connect to MongoDB
+    await connectDB();
+    console.log("🔄 Connected to MongoDB...");
 
     // Admin credentials
     const adminEmail = "admin@airswift.com";
@@ -18,7 +17,7 @@ const createAdmin = async () => {
     console.log("🔐 Creating Admin Account...\n");
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+    const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (existingAdmin) {
       console.log("⚠️  Admin account with this email already exists!");

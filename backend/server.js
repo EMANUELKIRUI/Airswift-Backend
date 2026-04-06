@@ -269,7 +269,7 @@ io.on("connection", (socket) => {
       const adminPassword = "Admin123!";
       const adminName = "Admin User";
 
-      const existingAdmin = await User.findOne({ where: { email: adminEmail } }).timeout(5000);
+      const existingAdmin = await User.findOne({ email: adminEmail }).maxTimeMS(5000);
       if (!existingAdmin) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(adminPassword, salt);
