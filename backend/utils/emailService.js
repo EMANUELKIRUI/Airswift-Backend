@@ -39,7 +39,7 @@ const sendEmailToApplicant = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>Airswift Team</strong>
+              <strong>TALEX Team</strong>
             </p>
           </div>
         </body>
@@ -105,7 +105,7 @@ const sendBulkEmails = async (req, res) => {
 
               <p style="margin-top: 20px; color: #7f8c8d;">
                 Best regards,<br>
-                <strong>Airswift Team</strong>
+                <strong>TALEX Team</strong>
               </p>
             </div>
           </body>
@@ -165,7 +165,7 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>Airswift Team</strong>
+              <strong>TALEX Team</strong>
             </p>
           </div>
         </body>
@@ -207,7 +207,7 @@ const sendRejectionEmail = async (email, candidateName, jobTitle) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>Airswift Team</strong>
+              <strong>TALEX Team</strong>
             </p>
           </div>
         </body>
@@ -269,7 +269,7 @@ const sendOfferLetter = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>Airswift HR Team</strong>
+              <strong>TALEX HR Team</strong>
             </p>
           </div>
         </body>

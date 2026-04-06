@@ -1,11 +1,11 @@
-# Airswift Backend
+# TALEX Backend
 
 A centralized job portal backend where admins manage jobs and users apply for Canada-based positions.
 
 ## 🚀 Deployment
 
-**Frontend:** `https://airswift-frontend.vercel.app/`  
-**Backend API:** `https://airswift-backend-fjt3.onrender.com`
+**Frontend:** `https://talex-frontend.vercel.app/`  
+**Backend API:** `https://talex-backend-fjt3.onrender.com`
 
 ## Features
 
@@ -106,8 +106,8 @@ Run the demo: `open voice-interview-demo.html` (requires server running on port 
 - `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI` (e.g. `https://airswift-frontend.vercel.app/auth/google/callback`)
-- `FRONTEND_URL` (e.g. `https://airswift-frontend.vercel.app`)
+- `GOOGLE_REDIRECT_URI` (e.g. `https://talex-frontend.vercel.app/auth/google/callback`)
+- `FRONTEND_URL` (e.g. `https://talex-frontend.vercel.app`)
 - `PORT`
 
 ## Email Configuration
@@ -168,22 +168,22 @@ A default admin user is created on startup if it does not already exist:
 ## API Endpoints
 
 ### Auth
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/register` - Register new user (sends OTP)
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/verify-otp` - Verify email with OTP
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP for registration
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/login` - Login user (returns JWT token)
-- `GET https://airswift-backend-fjt3.onrender.com/api/auth/me` - Get current user profile (requires JWT)
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/send-login-otp` - Send login OTP
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/verify-login-otp` - Verify login OTP
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/forgot-password` - Send password reset OTP
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/reset-password` - Reset password with OTP
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/refresh` - Refresh JWT token
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/logout` - Logout user
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/register` - Register new user (sends OTP)
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/verify-otp` - Verify email with OTP
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP for registration
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/login` - Login user (returns JWT token)
+- `GET https://talex-backend-fjt3.onrender.com/api/auth/me` - Get current user profile (requires JWT)
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/send-login-otp` - Send login OTP
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/verify-login-otp` - Verify login OTP
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/forgot-password` - Send password reset OTP
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/reset-password` - Reset password with OTP
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/refresh` - Refresh JWT token
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/logout` - Logout user
 
 ### Google OAuth (new)
-- `GET https://airswift-backend-fjt3.onrender.com/api/auth/google/url` - Get Google authorization URL
-- `GET https://airswift-backend-fjt3.onrender.com/api/auth/google/callback` - Redirect URI for Google OAuth code flow
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/google/verify-id-token` - Verify Google ID token and issue JWT
+- `GET https://talex-backend-fjt3.onrender.com/api/auth/google/url` - Get Google authorization URL
+- `GET https://talex-backend-fjt3.onrender.com/api/auth/google/callback` - Redirect URI for Google OAuth code flow
+- `POST https://talex-backend-fjt3.onrender.com/api/auth/google/verify-id-token` - Verify Google ID token and issue JWT
 
 **Authentication**: Include JWT token in Authorization header: `Bearer <token>`
 
@@ -203,7 +203,7 @@ const headers = {
 
 #### Use full backend URL from env
 ```env
-NEXT_PUBLIC_API_URL=https://airswift-backend-fjt3.onrender.com
+NEXT_PUBLIC_API_URL=https://talex-backend-fjt3.onrender.com
 ```
 
 ```javascript
@@ -247,30 +247,30 @@ Sidebar Navigation    | Main Content
 ```
 
 ### Profile
-- `GET https://airswift-backend-fjt3.onrender.com/api/profile`
-- `PUT https://airswift-backend-fjt3.onrender.com/api/profile`
-- `POST https://airswift-backend-fjt3.onrender.com/api/profile/upload-cv`
+- `GET https://talex-backend-fjt3.onrender.com/api/profile`
+- `PUT https://talex-backend-fjt3.onrender.com/api/profile`
+- `POST https://talex-backend-fjt3.onrender.com/api/profile/upload-cv`
 
 ### Jobs
-- `GET https://airswift-backend-fjt3.onrender.com/api/jobs`
-- `GET https://airswift-backend-fjt3.onrender.com/api/jobs/:id`
-- `POST https://airswift-backend-fjt3.onrender.com/api/admin/jobs` (admin)
-- `PUT https://airswift-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
-- `DELETE https://airswift-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
+- `GET https://talex-backend-fjt3.onrender.com/api/jobs`
+- `GET https://talex-backend-fjt3.onrender.com/api/jobs/:id`
+- `POST https://talex-backend-fjt3.onrender.com/api/admin/jobs` (admin)
+- `PUT https://talex-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
+- `DELETE https://talex-backend-fjt3.onrender.com/api/admin/jobs/:id` (admin)
 
 ### Applications
-- `POST https://airswift-backend-fjt3.onrender.com/api/applications/apply`
-- `GET https://airswift-backend-fjt3.onrender.com/api/applications/my`
-- `GET https://airswift-backend-fjt3.onrender.com/api/admin/applications` (admin)
-- `PUT https://airswift-backend-fjt3.onrender.com/api/admin/applications/:id/status` (admin)
+- `POST https://talex-backend-fjt3.onrender.com/api/applications/apply`
+- `GET https://talex-backend-fjt3.onrender.com/api/applications/my`
+- `GET https://talex-backend-fjt3.onrender.com/api/admin/applications` (admin)
+- `PUT https://talex-backend-fjt3.onrender.com/api/admin/applications/:id/status` (admin)
 
 ### Interviews
-- `POST https://airswift-backend-fjt3.onrender.com/api/admin/interviews/schedule` (admin)
-- `GET https://airswift-backend-fjt3.onrender.com/api/interviews/my`
+- `POST https://talex-backend-fjt3.onrender.com/api/admin/interviews/schedule` (admin)
+- `GET https://talex-backend-fjt3.onrender.com/api/interviews/my`
 
 ### Payments
-- `POST https://airswift-backend-fjt3.onrender.com/api/payment/initiate`
-- `POST https://airswift-backend-fjt3.onrender.com/api/payment/verify`
+- `POST https://talex-backend-fjt3.onrender.com/api/payment/initiate`
+- `POST https://talex-backend-fjt3.onrender.com/api/payment/verify`
 
 ## Frontend Components
 

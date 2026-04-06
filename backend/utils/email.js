@@ -15,7 +15,7 @@ console.log("EMAIL CONFIG:", process.env.RESEND_API_KEY ? "âœ“ Configured" : "âœ
 const sendEmail = async (to, subject, html) => {
   try {
     const result = await resend.emails.send({
-      from: "Airswift <onboarding@resend.dev>",
+      from: "TALEX <onboarding@resend.dev>",
       to,
       subject,
       html,

@@ -273,8 +273,8 @@ const generateOffer = async (req, res) => {
     doc.moveDown(2);
 
     doc.text('Sincerely,');
-    doc.text('Airswift HR Team');
-    doc.text('hr@airswift.com');
+    doc.text('TALEX HR Team');
+    doc.text('hr@talex.com');
 
     doc.end();
 

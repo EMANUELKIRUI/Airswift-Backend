@@ -1,6 +1,6 @@
 #!/bin/bash
 # 🚀 Quick Test Jobs Seeding Script
-# This file contains ready-to-use commands for testing the Airswift job seeding feature
+# This file contains ready-to-use commands for testing the TALEX job seeding feature
 
 # ============================================================================
 # STEP 1: Admin Login - Get your auth token
@@ -8,7 +8,7 @@
 # Replace with your backend URL and admin credentials
 
 BACKEND_URL="http://localhost:5000"
-ADMIN_EMAIL="admin@airswift.com"
+ADMIN_EMAIL="admin@talex.com"
 ADMIN_PASSWORD="admin123"
 
 echo "🔐 Logging in as admin..."

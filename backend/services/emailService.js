@@ -5,11 +5,11 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendOTPEmail = async (email, otp) => {
   try {
     const response = await resend.emails.send({
-      from: 'Airswift <onboarding@resend.dev>',
+      from: 'TALEX <onboarding@resend.dev>',
       to: email,
       subject: 'OTP Verification',
       html: `
-        <h2>Airswift Verification</h2>
+        <h2>TALEX Verification</h2>
         <p>Your OTP is:</p>
         <h1>${otp}</h1>
         <p>Expires in 10 minutes</p>

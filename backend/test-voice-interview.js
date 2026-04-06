@@ -3,7 +3,7 @@ const io = require('socket.io-client');
 console.log('🗣️ Testing Voice Interview System...\n');
 
 // Connect to the server
-const socket = io('https://airswift-backend-fjt3.onrender.com', {
+const socket = io('https://talex-backend-fjt3.onrender.com', {
   transports: ['websocket', 'polling']
 });
 

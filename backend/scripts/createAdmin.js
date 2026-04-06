@@ -10,7 +10,7 @@ const createAdmin = async () => {
     console.log("🔄 Connected to MongoDB...");
 
     // Admin credentials
-    const adminEmail = "admin@airswift.com";
+    const adminEmail = "admin@talex.com";
     const adminPassword = "Admin123!"; // Change this to a secure password
     const adminName = "Admin User";
 

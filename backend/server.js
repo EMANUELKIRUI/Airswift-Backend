@@ -24,7 +24,7 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "https://airswift-frontend.vercel.app",
+    origin: "https://talex-frontend.vercel.app",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -374,7 +374,7 @@ io.on("connection", (socket) => {
 
     // Create default admin user if MongoDB is available
     try {
-      const adminEmail = "admin@airswift.com";
+      const adminEmail = "admin@talex.com";
       const adminPassword = "Admin123!";
       const adminName = "Admin User";
 
@@ -412,7 +412,7 @@ io.on("connection", (socket) => {
 app.use(cookieParser());
 
 const allowedOrigins = [
-  "https://airswift-frontend.vercel.app",
+  "https://talex-frontend.vercel.app",
 ];
 
 app.use(

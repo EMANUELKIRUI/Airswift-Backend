@@ -19,7 +19,7 @@ const adminMiddleware = require('../middleware/admin');
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'airswift_uploads',
+    folder: 'talex_uploads',
     resource_type: 'auto',
   },
 });
