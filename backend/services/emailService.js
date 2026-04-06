@@ -1,11 +1,11 @@
-import { Resend } from 'resend';
+const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export const sendOTPEmail = async (email, otp) => {
+const sendOTPEmail = async (email, otp) => {
   try {
     const response = await resend.emails.send({
-      from: process.env.EMAIL_FROM,
+      from: 'Airswift <onboarding@resend.dev>',
       to: email,
       subject: 'OTP Verification',
       html: `
@@ -24,3 +24,5 @@ export const sendOTPEmail = async (email, otp) => {
     throw error;
   }
 };
+
+module.exports = { sendOTPEmail };
