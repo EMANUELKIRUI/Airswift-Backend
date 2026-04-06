@@ -7,12 +7,9 @@ router.get('/status', (req, res) => {
     checks: {
       database: process.env.DB_HOST ? '✓ Configured' : '✗ Missing DB_HOST',
       jwt: process.env.JWT_SECRET ? '✓ Configured' : '✗ Missing JWT_SECRET',
-      local_auth: {
-        smtp_host: process.env.SMTP_HOST ? '✓ Configured' : '✗ Missing SMTP_HOST',
-        smtp_port: process.env.SMTP_PORT ? '✓ Configured' : '✗ Missing SMTP_PORT',
-        smtp_user: process.env.SMTP_USER ? '✓ Configured' : '✗ Missing SMTP_USER',
-        smtp_pass: process.env.SMTP_PASS ? '✓ Configured' : '✗ Missing SMTP_PASS',
-        from_email: process.env.FROM_EMAIL ? '✓ Configured' : '✗ Missing FROM_EMAIL',
+      email_service: {
+        resend_api_key: process.env.RESEND_API_KEY ? '✓ Configured' : '✗ Missing RESEND_API_KEY',
+        email_from: process.env.EMAIL_FROM ? '✓ Configured' : '✗ Missing EMAIL_FROM',
       },
     },
     auth_methods: {
