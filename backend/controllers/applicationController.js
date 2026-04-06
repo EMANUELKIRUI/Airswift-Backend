@@ -133,8 +133,7 @@ const applyForJob = async (req, res) => {
       email: req.user.email,
       location: req.user.location || '',
       score: application.score || 0
-    }););
-    }
+    });
 
     // Log audit event
     await logAuditEvent(req.user.id, 'application_submitted', 'application', application.id, {
