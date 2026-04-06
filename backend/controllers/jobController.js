@@ -207,13 +207,18 @@ const getInterviewPipeline = async (req, res) => {
     const applications = await Application.findAll({
       include: [
         { model: Job, attributes: ['id', 'title'] },
-        { model: User, attributes: ['id', 'name', 'email'] },
       ],
     });
 
+    const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
     const pipeline = applications.map((app) => ({
       application_id: app.id,
-      applicant: app.User ? { id: app.User.id, name: app.User.name, email: app.User.email } : null,
+      applicant: userMap[app.user_id]
+        ? { id: userMap[app.user_id]._id, name: userMap[app.user_id].name, email: userMap[app.user_id].email }
+        : null,
       job: app.Job ? { id: app.Job.id, title: app.Job.title } : null,
       status: app.status,
       interview_attended: app.interview_attended,

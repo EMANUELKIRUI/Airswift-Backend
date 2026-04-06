@@ -72,13 +72,19 @@ const getInterview = async (req, res) => {
   try {
     const interview = await Interview.findByPk(req.params.id, {
       include: [
-        { model: Application, include: [{ model: User }, { model: require('../models').Job }] }
+        { model: Application, include: [{ model: require('../models').Job }] }
       ],
     });
 
     if (!interview) return res.status(404).json({ message: 'Interview not found' });
 
-    res.json(interview);
+    const application = interview.Application;
+    const user = application?.user_id ? await User.findById(application.user_id) : null;
+
+    res.json({
+      ...interview.toJSON(),
+      applicant: user,
+    });
   } catch (error) {
     console.error('getInterview error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -141,7 +147,6 @@ const getAdminInterviews = async (req, res) => {
         {
           model: Application,
           include: [
-            { model: User, attributes: ['name', 'email'] },
             { model: require('../models').Job, attributes: ['title'] }
           ]
         }
@@ -149,7 +154,18 @@ const getAdminInterviews = async (req, res) => {
       order: [['created_at', 'DESC']],
     });
 
-    res.json(interviews);
+    const userIds = [...new Set(interviews
+      .map((interview) => interview.Application?.user_id)
+      .filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
+    const formatted = interviews.map((interview) => ({
+      ...interview.toJSON(),
+      applicant: userMap[interview.Application?.user_id] || null,
+    }));
+
+    res.json(formatted);
   } catch (error) {
     console.error('getAdminInterviews error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -208,11 +224,12 @@ const scheduleInterview = async (req, res) => {
     });
 
     // Notify user
-    const application = await Application.findByPk(req.body.application_id, { include: [User, require('../models').Job] });
-    if (application && application.User) {
-      await sendStageEmail('interview_scheduled', application.User.email, {
-        name: application.User.name,
-        jobTitle: application.Job.title,
+    const application = await Application.findByPk(req.body.application_id, { include: [require('../models').Job] });
+    const user = application?.user_id ? await User.findById(application.user_id) : null;
+    if (application && user) {
+      await sendStageEmail('interview_scheduled', user.email, {
+        name: user.name,
+        jobTitle: application.Job?.title,
         scheduledDate: new Date(req.body.scheduled_date).toLocaleDateString(),
         meetingLink: req.body.meeting_link,
       });

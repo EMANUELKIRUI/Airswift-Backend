@@ -16,7 +16,7 @@ const Interview = sequelize.define('Interview', {
     },
   },
   interviewer_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: true, // Admin who conducts interview
     references: {
       model: 'Users',

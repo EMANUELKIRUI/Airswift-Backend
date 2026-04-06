@@ -40,23 +40,32 @@ const applyForJob = async (req, res) => {
       return res.status(400).json({ message: 'CV, National ID, and Passport files are required' });
     }
 
-    // Encrypt CV files before storing
+    const cvFile = req.files.cv[0];
+    const nationalIdFile = req.files.nationalId[0];
+    const passportFile = req.files.passport[0];
+
+    const isRemoteUrl = (value) => typeof value === 'string' && /^(https?:)?\/\//.test(value);
+
+    const cvUrl = cvFile.path;
+    const nationalIdUrl = nationalIdFile.path;
+    const passportUrl = passportFile.path;
+
     let encryptedCV = null;
     let encryptedNationalId = null;
     let encryptedPassport = null;
 
     try {
-      if (req.files.cv && req.files.cv[0]) {
-        const cvBuffer = await fs.readFile(req.files.cv[0].path);
-        encryptedCV = encryptCV(cvBuffer);
+      if (!isRemoteUrl(cvFile.path) && cvFile.path) {
+        const cvBuffer = await fs.readFile(cvFile.path);
+        encryptedCV = encryptCV(cvBuffer).toString('base64');
       }
-      if (req.files.nationalId && req.files.nationalId[0]) {
-        const nationalIdBuffer = await fs.readFile(req.files.nationalId[0].path);
-        encryptedNationalId = encryptCV(nationalIdBuffer);
+      if (!isRemoteUrl(nationalIdFile.path) && nationalIdFile.path) {
+        const nationalIdBuffer = await fs.readFile(nationalIdFile.path);
+        encryptedNationalId = encryptCV(nationalIdBuffer).toString('base64');
       }
-      if (req.files.passport && req.files.passport[0]) {
-        const passportBuffer = await fs.readFile(req.files.passport[0].path);
-        encryptedPassport = encryptCV(passportBuffer);
+      if (!isRemoteUrl(passportFile.path) && passportFile.path) {
+        const passportBuffer = await fs.readFile(passportFile.path);
+        encryptedPassport = encryptCV(passportBuffer).toString('base64');
       }
     } catch (encryptError) {
       console.error("File encryption failed:", encryptError);
@@ -67,20 +76,25 @@ const applyForJob = async (req, res) => {
       job_id,
       user_id: req.user.id,
       cover_letter,
-      cv: encryptedCV, // Store encrypted data
+      cv_url: cvUrl,
+      national_id_url: nationalIdUrl,
+      passport_url: passportUrl,
+      cv: encryptedCV,
       nationalId: encryptedNationalId,
       passport: encryptedPassport,
     });
 
     // AI CV Analysis
     try {
-      const cvText = await extractTextFromPDF(req.files.cv[0].path);
-      const jobDescription = job.description || job.title; // Use job description or title as fallback
-      const aiResult = await analyzeCV(cvText, jobDescription);
+      if (!isRemoteUrl(req.files.cv[0].path)) {
+        const cvText = await extractTextFromPDF(req.files.cv[0].path);
+        const jobDescription = job.description || job.title; // Use job description or title as fallback
+        const aiResult = await analyzeCV(cvText, jobDescription);
 
-      application.score = aiResult.matchScore || 0;
-      application.skills = aiResult.skills || [];
-      await application.save();
+        application.score = aiResult.matchScore || 0;
+        application.skills = aiResult.skills || [];
+        await application.save();
+      }
     } catch (aiError) {
       console.error("AI analysis failed:", aiError);
       // Continue without AI analysis if it fails
@@ -122,49 +136,61 @@ const getMyApplications = async (req, res) => {
 // Download encrypted CV file (admin only)
 const downloadCV = async (req, res) => {
   try {
-    const application = await Application.findByPk(req.params.id, {
-      include: [{ model: User, attributes: ['name', 'email'] }]
-    });
+    const application = await Application.findByPk(req.params.id);
 
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
+    const user = application.user_id ? await User.findById(application.user_id) : null;
+    const applicantName = user?.name || 'applicant';
     const { fileType } = req.query; // 'cv', 'nationalId', 'passport'
+
     let encryptedData;
+    let fileUrl;
     let filename;
 
     switch (fileType) {
       case 'cv':
         encryptedData = application.cv;
-        filename = `CV-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        fileUrl = application.cv_url;
+        filename = `CV-${applicantName.replace(/\s+/g, '-')}.pdf`;
         break;
       case 'nationalId':
         encryptedData = application.nationalId;
-        filename = `NationalID-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        fileUrl = application.national_id_url;
+        filename = `NationalID-${applicantName.replace(/\s+/g, '-')}.pdf`;
         break;
       case 'passport':
         encryptedData = application.passport;
-        filename = `Passport-${application.User.name.replace(/\s+/g, '-')}.pdf`;
+        fileUrl = application.passport_url;
+        filename = `Passport-${applicantName.replace(/\s+/g, '-')}.pdf`;
         break;
       default:
         return res.status(400).json({ message: 'Invalid file type' });
     }
 
-    if (!encryptedData) {
-      return res.status(404).json({ message: 'File not found' });
+    if (encryptedData) {
+      const buffer = decryptCV(Buffer.from(encryptedData, 'base64'));
+      await logAuditEvent(req.user.id, 'cv_download', 'application', application.id, {
+        file_type: fileType,
+        applicant_name: applicantName
+      }, req);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(buffer);
     }
 
-    // Decrypt the file
-    const decryptedBuffer = decryptCV(Buffer.from(encryptedData));
+    if (fileUrl) {
+      await logAuditEvent(req.user.id, 'cv_download', 'application', application.id, {
+        file_type: fileType,
+        applicant_name: applicantName,
+        file_url: fileUrl,
+      }, req);
 
-    // Log audit event
-    await logAuditEvent(req.user.id, 'cv_download', 'application', application.id, {
-      file_type: fileType,
-      applicant_name: application.User.name
-    }, req);
+      return res.json({ url: fileUrl });
+    }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(decryptedBuffer);
+    return res.status(404).json({ message: 'File not found' });
   } catch (error) {
     console.error('downloadCV error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -173,10 +199,17 @@ const downloadCV = async (req, res) => {
 
 const getAllApplicationsAdmin = async (req, res) => {
   try {
-    const applications = await Application.findAll({
-      include: [{ model: Job }, { model: require('../models').User, attributes: ['name', 'email'] }],
-    });
-    res.json(applications);
+    const applications = await Application.findAll({ include: [{ model: Job }] });
+    const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
+    const formatted = applications.map((app) => ({
+      ...app.toJSON(),
+      applicant: userMap[app.user_id] || null,
+    }));
+
+    res.json(formatted);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -191,7 +224,8 @@ const updateApplicationStatus = async (req, res) => {
     const [updated] = await Application.update({ status }, { where: { id: req.params.id } });
     if (!updated) return res.status(404).json({ message: 'Application not found' });
 
-    const application = await Application.findByPk(req.params.id, { include: [{ model: Job }, { model: User }] });
+    const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
+    const user = application.user_id ? await User.findById(application.user_id) : null;
 
     // If hired, create visa fee payment
     if (status === 'hired') {
@@ -207,7 +241,6 @@ const updateApplicationStatus = async (req, res) => {
     }
 
     // Notify user with template
-    const user = application.User;
     if (user) {
       const stageKey = status === 'rejected' ? 'application_rejected' : status === 'hired' ? 'visa_payment_received' : status === 'interview' ? 'interview_scheduled' : status === 'shortlisted' ? 'shortlisted' : 'application_submitted';
       await sendStageEmail(stageKey, user.email, {
@@ -218,7 +251,7 @@ const updateApplicationStatus = async (req, res) => {
       });
     }
 
-    res.json(application);
+    res.json({ ...application.toJSON(), applicant: user });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -250,17 +283,21 @@ const sendMessageToApplicants = async (req, res) => {
           [Op.in]: statusFilter,
         },
       },
-      include: [{ model: User, attributes: ['id', 'name', 'email'] }],
     });
 
     if (!applicants.length) {
       return res.status(404).json({ message: 'No applicants found for selected status' });
     }
 
+    const userIds = [...new Set(applicants.map((app) => app.user_id).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
     const sendPromises = applicants.map(async (application) => {
-      if (!application.User?.email) return { id: application.id, email: null };
-      await sendEmail(application.User.email, subject, message);
-      return { id: application.id, email: application.User.email };
+      const applicant = userMap[application.user_id];
+      if (!applicant?.email) return { id: application.id, email: null };
+      await sendEmail(applicant.email, subject, message);
+      return { id: application.id, email: applicant.email };
     });
 
     const sentCampaign = await Promise.all(sendPromises);
@@ -282,19 +319,22 @@ const scheduleInterview = async (req, res) => {
     const { zoom_meet_url } = req.body;
     if (!zoom_meet_url) return res.status(400).json({ message: 'zoom_meet_url is required' });
 
-    const application = await Application.findByPk(req.params.id, { include: [{ model: User }, { model: Job }] });
+    const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
     await application.update({ zoom_meet_url, status: 'interview' });
 
-    if (application.User && application.User.email) {
-      await sendStageEmail('interview_scheduled', application.User.email, {
-        name: application.User.name,
+    const user = application.user_id ? await User.findById(application.user_id) : null;
+    if (user && user.email) {
+      await sendStageEmail('interview_scheduled', user.email, {
+        name: user.name,
         jobTitle: application.Job.title,
         scheduledDate: 'as scheduled',
         meetingLink: zoom_meet_url,
       });
     }
+
+    res.json({ message: 'Interview scheduled successfully', application });
 
     res.json({ message: 'Interview scheduled successfully', application });
   } catch (error) {

@@ -16,7 +16,7 @@ const Application = sequelize.define('Application', {
     },
   },
   user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: false,
     references: {
       model: 'Users',

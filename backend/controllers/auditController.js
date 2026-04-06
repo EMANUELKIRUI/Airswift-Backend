@@ -29,16 +29,22 @@ const getAuditLogs = async (req, res) => {
 
     const { count, rows: logs } = await AuditLog.findAndCountAll({
       where: whereClause,
-      include: [
-        { model: User, attributes: ['name', 'email'], as: 'user' }
-      ],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
 
+    const userIds = [...new Set(logs.map((log) => log.user_id).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
+    const logsWithUser = logs.map((log) => ({
+      ...log.toJSON(),
+      user: userMap[log.user_id] ? { name: userMap[log.user_id].name, email: userMap[log.user_id].email } : null,
+    }));
+
     res.json({
-      logs,
+      logs: logsWithUser,
       pagination: {
         total: count,
         page: parseInt(page),

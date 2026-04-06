@@ -107,12 +107,15 @@ const getAllApplications = async (req, res) => {
       order: [['created_at', 'DESC']],
       include: [
         { model: Job, attributes: ['id', 'title', 'location'] },
-        { model: User, attributes: ['id', 'name', 'email', 'role'] },
       ],
     });
 
+    const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
     // Format applications for frontend compatibility
-    const formattedApplications = applications.map(app => ({
+    const formattedApplications = applications.map((app) => ({
       _id: app.id, // Add _id for frontend compatibility
       id: app.id,
       status: app.status.charAt(0).toUpperCase() + app.status.slice(1), // Capitalize status
@@ -124,7 +127,7 @@ const getAllApplications = async (req, res) => {
       skills: app.skills,
       created_at: app.created_at,
       Job: app.Job,
-      User: app.User,
+      applicant: userMap[app.user_id] || null,
     }));
 
     res.json(formattedApplications);
@@ -170,8 +173,8 @@ const getStats = async (req, res) => {
   try {
     const User = require('../models/User');
     const users = await User.countDocuments();
-    const applications = await Application.countDocuments();
-    const jobs = await Job.countDocuments();
+    const applications = await Application.count();
+    const jobs = await Job.count();
 
     res.json({ users, applications, jobs });
   } catch (error) {
@@ -182,13 +185,11 @@ const getStats = async (req, res) => {
 
 const sendInterview = async (req, res) => {
   try {
-    const application = await Application.findByPk(req.params.id, {
-      include: [{ model: User, attributes: ['name', 'email'] }],
-    });
+    const application = await Application.findByPk(req.params.id);
 
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    const applicant = application.User;
+    const applicant = application.user_id ? await User.findById(application.user_id) : null;
     if (!applicant || !applicant.email) {
       return res.status(400).json({ message: 'Applicant email not available' });
     }
@@ -212,14 +213,13 @@ const generateOffer = async (req, res) => {
 
     const application = await Application.findByPk(req.params.id, {
       include: [
-        { model: User, attributes: ['name', 'email'] },
         { model: Job, attributes: ['title', 'location'] }
       ],
     });
 
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    const applicant = application.User;
+    const applicant = application.user_id ? await User.findById(application.user_id) : null;
     const job = application.Job;
 
     // Create PDF document

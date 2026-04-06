@@ -61,16 +61,24 @@ const getAllReports = async (req, res) => {
 
     const reports = await Report.findAll({
       where,
-      include: [
-        { model: User, as: 'reporter', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'reportedUser', attributes: ['id', 'name', 'email'] },
-      ],
       order: [['created_at', 'DESC']],
       limit: Number(limit),
       offset,
     });
 
-    res.json({ reports });
+    const userIds = [...new Set(reports
+      .flatMap((report) => [report.reporter_id, report.reported_user_id])
+      .filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
+    const formattedReports = reports.map((report) => ({
+      ...report.toJSON(),
+      reporter: userMap[report.reporter_id] || null,
+      reportedUser: userMap[report.reported_user_id] || null,
+    }));
+
+    res.json({ reports: formattedReports });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

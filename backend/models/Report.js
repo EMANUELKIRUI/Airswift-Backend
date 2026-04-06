@@ -8,7 +8,7 @@ const Report = sequelize.define('Report', {
     autoIncrement: true,
   },
   reporter_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: true,
     references: {
       model: 'Users',
@@ -16,7 +16,7 @@ const Report = sequelize.define('Report', {
     },
   },
   reported_user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     allowNull: true,
     references: {
       model: 'Users',

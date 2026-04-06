@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const Profile = sequelize.define('Profile', {
   user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING,
     primaryKey: true,
   },
   skills: {

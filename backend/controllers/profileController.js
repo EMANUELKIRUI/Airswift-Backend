@@ -1,5 +1,7 @@
 const Joi = require('joi');
 const { Profile } = require('../models');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs').promises;
 
 const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
@@ -38,12 +40,20 @@ const uploadCV = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const cv_url = `/uploads/${req.file.filename}`;
+    const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'airswift_cvs',
+      resource_type: 'auto',
+    });
+
+    const cv_url = uploadResult.secure_url;
 
     await Profile.upsert({ user_id: req.user.id, cv_url });
 
+    await fs.unlink(req.file.path).catch(() => null);
+
     res.json({ message: 'CV uploaded successfully', cv_url });
   } catch (error) {
+    console.error('uploadCV error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
