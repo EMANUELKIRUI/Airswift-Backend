@@ -90,12 +90,27 @@ const verifyOTP = async (req, res) => {
 
     await user.save();
 
+    // 🔥 AUTO LOGIN after verification
+    const token = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    });
+
     res.status(200).json({
-      message: "Account verified successfully",
+      message: "Verified & logged in",
       user: {
         id: user._id,
-        email: user.email,
         name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified
       },
     });
   } catch (err) {
