@@ -4,8 +4,10 @@ const {
   registerUser,
   verifyOTP,
   resendOTP,
+  loginUser,
   sendLoginOTP,
   verifyLoginOTP,
+  getMe,
   forgotPassword,
   resetPassword,
   refreshToken,
@@ -17,6 +19,7 @@ const { verifyToken, authorizeRoles } = require("../middleware/auth");
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
+router.post("/login", loginUser);
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);
@@ -25,22 +28,7 @@ router.post("/refresh", refreshToken);
 router.post("/logout", logout);
 
 // Health-check/test route
-router.get("/me", (req, res) => {
-  const token = req.cookies.token;
-
-  if (!token) {
-    return res.status(401).json({ user: null });
-  }
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({
-      user: { id: decoded.id, email: decoded.email }
-    });
-  } catch (err) {
-    return res.status(401).json({ user: null });
-  }
-});
+router.get("/me", verifyToken, getMe);
 
 // Protected route example
 router.get("/profile", verifyToken, (req, res) => {

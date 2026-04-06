@@ -101,7 +101,7 @@ Run the demo: `open voice-interview-demo.html` (requires server running on port 
 - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 - `JWT_SECRET` (e.g. `supersecretkey123`)
 - `JWT_EXPIRES` (e.g. `7d`)
-- `EMAIL_USER`, `EMAIL_PASS`
+- `EMAIL_USER`, `EMAIL_PASS` (Gmail App Password - see setup below)
 - `BREVO_API_KEY` (e.g. `xkeysib-...`)
 - `AFRICASTALKING_USERNAME`, `AFRICASTALKING_API_KEY`
 - `GOOGLE_CLIENT_ID`
@@ -109,6 +109,54 @@ Run the demo: `open voice-interview-demo.html` (requires server running on port 
 - `GOOGLE_REDIRECT_URI` (e.g. `https://airswift-frontend.vercel.app/auth/google/callback`)
 - `FRONTEND_URL` (e.g. `https://airswift-frontend.vercel.app`)
 - `PORT`
+
+## Email Configuration
+
+### Gmail SMTP Setup
+
+The application uses Gmail SMTP for sending emails. Follow these steps:
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+2. **Generate App Password**:
+   - Go to Google Account settings
+   - Security → 2-Step Verification → App passwords
+   - Generate password for "Mail"
+   - Use this 16-character password as `EMAIL_PASS`
+
+3. **Environment Variables**:
+   ```env
+   EMAIL_USER=your-gmail@gmail.com
+   EMAIL_PASS=your-16-char-app-password
+   ```
+
+### SMTP Configuration
+
+```javascript
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // IMPORTANT: Use SSL
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App Password, not regular password
+  },
+});
+```
+
+### Troubleshooting Email Issues
+
+#### ❌ Error: "Invalid login: 535-5.7.8 Username and Password not accepted"
+**Fix**: Use Gmail App Password instead of regular password
+
+#### ❌ Error: "Connection timeout (ETIMEDOUT)"
+**Fix**: Use port 465 with `secure: true`
+
+#### ❌ Error: "connect ECONNREFUSED 127.0.0.1:587"
+**Fix**: Remove any localhost SMTP config, use Gmail settings above
+
+#### ✅ Success Indicators
+- Log shows: `✅ SMTP READY`
+- Log shows: `✅ Email sent to user@gmail.com`
 
 ## Default Admin Credentials
 
@@ -122,9 +170,15 @@ A default admin user is created on startup if it does not already exist:
 ### Auth
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/register` - Register new user (sends OTP)
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/verify-otp` - Verify email with OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP for registration
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/login` - Login user (returns JWT token)
-- `POST https://airswift-backend-fjt3.onrender.com/api/auth/resend-otp` - Resend OTP
-- `GET https://airswift-backend-fjt3.onrender.com/api/auth/dashboard` - Protected route example (requires JWT token)
+- `GET https://airswift-backend-fjt3.onrender.com/api/auth/me` - Get current user profile (requires JWT)
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/send-login-otp` - Send login OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/verify-login-otp` - Verify login OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/forgot-password` - Send password reset OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/reset-password` - Reset password with OTP
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/refresh` - Refresh JWT token
+- `POST https://airswift-backend-fjt3.onrender.com/api/auth/logout` - Logout user
 
 ### Google OAuth (new)
 - `GET https://airswift-backend-fjt3.onrender.com/api/auth/google/url` - Get Google authorization URL
@@ -132,6 +186,65 @@ A default admin user is created on startup if it does not already exist:
 - `POST https://airswift-backend-fjt3.onrender.com/api/auth/google/verify-id-token` - Verify Google ID token and issue JWT
 
 **Authentication**: Include JWT token in Authorization header: `Bearer <token>`
+
+### Frontend Integration Notes
+
+#### Token Management
+```javascript
+// After login, save token
+localStorage.setItem("token", data.token);
+
+// For API calls, include in headers
+const headers = {
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("token")}`
+};
+```
+
+#### Use full backend URL from env
+```env
+NEXT_PUBLIC_API_URL=https://airswift-backend-fjt3.onrender.com
+```
+
+```javascript
+const url = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`;
+const res = await fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ email, password }),
+});
+
+const text = await res.text();
+let data;
+try {
+  data = JSON.parse(text);
+} catch (err) {
+  console.error("Not JSON response:", text);
+  throw err;
+}
+
+console.log(data);
+```
+
+#### User Profile
+```javascript
+const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+const { user } = await response.json();
+```
+
+#### Professional UI Layout
+```
+Sidebar Navigation    | Main Content
+- Dashboard           | Welcome message
+- Profile             | User stats/cards
+- Jobs                | Recent activity
+- Applications        | Quick actions
+- Settings            | Notifications
+```
 
 ### Profile
 - `GET https://airswift-backend-fjt3.onrender.com/api/profile`
@@ -158,6 +271,108 @@ A default admin user is created on startup if it does not already exist:
 ### Payments
 - `POST https://airswift-backend-fjt3.onrender.com/api/payment/initiate`
 - `POST https://airswift-backend-fjt3.onrender.com/api/payment/verify`
+
+## Frontend Components
+
+### OTP Input Component
+
+A reusable React component for OTP input with auto-focus, paste support, and keyboard navigation.
+
+```jsx
+import { useRef, useState } from "react";
+
+export default function OTPInput({ onChange }) {
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const inputs = useRef([]);
+
+  const handleChange = (value, index) => {
+    if (!/^\d?$/.test(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Move to next input
+    if (value && index < 5) {
+      inputs.current[index + 1].focus();
+    }
+
+    onChange(newOtp.join(""));
+  };
+
+  const handleKeyDown = (e, index) => {
+    // Move back on delete
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputs.current[index - 1].focus();
+    }
+  };
+
+  const handlePaste = (e) => {
+    const paste = e.clipboardData.getData("text").slice(0, 6);
+    if (!/^\d+$/.test(paste)) return;
+
+    const newOtp = paste.split("");
+    setOtp(newOtp);
+
+    newOtp.forEach((digit, i) => {
+      if (inputs.current[i]) {
+        inputs.current[i].value = digit;
+      }
+    });
+
+    onChange(paste);
+  };
+
+  return (
+    <div className="flex justify-between gap-2" onPaste={handlePaste}>
+      {otp.map((digit, index) => (
+        <input
+          key={index}
+          type="text"
+          maxLength="1"
+          ref={(el) => (inputs.current[index] = el)}
+          className="w-12 h-12 text-center text-xl border rounded-lg focus:ring-2 focus:ring-blue-500"
+          value={digit}
+          onChange={(e) => handleChange(e.target.value, index)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+#### Usage in Your Page
+
+Replace your old input with:
+
+```jsx
+const [otp, setOtp] = useState("");
+
+<OTPInput onChange={setOtp} />
+```
+
+#### Extra UX Improvements
+
+1. **Auto-focus first box**:
+   ```jsx
+   useEffect(() => {
+     inputs.current[0]?.focus();
+   }, []);
+   ```
+
+2. **Disable verify button until OTP complete**:
+   ```jsx
+   <button disabled={otp.length !== 6}>
+     Verify OTP
+   </button>
+   ```
+
+3. **Add loading + success feedback**:
+   ```jsx
+   {loading && <p>Verifying...</p>}
+   {message && <p>{message}</p>}
+   ```
 
 ## Workflows
 

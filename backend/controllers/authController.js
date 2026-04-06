@@ -170,6 +170,58 @@ const resendOTP = async (req, res) => {
   }
 };
 
+// ✅ LOGIN USER
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(401).json({ message: "Account not verified" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    });
+
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+      },
+    });
+  } catch (err) {
+    console.error("LOGIN USER ERROR:", err);
+    return res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
 // ✅ SEND LOGIN OTP
 const sendLoginOTP = async (req, res) => {
   try {
@@ -404,6 +456,22 @@ const refreshToken = async (req, res) => {
   }
 };
 
+// ✅ GET ME
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error("GET ME ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // ✅ LOGOUT
 const logout = (req, res) => {
   res.clearCookie("token");
@@ -415,8 +483,10 @@ module.exports = {
   registerUser,
   verifyOTP,
   resendOTP,
+  loginUser,
   sendLoginOTP,
   verifyLoginOTP,
+  getMe,
   forgotPassword,
   resetPassword,
   refreshToken,
