@@ -20,6 +20,7 @@ const {
   updateApplicantStatusWithSocket,
   sendEmailToApplicant,
   sendBulkEmailToApplicants,
+  seedTestJobs,
 } = require('../controllers/adminController');
 
 const router = express.Router();
@@ -55,6 +56,9 @@ router.patch('/applicants/status', adminMiddleware, updateApplicantStatusWithSoc
 // Email communication routes
 router.post('/email/send', adminMiddleware, sendEmailToApplicant);
 router.post('/email/send-bulk', adminMiddleware, sendBulkEmailToApplicants);
+
+// Seed test jobs for development/testing
+router.post('/seed-jobs', adminMiddleware, seedTestJobs);
 
 router.get('/dashboard', adminMiddleware, (req, res) => {
   res.json({

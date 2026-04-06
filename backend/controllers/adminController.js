@@ -758,6 +758,262 @@ const sendBulkEmailToApplicants = async (req, res) => {
   }
 };
 
+// Seed test jobs for development/testing
+const seedTestJobs = async (req, res) => {
+  try {
+    const JobModel = require('../models/JobMongoose');
+
+    const testJobs = [
+      {
+        title: "Senior Full Stack Developer",
+        description: "Toronto-based tech company seeking a Senior Full Stack Developer with 6+ years of experience. Build scalable web applications using modern tech stack. Competitive salary + benefits + relocation assistance available.",
+        category: "Technology",
+        location: "Toronto, Ontario",
+        type: "Full-time",
+        salaryMin: 120000,
+        salaryMax: 160000,
+        requiredExperience: 6,
+        requiredEducation: "Bachelor's in Computer Science or equivalent",
+        skills: ["React", "Node.js", "TypeScript", "PostgreSQL", "Docker", "AWS"],
+        isRemote: false,
+        requirements: "6+ years full stack development, strong problem-solving skills",
+      },
+      {
+        title: "React Developer (Remote)",
+        description: "Join our Vancouver team remotely! We're looking for a React specialist to build beautiful, responsive client applications. Work on impactful projects with cutting-edge technologies.",
+        category: "Technology",
+        location: "Vancouver, British Columbia",
+        type: "Full-time",
+        salaryMin: 90000,
+        salaryMax: 130000,
+        requiredExperience: 3,
+        requiredEducation: "Bachelor's in CS or bootcamp graduate",
+        skills: ["React", "JavaScript", "HTML", "CSS", "Git", "Webpack"],
+        isRemote: true,
+        requirements: "3+ years React experience, portfolio demonstrating projects",
+      },
+      {
+        title: "DevOps Engineer",
+        description: "Montreal startup needs a DevOps engineer to oversee our infrastructure. Manage AWS, Docker, Kubernetes deployments. Great work-life balance, startup equity.",
+        category: "Technology",
+        location: "Montreal, Quebec",
+        type: "Full-time",
+        salaryMin: 100000,
+        salaryMax: 140000,
+        requiredExperience: 4,
+        requiredEducation: "Any degree or 5+ years experience",
+        skills: ["AWS", "Docker", "Kubernetes", "Jenkins", "Terraform", "Linux"],
+        isRemote: true,
+        requirements: "4+ years DevOps experience, CI/CD pipeline expertise",
+      },
+      {
+        title: "Data Analyst",
+        description: "Calgary-based energy company seeking data analyst. Work with Python, SQL to analyze large datasets and generate insights. Contribute to business intelligence projects.",
+        category: "Data & Analytics",
+        location: "Calgary, Alberta",
+        type: "Full-time",
+        salaryMin: 75000,
+        salaryMax: 110000,
+        requiredExperience: 2,
+        requiredEducation: "Bachelor's in Statistics, Math, or CS",
+        skills: ["Python", "SQL", "Tableau", "Excel", "Statistics", "Data Visualization"],
+        isRemote: false,
+        requirements: "2+ years data analysis experience, strong SQL skills",
+      },
+      {
+        title: "UI/UX Designer",
+        description: "Design beautiful, user-centric interfaces for a fintech platform. Use Figma, conduct user research, and collaborate with product team. Based in Waterloo.",
+        category: "Design",
+        location: "Waterloo, Ontario",
+        type: "Full-time",
+        salaryMin: 80000,
+        salaryMax: 115000,
+        requiredExperience: 3,
+        requiredEducation: "Design degree or equivalent portfolio",
+        skills: ["Figma", "Design Thinking", "User Research", "Prototyping", "Adobe Creative Suite"],
+        isRemote: true,
+        requirements: "3+ years UX/UI design, strong portfolio, Figma expertise",
+      },
+      {
+        title: "Senior React Developer - New York",
+        description: "We are looking for a Senior React Developer with 5+ years of experience in building modern web applications. Must be proficient in React, TypeScript, and Node.js.",
+        category: "Technology",
+        location: "New York, NY",
+        type: "Full-time",
+        salaryMin: 120000,
+        salaryMax: 160000,
+        requiredExperience: 5,
+        requiredEducation: "Bachelor's degree in Computer Science or equivalent",
+        skills: ["React", "TypeScript", "Node.js", "JavaScript", "HTML", "CSS"],
+        isRemote: true,
+        requirements: "5+ years React experience, TypeScript proficiency required",
+      },
+      {
+        title: "Full Stack Developer - San Francisco",
+        description: "Join our San Francisco team as a Full Stack Developer. You'll work on both frontend and backend technologies using MERN stack. Competitive salary + stock options.",
+        category: "Technology",
+        location: "San Francisco, CA",
+        type: "Full-time",
+        salaryMin: 100000,
+        salaryMax: 140000,
+        requiredExperience: 3,
+        requiredEducation: "Bachelor's in CS or bootcamp graduate",
+        skills: ["React", "Node.js", "MongoDB", "Express", "JavaScript"],
+        isRemote: false,
+        requirements: "3+ years full stack development experience",
+      },
+      {
+        title: "Cloud Solutions Architect",
+        description: "Design and implement cloud solutions using AWS and Azure. Work with enterprise clients on complex infrastructure projects.",
+        category: "Technology",
+        location: "Denver, CO",
+        type: "Full-time",
+        salaryMin: 150000,
+        salaryMax: 200000,
+        requiredExperience: 7,
+        requiredEducation: "Bachelor's in CS or IT",
+        skills: ["AWS", "Azure", "Cloud Architecture", "Terraform", "Docker", "Enterprise Design"],
+        isRemote: true,
+        requirements: "7+ years cloud architecture experience, AWS Solutions Architect certification",
+      },
+      {
+        title: "QA Automation Engineer",
+        description: "Build and maintain automated test suites for web and mobile applications. Ensure product quality across platforms.",
+        category: "Technology",
+        location: "Miami, FL",
+        type: "Full-time",
+        salaryMin: 80000,
+        salaryMax: 110000,
+        requiredExperience: 3,
+        requiredEducation: "Any engineering degree",
+        skills: ["Selenium", "Python", "JavaScript", "TestNG", "CI/CD", "Git"],
+        isRemote: true,
+        requirements: "3+ years QA automation experience",
+      },
+      {
+        title: "Machine Learning Engineer",
+        description: "Build ML models for recommendation systems. Work with Python, TensorFlow, and large datasets. Remote position, flexible hours.",
+        category: "Data Science",
+        location: "Boston, MA",
+        type: "Full-time",
+        salaryMin: 130000,
+        salaryMax: 170000,
+        requiredExperience: 4,
+        requiredEducation: "Master's in CS, Math, or related field",
+        skills: ["Python", "TensorFlow", "Machine Learning", "SQL", "Statistics", "PyTorch"],
+        isRemote: true,
+        requirements: "4+ years ML experience, published research preferred",
+      },
+      {
+        title: "Product Designer",
+        description: "Design user experiences for mobile and web products. Collaborate with cross-functional teams at a leading tech company in Los Angeles.",
+        category: "Design",
+        location: "Los Angeles, CA",
+        type: "Full-time",
+        salaryMin: 90000,
+        salaryMax: 120000,
+        requiredExperience: 3,
+        requiredEducation: "Design degree or bootcamp",
+        skills: ["Figma", "Sketch", "Adobe XD", "Prototyping", "User Research"],
+        isRemote: true,
+        requirements: "3+ years product design experience",
+      },
+      {
+        title: "Senior Product Manager",
+        description: "Lead product strategy and execution. Oversee feature development from ideation to launch. Experience in tech products required.",
+        category: "Product",
+        location: "Seattle, WA",
+        type: "Full-time",
+        salaryMin: 140000,
+        salaryMax: 180000,
+        requiredExperience: 5,
+        requiredEducation: "Bachelor's degree required",
+        skills: ["Product Strategy", "Agile", "Analytics", "SQL", "Data Analysis"],
+        isRemote: false,
+        requirements: "5+ years product management experience",
+      },
+      {
+        title: "Junior Python Developer",
+        description: "Entry-level position perfect for recent graduates. Build backend systems using Python and Django. Great mentorship and learning opportunities.",
+        category: "Technology",
+        location: "Chicago, IL",
+        type: "Full-time",
+        salaryMin: 70000,
+        salaryMax: 90000,
+        requiredExperience: 0,
+        requiredEducation: "Bachelor's in CS or bootcamp graduate",
+        skills: ["Python", "Django", "SQL", "Git", "REST APIs"],
+        isRemote: false,
+        requirements: "Recently graduated or bootcamp, eager to learn",
+      },
+      {
+        title: "Business Analyst",
+        description: "Toronto financial services firm seeking business analyst. Gather requirements, analyze processes, recommend improvements.",
+        category: "Business",
+        location: "Toronto, Ontario",
+        type: "Full-time",
+        salaryMin: 75000,
+        salaryMax: 105000,
+        requiredExperience: 2,
+        requiredEducation: "Bachelor's degree required",
+        skills: ["Business Analysis", "Excel", "SQL", "Agile", "JIRA", "Stakeholder Management"],
+        isRemote: false,
+        requirements: "2+ years business analysis experience",
+      },
+      {
+        title: "Solutions Architect",
+        description: "Work with enterprise clients to design and implement software solutions. Travel to client sites required (30%).",
+        category: "Technology",
+        location: "Chicago, IL",
+        type: "Full-time",
+        salaryMin: 130000,
+        salaryMax: 165000,
+        requiredExperience: 8,
+        requiredEducation: "Bachelor's in CS or related field",
+        skills: ["System Design", "Enterprise Software", "AWS", "Project Management", "Client Relations"],
+        isRemote: false,
+        requirements: "8+ years software development, strong communication skills",
+      },
+    ];
+
+    // Clear existing jobs (optional - can be controlled via query param)
+    const clearExisting = req.query.clear === 'true';
+    if (clearExisting) {
+      await JobModel.deleteMany({});
+      console.log('🗑️  Cleared existing jobs');
+    }
+
+    // Insert test jobs
+    const insertedJobs = await JobModel.insertMany(testJobs);
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully seeded ${insertedJobs.length} test jobs`,
+      jobs: {
+        total: insertedJobs.length,
+        count: insertedJobs.length,
+        data: insertedJobs,
+      },
+      summary: {
+        categories: [...new Set(testJobs.map(j => j.category))],
+        locations: [...new Set(testJobs.map(j => j.location))].length,
+        remotePositions: testJobs.filter(j => j.isRemote).length,
+        salaryRange: {
+          min: Math.min(...testJobs.map(j => j.salaryMin)),
+          max: Math.max(...testJobs.map(j => j.salaryMax)),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('seedTestJobs error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error seeding test jobs',
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   getAllSettings,
   getSettingByKey,
@@ -777,5 +1033,6 @@ module.exports = {
   bulkAnalyzeCV,
   updateApplicantStatusWithSocket,
   sendEmailToApplicant,
-  sendBulkEmailToApplicants
+  sendBulkEmailToApplicants,
+  seedTestJobs
 };
