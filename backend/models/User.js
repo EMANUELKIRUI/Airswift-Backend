@@ -37,6 +37,12 @@ const userSchema = new mongoose.Schema(
     },
     profilePicture: String,
     firebaseUid: String,
+    phone: String,
+    location: String,
+    cv: String,
+    skills: [String],
+    education: String,
+    experience: String,
   },
   { timestamps: true }
 );

@@ -1,7 +1,9 @@
 const Joi = require('joi');
 const { Profile } = require('../models');
+const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
+const { extractCVText, extractSkills, extractEducation, extractExperience } = require('../utils/cvParser');
 
 const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
@@ -58,8 +60,67 @@ const uploadCV = async (req, res) => {
   }
 };
 
+const setupProfile = async (req, res) => {
+  try {
+    const { name, phone, location } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "CV file is required" });
+    }
+
+    const filePath = req.file.path;
+
+    // 1. Extract CV text
+    const cvText = await extractCVText(filePath);
+
+    // 2. Extract skills
+    const skills = extractSkills(cvText);
+
+    // 3. Extract education and experience
+    const education = extractEducation(cvText);
+    const experience = extractExperience(cvText);
+
+    // 4. Save user profile
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name,
+        phone,
+        location,
+        cv: filePath,
+        skills,
+        education,
+        experience,
+      },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({
+      message: "Profile setup complete",
+      profile: {
+        name: user.name,
+        phone: user.phone,
+        location: user.location,
+        cv: user.cv,
+        skills: user.skills,
+        education: user.education,
+        experience: user.experience,
+      },
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Profile setup failed" });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   uploadCV,
+  setupProfile,
 };
