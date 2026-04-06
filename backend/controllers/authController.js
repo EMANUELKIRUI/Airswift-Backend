@@ -36,7 +36,7 @@ const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       otp,
-      otpExpiry: Date.now() + 10 * 60 * 1000, // 10 minutes
+      otpExpires: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
     let emailSent = false;
@@ -80,13 +80,13 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    if (Date.now() > user.otpExpiry) {
+    if (user.otpExpires < Date.now()) {
       return res.status(400).json({ message: "OTP expired" });
     }
 
     user.isVerified = true;
     user.otp = null;
-    user.otpExpiry = null;
+    user.otpExpires = null;
 
     await user.save();
 
