@@ -92,28 +92,8 @@ const verifyOTP = async (req, res) => {
 
     await user.save();
 
-    // 🔥 AUTO LOGIN after verification
-    const token = jwt.sign(
-      { id: user._id, role: user.role, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    });
-
     res.status(200).json({
-      message: "Verified & logged in",
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified
-      },
+      message: "Account verified successfully"
     });
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);
@@ -186,6 +166,11 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
     if (!user.isVerified) {
       const otp = generateOTP();
       console.log("LOGIN VERIFICATION OTP:", otp); // For testing
@@ -202,15 +187,10 @@ const loginUser = async (req, res) => {
 
       return res.status(403).json({
         success: false,
-        message: "Account not verified",
+        message: "Account not verified. OTP sent to email.",
         requiresVerification: true,
         email: user.email,
       });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const token = jwt.sign(
