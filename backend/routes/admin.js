@@ -23,6 +23,7 @@ const {
   sendBulkEmailToApplicants,
   seedTestJobs,
 } = require('../controllers/adminController');
+const { getDashboardSummary } = require('../controllers/dashboardController');
 
 const router = express.Router();
 
@@ -64,14 +65,7 @@ router.post('/email/send-bulk', adminMiddleware, sendBulkEmailToApplicants);
 // Seed test jobs for development/testing
 router.post('/seed-jobs', adminMiddleware, seedTestJobs);
 
-router.get('/dashboard', adminMiddleware, (req, res) => {
-  res.json({
-    message: 'Welcome Admin',
-    stats: {
-      users: 120,
-      applications: 45,
-    },
-  });
-});
+router.get('/dashboard', adminMiddleware, getDashboardSummary);
+router.get('/dashboard/summary', adminMiddleware, getDashboardSummary);
 
 module.exports = router;

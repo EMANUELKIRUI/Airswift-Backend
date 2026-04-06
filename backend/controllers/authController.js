@@ -268,6 +268,12 @@ const adminLogin = async (req, res) => {
       { expiresIn: "1d" }
     );
 
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    });
+
     res.json({
       success: true,
       token,
@@ -559,7 +565,7 @@ const resetPassword = async (req, res) => {
 // ✅ REFRESH TOKEN
 const refreshToken = async (req, res) => {
   try {
-    const token = req.cookies.refreshToken;
+    const token = req.cookies.refreshToken || req.body.refreshToken;
 
     if (!token) {
       return res.status(401).json({ error: "No refresh token" });
