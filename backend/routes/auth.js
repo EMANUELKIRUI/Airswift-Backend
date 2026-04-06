@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const {
   registerUser,
   verifyOTP,
+  resendOTP,
   sendLoginOTP,
   verifyLoginOTP,
   forgotPassword,
@@ -15,6 +16,7 @@ const { verifyToken, authorizeRoles } = require("../middleware/auth");
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
+router.post("/resend-otp", resendOTP);
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);

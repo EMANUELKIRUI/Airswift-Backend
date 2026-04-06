@@ -122,6 +122,54 @@ const verifyOTP = async (req, res) => {
   }
 };
 
+// ✅ RESEND OTP (for registration)
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Account already verified" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.otp = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    await user.save();
+
+    let emailSent = false;
+    try {
+      await sendEmail(email, "Your Airswift OTP Code", otpTemplate(otp));
+      emailSent = true;
+    } catch (error) {
+      console.error(`RESEND OTP EMAIL ERROR for ${email}:`, error.message);
+    }
+
+    const responseMessage = emailSent
+      ? "OTP resent successfully"
+      : "OTP generated, but email delivery failed";
+
+    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
+  } catch (err) {
+    console.error("RESEND OTP ERROR:", err);
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+
 // ✅ SEND LOGIN OTP
 const sendLoginOTP = async (req, res) => {
   try {
@@ -366,6 +414,7 @@ const logout = (req, res) => {
 module.exports = {
   registerUser,
   verifyOTP,
+  resendOTP,
   sendLoginOTP,
   verifyLoginOTP,
   forgotPassword,
