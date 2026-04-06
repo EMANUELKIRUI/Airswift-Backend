@@ -3,12 +3,15 @@ const { Interview, Application, User } = require('../models');
 const { generateInterviewQuestions, scoreInterviewResponse, generateOverallInterviewScore } = require('../utils/aiInterview');
 const { logAuditEvent } = require('../utils/auditLogger');
 const { sendStageEmail } = require('../utils/notifications');
+const { sendInterviewInvitation } = require('../services/emailService');
+const { emitInterviewScheduled } = require('../utils/socketEmitter');
 
 // Validation schemas
 const createInterviewSchema = Joi.object({
   application_id: Joi.number().integer().required(),
-  scheduled_at: Joi.date().optional(),
-  type: Joi.string().valid('video', 'voice_ai').default('video'),
+  scheduled_at: Joi.date().required(),
+  type: Joi.string().valid('video', 'voice_ai', 'in_person').default('video'),
+  meeting_link: Joi.string().uri().optional(),
 });
 
 const updateInterviewSchema = Joi.object({
@@ -50,14 +53,46 @@ const createInterview = async (req, res) => {
       room_id: roomId,
       type,
       scheduled_at,
+      meeting_link: req.body.meeting_link,
       ai_questions: aiQuestions,
     });
+
+    if (application && application.Job && application.user_id) {
+      const applicant = await User.findById(application.user_id);
+      if (applicant?.email) {
+        try {
+          await sendInterviewInvitation(
+            applicant.email,
+            applicant.name || 'Candidate',
+            application.Job.title,
+            scheduled_at,
+            req.body.meeting_link
+          );
+        } catch (emailError) {
+          console.error('sendInterviewInvitation error:', emailError);
+        }
+      }
+    }
+
+    emitInterviewScheduled({
+      applicationId: application.id,
+      interviewId: interview.id,
+      scheduled_at,
+      type,
+      meeting_link: req.body.meeting_link,
+      applicantId: application.user_id,
+    });
+
+    if (application.status !== 'interview') {
+      await application.update({ status: 'interview' });
+    }
 
     // Log audit event
     await logAuditEvent(req.user.id, 'interview_created', 'interview', interview.id, {
       application_id,
       type,
-      room_id: roomId
+      room_id: roomId,
+      meeting_link: req.body.meeting_link,
     }, req);
 
     res.status(201).json(interview);

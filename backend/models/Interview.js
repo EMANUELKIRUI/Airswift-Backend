@@ -28,8 +28,12 @@ const Interview = sequelize.define('Interview', {
     allowNull: false, // Unique room identifier
   },
   type: {
-    type: DataTypes.ENUM('video', 'voice_ai'),
+    type: DataTypes.ENUM('video', 'voice_ai', 'in_person'),
     defaultValue: 'video',
+  },
+  meeting_link: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   status: {
     type: DataTypes.ENUM('scheduled', 'in_progress', 'completed', 'cancelled'),
