@@ -56,6 +56,22 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("joinRoom", ({ userId }) => {
+    if (userId) {
+      const roomName = `user_${userId}`;
+      socket.join(roomName);
+      console.log(`Socket ${socket.id} joined room ${roomName}`);
+    }
+  });
+
+  socket.on("joinAdminRoom", ({ adminId }) => {
+    if (adminId) {
+      const roomName = `admin_${adminId}`;
+      socket.join(roomName);
+      console.log(`Socket ${socket.id} joined room ${roomName}`);
+    }
+  });
+
   // Broadcast applicant status update to all admins
   socket.on("applicant-status-changed", (data) => {
     console.log(`Applicant status changed:`, data);
@@ -399,6 +415,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 // app.use("/api/auth/google", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
+app.use("/api/messages", require("./routes/messages"));
 app.use("/api/jobs", require("./routes/jobs"));
 app.use("/api/job-search", require("./routes/jobSearch"));
 app.use("/api/applications", require("./routes/applications"));

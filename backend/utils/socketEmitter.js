@@ -176,6 +176,25 @@ const notifyAdminDashboard = (event, data) => {
   }
 };
 
+const emitDirectMessage = (message) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  const senderId = message.senderId?._id?.toString() || message.senderId?.toString();
+  const receiverId = message.receiverId?._id?.toString() || message.receiverId?.toString();
+
+  if (!senderId || !receiverId) {
+    console.warn('Message missing sender or receiver id');
+    return;
+  }
+
+  console.log('Emitting direct message:', { senderId, receiverId });
+  io.to(`user_${receiverId}`).emit('newMessage', message);
+  io.to(`user_${senderId}`).emit('newMessage', message);
+};
+
 module.exports = {
   initializeSocket,
   emitNewApplication,
@@ -188,5 +207,6 @@ module.exports = {
   emitBulkEmailSent,
   emitInterviewRescheduled,
   emitApplicationPipelineUpdate,
-  notifyAdminDashboard
+  notifyAdminDashboard,
+  emitDirectMessage,
 };

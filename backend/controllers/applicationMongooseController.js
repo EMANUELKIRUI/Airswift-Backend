@@ -144,6 +144,42 @@ const getAllApplications = async (req, res) => {
   }
 };
 
+const getApplicationAnalytics = async (req, res) => {
+  try {
+    const data = await Application.aggregate([
+      {
+        $group: {
+          _id: { $dayOfWeek: '$createdAt' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id': 1 } },
+    ]);
+
+    const dayNames = [
+      null,
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+
+    const analytics = data.map((item) => ({
+      dayOfWeek: item._id,
+      day: dayNames[item._id] || 'Unknown',
+      count: item.count,
+    }));
+
+    res.json(analytics);
+  } catch (err) {
+    console.error('getApplicationAnalytics error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const calculateAIScore = (user, job) => {
   let score = 0;
   const userSkills = Array.isArray(user.skills) ? user.skills : [];
@@ -184,5 +220,6 @@ module.exports = {
   updateApplicationStatus,
   getUserApplications,
   getAllApplications,
+  getApplicationAnalytics,
   calculateAIScore,
 };
