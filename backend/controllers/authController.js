@@ -172,24 +172,18 @@ const loginUser = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      const otp = generateOTP();
-      console.log("LOGIN VERIFICATION OTP:", otp); // For testing
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
       user.otp = otp;
       user.otpExpires = Date.now() + 10 * 60 * 1000;
       await user.save();
 
-      try {
-        await sendOTPEmail(user.email, otp);
-      } catch (emailError) {
-        console.error(`LOGIN VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
-      }
+      await sendOTPEmail(user.email, otp);
 
       return res.status(403).json({
-        success: false,
-        message: "Account not verified. OTP sent to email.",
-        requiresVerification: true,
-        email: user.email,
+        message: "Account not verified",
+        redirect: "/verify-otp",
+        email: user.email
       });
     }
 
@@ -242,25 +236,38 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { id: admin._id, role: "admin", email: admin.email },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "15m" }
     );
 
-    res.cookie("token", token, {
+    const refreshToken = jwt.sign(
+      { id: admin._id },
+      process.env.REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    admin.refreshToken = refreshToken;
+    await admin.save();
+
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    });
+    };
+
+    res.cookie("token", accessToken, cookieOptions);
+    res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
-      success: true,
-      token,
+      accessToken,
+      refreshToken,
       user: {
+        id: admin._id,
         email: admin.email,
-        role: admin.role,
-      },
+        role: admin.role
+      }
     });
   } catch (err) {
     console.error("ADMIN LOGIN ERROR:", err);
@@ -297,10 +304,8 @@ const sendLoginOTP = async (req, res) => {
       }
 
       return res.status(403).json({
-        success: false,
-        message: "Account not verified. Verification code sent.",
-        requiresVerification: true,
-        email: user.email,
+        message: "Account not verified",
+        redirect: "/verify-otp"
       });
     }
 
@@ -362,10 +367,8 @@ const verifyLoginOTP = async (req, res) => {
       }
 
       return res.status(403).json({
-        success: false,
-        message: "Account not verified. Verification code sent.",
-        requiresVerification: true,
-        email: user.email,
+        message: "Account not verified",
+        redirect: "/verify-otp"
       });
     }
 
@@ -455,9 +458,9 @@ const forgotPassword = async (req, res) => {
         console.error(`VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
       }
 
-      return res.status(400).json({
-        type: "NOT_VERIFIED",
-        message: "Account not verified. Verification code sent to your email."
+      return res.status(403).json({
+        message: "Account not verified",
+        redirect: "/verify-otp"
       });
     }
 
