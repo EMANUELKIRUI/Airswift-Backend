@@ -132,7 +132,7 @@ const resendOTP = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendEmail(email, "Your Airswift OTP Code", otpTemplate(otp));
+      await sendOTPEmail(email, otp);
       emailSent = true;
     } catch (error) {
       console.error(`RESEND OTP EMAIL ERROR for ${email}:`, error.message);
