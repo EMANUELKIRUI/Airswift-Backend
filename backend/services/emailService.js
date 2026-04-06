@@ -1,36 +1,16 @@
 require('dotenv').config();
-const nodemailer = require('nodemailer');
+const { Resend } = require("resend");
 
-// Create transporter with Gmail SMTP
-console.log("EMAIL CONFIG:", process.env.EMAIL_USER);
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // IMPORTANT
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("SMTP ERROR:", error);
-  } else {
-    console.log("SMTP READY");
-  }
-});
-
-const sendEmail = async (to, subject, htmlContent) => {
+const sendEmail = async (to, subject, html) => {
   try {
-    const mailOptions = {
-      from: `"Airswift" <${process.env.EMAIL_USER}>`,
-      to: to,
-      subject: subject,
-      html: htmlContent,
-    };
-
-    const result = await transporter.sendMail(mailOptions);
+    const result = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to,
+      subject,
+      html,
+    });
     console.log(`✅ Email sent to ${to}`);
     return result;
   } catch (error) {
@@ -41,8 +21,8 @@ const sendEmail = async (to, subject, htmlContent) => {
 
 const sendOTP = async (email, otp) => {
   try {
-    await transporter.sendMail({
-      from: `"Airswift" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
       to: email,
       subject: "Your Airswift OTP Code",
       html: `
@@ -61,16 +41,17 @@ const sendOTP = async (email, otp) => {
   }
 };
 
-// Verify transporter on startup
+// Verify Resend service on startup
 const verifyTransporter = async () => {
   try {
-    await transporter.verify();
-    console.log("✅ Email service is ready");
+    // Test with a simple API call
+    await resend.domains.list();
+    console.log("✅ Resend email service is ready");
     return true;
   } catch (error) {
-    console.error("❌ Email service error:", error.message);
+    console.error("❌ Resend service error:", error.message);
     return false;
   }
 };
 
-module.exports = { sendEmail, sendOTP, verifyTransporter, transporter };
+module.exports = { sendEmail, sendOTP, verifyTransporter };

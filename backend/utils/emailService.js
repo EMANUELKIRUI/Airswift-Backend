@@ -1,26 +1,12 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require("resend");
 const Joi = require('joi');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Email Service for Admin Dashboard
- * Send emails to applicants/candidates
+ * Send emails to applicants/candidates using Resend
  */
-
-// Configure email transporter
-let transporter = null;
-
-const initializeTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-  }
-  return transporter;
-};
 
 /**
  * Send email to single applicant
@@ -41,31 +27,31 @@ const sendEmailToApplicant = async (req, res) => {
 
     const { email, subject, message, applicantName, applicationId } = req.body;
 
-    const mailOptions = {
-      from: `"${process.env.COMPANY_NAME || 'Airswift'}" <${process.env.EMAIL_USER}>`,
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #2c3e50;">Hello${applicantName ? ' ' + applicantName : ''},</h2>
+
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              ${message.split('\n').map(line => `<p>${line}</p>`).join('')}
+            </div>
+
+            <p style="margin-top: 20px; color: #7f8c8d;">
+              Best regards,<br>
+              <strong>Airswift Team</strong>
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
       to: email,
       subject: subject,
-      html: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-              <h2 style="color: #2c3e50;">Hello${applicantName ? ' ' + applicantName : ''},</h2>
-              
-              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                ${message.split('\n').map(line => `<p>${line}</p>`).join('')}
-              </div>
-              
-              <p style="margin-top: 20px; color: #7f8c8d;">
-                Best regards,<br>
-                <strong>${process.env.COMPANY_NAME || 'Airswift'} Team</strong>
-              </p>
-            </div>
-          </body>
-        </html>
-      `
-    };
-
-    await initializeTransporter().sendMail(mailOptions);
+      html: html,
+    });
 
     // Emit socket event for real-time notification
     const { emitEmailSent } = require('./socketEmitter');
@@ -105,34 +91,34 @@ const sendBulkEmails = async (req, res) => {
     const { recipientEmails, subject, message, jobTitle } = req.body;
 
     const sendPromises = recipientEmails.map(async (email) => {
-      const mailOptions = {
-        from: `"${process.env.COMPANY_NAME || 'Airswift'}" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: subject,
-        html: `
-          <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                <h2 style="color: #2c3e50;">Hello,</h2>
-                
-                ${jobTitle ? `<p style="font-size: 14px; color: #7f8c8d;"><strong>Position:</strong> ${jobTitle}</p>` : ''}
-                
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                  ${message.split('\n').map(line => `<p>${line}</p>`).join('')}
-                </div>
-                
-                <p style="margin-top: 20px; color: #7f8c8d;">
-                  Best regards,<br>
-                  <strong>${process.env.COMPANY_NAME || 'Airswift'} Team</strong>
-                </p>
+      const html = `
+        <html>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+              <h2 style="color: #2c3e50;">Hello,</h2>
+
+              ${jobTitle ? `<p style="font-size: 14px; color: #7f8c8d;"><strong>Position:</strong> ${jobTitle}</p>` : ''}
+
+              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                ${message.split('\n').map(line => `<p>${line}</p>`).join('')}
               </div>
-            </body>
-          </html>
-        `
-      };
+
+              <p style="margin-top: 20px; color: #7f8c8d;">
+                Best regards,<br>
+                <strong>Airswift Team</strong>
+              </p>
+            </div>
+          </body>
+        </html>
+      `;
 
       try {
-        await initializeTransporter().sendMail(mailOptions);
+        await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: email,
+          subject: subject,
+          html: html,
+        });
         return { email, status: 'sent' };
       } catch (err) {
         console.error(`Error sending to ${email}:`, err);
@@ -159,39 +145,40 @@ const sendBulkEmails = async (req, res) => {
  */
 const sendInterviewInvitation = async (email, candidateName, jobTitle, interviewDate, meetingLink) => {
   try {
-    const mailOptions = {
-      from: `"${process.env.COMPANY_NAME || 'Airswift'}" <${process.env.EMAIL_USER}>`,
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #2c3e50;">Interview Invitation!</h2>
+
+            <p>Dear ${candidateName},</p>
+
+            <p>We are pleased to invite you for an interview for the position of <strong>${jobTitle}</strong>.</p>
+
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Interview Details:</strong></p>
+              <p><strong>Date & Time:</strong> ${new Date(interviewDate).toLocaleString()}</p>
+              ${meetingLink ? `<p><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #3498db;">${meetingLink}</a></p>` : ''}
+            </div>
+
+            <p>Please confirm your availability by replying to this email.</p>
+
+            <p style="margin-top: 20px; color: #7f8c8d;">
+              Best regards,<br>
+              <strong>Airswift Team</strong>
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
       to: email,
       subject: `Interview Invitation - ${jobTitle}`,
-      html: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-              <h2 style="color: #2c3e50;">Interview Invitation!</h2>
-              
-              <p>Dear ${candidateName},</p>
-              
-              <p>We are pleased to invite you for an interview for the position of <strong>${jobTitle}</strong>.</p>
-              
-              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <p><strong>Interview Details:</strong></p>
-                <p><strong>Date & Time:</strong> ${new Date(interviewDate).toLocaleString()}</p>
-                ${meetingLink ? `<p><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #3498db;">${meetingLink}</a></p>` : ''}
-              </div>
-              
-              <p>Please confirm your availability by replying to this email.</p>
-              
-              <p style="margin-top: 20px; color: #7f8c8d;">
-                Best regards,<br>
-                <strong>${process.env.COMPANY_NAME || 'Airswift'} Team</strong>
-              </p>
-            </div>
-          </body>
-        </html>
-      `
-    };
+      html: html,
+    });
 
-    await initializeTransporter().sendMail(mailOptions);
     return { success: true, message: 'Interview invitation sent' };
   } catch (error) {
     console.error('sendInterviewInvitation error:', error);
@@ -204,35 +191,36 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
  */
 const sendRejectionEmail = async (email, candidateName, jobTitle) => {
   try {
-    const mailOptions = {
-      from: `"${process.env.COMPANY_NAME || 'Airswift'}" <${process.env.EMAIL_USER}>`,
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #2c3e50;">Thank You for Your Application</h2>
+
+            <p>Dear ${candidateName},</p>
+
+            <p>Thank you for applying for the position of <strong>${jobTitle}</strong>. We appreciate the time and effort you invested in your application.</p>
+
+            <p>While your qualifications are impressive, we have decided to move forward with other candidates whose skills more closely match our current requirements.</p>
+
+            <p>We encourage you to apply for future opportunities that may be a better fit for your profile.</p>
+
+            <p style="margin-top: 20px; color: #7f8c8d;">
+              Best regards,<br>
+              <strong>Airswift Team</strong>
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
       to: email,
       subject: `Application Status - ${jobTitle}`,
-      html: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-              <h2 style="color: #2c3e50;">Thank You for Your Application</h2>
-              
-              <p>Dear ${candidateName},</p>
-              
-              <p>Thank you for applying for the position of <strong>${jobTitle}</strong>. We appreciate the time and effort you invested in your application.</p>
-              
-              <p>While your qualifications are impressive, we have decided to move forward with other candidates whose skills more closely match our current requirements.</p>
-              
-              <p>We encourage you to apply for future opportunities that may be a better fit for your profile.</p>
-              
-              <p style="margin-top: 20px; color: #7f8c8d;">
-                Best regards,<br>
-                <strong>${process.env.COMPANY_NAME || 'Airswift'} Team</strong>
-              </p>
-            </div>
-          </body>
-        </html>
-      `
-    };
+      html: html,
+    });
 
-    await initializeTransporter().sendMail(mailOptions);
     return { success: true, message: 'Rejection email sent' };
   } catch (error) {
     console.error('sendRejectionEmail error:', error);
@@ -259,41 +247,41 @@ const sendOfferLetter = async (req, res) => {
 
     const { email, candidateName, jobTitle, salary, startDate, jobDescription } = req.body;
 
-    const mailOptions = {
-      from: `"${process.env.COMPANY_NAME || 'Airswift'}" <${process.env.EMAIL_USER}>`,
+    const html = `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+            <h2 style="color: #2c3e50;">Congratulations!</h2>
+
+            <p>Dear ${candidateName},</p>
+
+            <p>We are delighted to offer you the position of <strong>${jobTitle}</strong> at Airswift.</p>
+
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Offer Details:</strong></p>
+              <p><strong>Position:</strong> ${jobTitle}</p>
+              <p><strong>Annual Salary:</strong> ${salary}</p>
+              <p><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString()}</p>
+              ${jobDescription ? `<p><strong>Role Description:</strong> ${jobDescription}</p>` : ''}
+            </div>
+
+            <p>Please confirm your acceptance of this offer by replying to this email or calling our HR department.</p>
+
+            <p style="margin-top: 20px; color: #7f8c8d;">
+              Best regards,<br>
+              <strong>Airswift HR Team</strong>
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
       to: email,
       subject: `Offer Letter - ${jobTitle}`,
-      html: `
-        <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-              <h2 style="color: #2c3e50;">Congratulations!</h2>
-              
-              <p>Dear ${candidateName},</p>
-              
-              <p>We are delighted to offer you the position of <strong>${jobTitle}</strong> at ${process.env.COMPANY_NAME || 'Airswift'}.</p>
-              
-              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <p><strong>Offer Details:</strong></p>
-                <p><strong>Position:</strong> ${jobTitle}</p>
-                <p><strong>Annual Salary:</strong> ${salary}</p>
-                <p><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString()}</p>
-                ${jobDescription ? `<p><strong>Role Description:</strong> ${jobDescription}</p>` : ''}
-              </div>
-              
-              <p>Please confirm your acceptance of this offer by replying to this email or calling our HR department.</p>
-              
-              <p style="margin-top: 20px; color: #7f8c8d;">
-                Best regards,<br>
-                <strong>${process.env.COMPANY_NAME || 'Airswift'} HR Team</strong>
-              </p>
-            </div>
-          </body>
-        </html>
-      `
-    };
-
-    await initializeTransporter().sendMail(mailOptions);
+      html: html,
+    });
 
     res.json({
       success: true,
@@ -307,7 +295,6 @@ const sendOfferLetter = async (req, res) => {
 };
 
 module.exports = {
-  initializeTransporter,
   sendEmailToApplicant,
   sendBulkEmails,
   sendInterviewInvitation,
