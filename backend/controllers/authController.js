@@ -30,13 +30,13 @@ const registerUser = async (req, res) => {
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store OTP temporarily in DB
+    // Store OTP temporarily in DB for account verification
     await User.create({
       name,
       email,
       password: hashedPassword,
-      resetToken: otp,
-      resetTokenExpiry: Date.now() + 10 * 60 * 1000, // 10 minutes
+      otp,
+      otpExpiry: Date.now() + 10 * 60 * 1000, // 10 minutes
     });
 
     let emailSent = false;
@@ -66,23 +66,38 @@ const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP required" });
+    }
+
     const user = await User.findOne({ email });
 
-    if (!user || user.resetToken != otp) {
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.otp !== otp) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
-    if (Date.now() > user.resetTokenExpiry) {
+    if (Date.now() > user.otpExpiry) {
       return res.status(400).json({ message: "OTP expired" });
     }
 
     user.isVerified = true;
-    user.resetToken = null;
-    user.resetTokenExpiry = null;
+    user.otp = null;
+    user.otpExpiry = null;
 
     await user.save();
 
-    res.json({ message: "Account verified" });
+    res.status(200).json({
+      message: "Account verified successfully",
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+      },
+    });
   } catch (err) {
     console.error("VERIFY OTP ERROR:", err);
     return res.status(500).json({

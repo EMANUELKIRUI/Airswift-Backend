@@ -24,6 +24,8 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    otp: String,
+    otpExpiry: Date,
     resetToken: String,
     resetTokenExpiry: Date,
     refreshToken: String,
