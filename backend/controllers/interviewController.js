@@ -118,6 +118,23 @@ const createInterview = async (req, res) => {
   }
 };
 
+const createVoiceSession = async (req, res) => {
+  try {
+    const { jobRole, candidateName } = req.body;
+
+    const sessionId = `voice_${req.user.id}_${Date.now()}`;
+    res.json({
+      sessionId,
+      userId: req.user.id,
+      jobRole: jobRole || 'Candidate',
+      candidateName: candidateName || req.user.name || 'Candidate',
+    });
+  } catch (error) {
+    console.error('createVoiceSession error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Get interview by ID
 const getInterview = async (req, res) => {
   try {
@@ -554,5 +571,6 @@ module.exports = {
   askAIInterview,
   scoreCV,
   autonomousRecruiter,
-  rankApplicationsViaAI
+  rankApplicationsViaAI,
+  createVoiceSession
 };

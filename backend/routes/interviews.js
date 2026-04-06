@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   createInterview,
+  createVoiceSession,
   getInterview,
   updateInterview,
   getAdminInterviews,
@@ -19,6 +20,7 @@ const router = express.Router();
 
 // Admin routes
 router.post('/', adminMiddleware, createInterview);
+router.post('/session', verifyToken, createVoiceSession);
 router.get('/admin', adminMiddleware, getAdminInterviews);
 router.put('/:id', adminMiddleware, updateInterview);
 

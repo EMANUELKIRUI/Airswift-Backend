@@ -36,17 +36,34 @@ initializeSocket(io);
 // Socket.io for WebRTC video interviews and applicant tracking
 const interviewRooms = new Map();
 const adminSessions = new Map(); // Track active admin connections for real-time updates
+const voiceInterviewSessions = new Map();
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+  if (!token) {
+    return next(new Error('Not authenticated'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    return next();
+  } catch (err) {
+    return next(new Error('Invalid token'));
+  }
+});
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-
-  // Voice Interview Sessions Storage
-  const voiceInterviewSessions = new Map();
 
   // 👨‍💼 ADMIN APPLICANT TRACKING EVENTS
   
   // Admin joins tracking dashboard
   socket.on("admin-connect", ({ adminId, userId }) => {
+    if (socket.user.role !== 'admin' || socket.user.id !== adminId) {
+      return socket.emit('socket-error', { message: 'Admin authentication required' });
+    }
+
     adminSessions.set(socket.id, { adminId, userId, connectedAt: new Date() });
     console.log(`Admin ${adminId} connected to tracking dashboard - Socket: ${socket.id}`);
     
@@ -57,19 +74,31 @@ io.on("connection", (socket) => {
   });
 
   socket.on("joinRoom", ({ userId }) => {
-    if (userId) {
-      const roomName = `user_${userId}`;
-      socket.join(roomName);
-      console.log(`Socket ${socket.id} joined room ${roomName}`);
+    if (!userId) {
+      return socket.emit('socket-error', { message: 'userId is required to join a room' });
     }
+
+    if (socket.user.role !== 'admin' && socket.user.id !== userId) {
+      return socket.emit('socket-error', { message: 'Unauthorized room access' });
+    }
+
+    const roomName = `user_${userId}`;
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room ${roomName}`);
   });
 
   socket.on("joinAdminRoom", ({ adminId }) => {
-    if (adminId) {
-      const roomName = `admin_${adminId}`;
-      socket.join(roomName);
-      console.log(`Socket ${socket.id} joined room ${roomName}`);
+    if (!adminId) {
+      return socket.emit('socket-error', { message: 'adminId is required to join admin room' });
     }
+
+    if (socket.user.role !== 'admin' || socket.user.id !== adminId) {
+      return socket.emit('socket-error', { message: 'Unauthorized admin room access' });
+    }
+
+    const roomName = `admin_${adminId}`;
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room ${roomName}`);
   });
 
   // Broadcast applicant status update to all admins
@@ -100,21 +129,32 @@ io.on("connection", (socket) => {
   // 🎤 VOICE INTERVIEW EVENTS
 
   // Start AI Voice Interview
-  socket.on("start-voice-interview", async ({ jobRole, candidateName }) => {
+  socket.on("start-voice-interview", async ({ sessionId, jobRole, candidateName }) => {
     try {
-      const sessionId = `voice_${socket.id}_${Date.now()}`;
-      const conversation = [];
+      let session = voiceInterviewSessions.get(sessionId);
 
-      // Generate first question
-      const firstQuestion = await askAI(conversation, `Start a job interview for ${jobRole} position. Ask the first question to ${candidateName || 'the candidate'}.`);
+      if (!session) {
+        sessionId = sessionId || `voice_${socket.user.id}_${Date.now()}`;
+        session = {
+          sessionId,
+          userId: socket.user.id,
+          jobRole: jobRole || 'Unknown Role',
+          candidateName: candidateName || socket.user.name || 'Candidate',
+          conversation: [],
+          startTime: new Date(),
+          status: 'active'
+        };
+      }
 
-      voiceInterviewSessions.set(sessionId, {
-        jobRole,
-        candidateName: candidateName || 'Anonymous',
-        conversation,
-        startTime: new Date(),
-        status: 'active'
-      });
+      if (session.userId !== socket.user.id && socket.user.role !== 'admin') {
+        return socket.emit('voice-interview-error', { message: 'Unauthorized session access' });
+      }
+
+      voiceInterviewSessions.set(sessionId, session);
+
+      const firstQuestion = await askAI(session.conversation, `Start a job interview for ${session.jobRole} position. Ask the first question to ${session.candidateName}.`);
+
+      session.conversation.push({ role: 'assistant', content: firstQuestion, timestamp: new Date() });
 
       socket.emit("voice-interview-started", {
         sessionId,
@@ -122,7 +162,7 @@ io.on("connection", (socket) => {
         message: "Voice interview started. Please speak your answer."
       });
 
-      console.log(`Voice interview started for ${jobRole} - Session: ${sessionId}`);
+      console.log(`Voice interview started for ${session.jobRole} - Session: ${sessionId}`);
     } catch (error) {
       console.error("Voice interview start error:", error);
       socket.emit("voice-interview-error", {
@@ -138,6 +178,11 @@ io.on("connection", (socket) => {
       const session = voiceInterviewSessions.get(sessionId);
       if (!session || session.status !== 'active') {
         socket.emit("voice-interview-error", { message: "Invalid or inactive session" });
+        return;
+      }
+
+      if (session.userId !== socket.user.id && socket.user.role !== 'admin') {
+        socket.emit("voice-interview-error", { message: "Unauthorized session access" });
         return;
       }
 
@@ -188,6 +233,11 @@ io.on("connection", (socket) => {
       const session = voiceInterviewSessions.get(sessionId);
       if (!session) {
         socket.emit("voice-interview-error", { message: "Session not found" });
+        return;
+      }
+
+      if (session.userId !== socket.user.id && socket.user.role !== 'admin') {
+        socket.emit("voice-interview-error", { message: "Unauthorized session access" });
         return;
       }
 
