@@ -186,9 +186,27 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // TEMPORARY BYPASS - DEV MODE
-    user.isVerified = true;
-    await user.save();
+    if (!user.isVerified) {
+      const otp = generateOTP();
+      console.log("LOGIN VERIFICATION OTP:", otp); // For testing
+
+      user.otp = otp;
+      user.otpExpires = Date.now() + 10 * 60 * 1000;
+      await user.save();
+
+      try {
+        await sendOTP(user.email, otp);
+      } catch (emailError) {
+        console.error(`LOGIN VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Account not verified",
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -238,9 +256,27 @@ const sendLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // TEMPORARY BYPASS - DEV MODE
-    user.isVerified = true;
-    await user.save();
+    if (!user.isVerified) {
+      const otp = generateOTP();
+      console.log("SEND LOGIN OTP VERIFICATION:", otp); // For testing
+
+      user.otp = otp;
+      user.otpExpires = Date.now() + 10 * 60 * 1000;
+      await user.save();
+
+      try {
+        await sendOTP(user.email, otp);
+      } catch (emailError) {
+        console.error(`SEND LOGIN OTP VERIFICATION EMAIL ERROR for ${email}:`, emailError.message);
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Account not verified. Verification code sent.",
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -285,9 +321,27 @@ const verifyLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // TEMPORARY BYPASS - DEV MODE
-    user.isVerified = true;
-    await user.save();
+    if (!user.isVerified) {
+      const otp = generateOTP();
+      console.log("VERIFY LOGIN OTP VERIFICATION:", otp); // For testing
+
+      user.otp = otp;
+      user.otpExpires = Date.now() + 10 * 60 * 1000;
+      await user.save();
+
+      try {
+        await sendOTP(user.email, otp);
+      } catch (emailError) {
+        console.error(`VERIFY LOGIN OTP VERIFICATION EMAIL ERROR for ${email}:`, emailError.message);
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: "Account not verified. Verification code sent.",
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
 
     if (user.resetToken != otp) {
       return res.status(400).json({ message: "Invalid OTP" });
