@@ -2,7 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { sendOTP } = require("../services/emailService");
+const { sendOTPEmail } = require("../services/emailService");
 const { sendEmail } = require("../utils/email");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
@@ -180,7 +180,7 @@ const loginUser = async (req, res) => {
       await user.save();
 
       try {
-        await sendOTP(user.email, otp);
+        await sendOTPEmail(user.email, otp);
       } catch (emailError) {
         console.error(`LOGIN VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
       }
@@ -291,7 +291,7 @@ const sendLoginOTP = async (req, res) => {
       await user.save();
 
       try {
-        await sendOTP(user.email, otp);
+        await sendOTPEmail(user.email, otp);
       } catch (emailError) {
         console.error(`SEND LOGIN OTP VERIFICATION EMAIL ERROR for ${email}:`, emailError.message);
       }
@@ -313,7 +313,7 @@ const sendLoginOTP = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendOTP(email, otp);
+      await sendOTPEmail(email, otp);
       emailSent = true;
     } catch (error) {
       console.error(`SEND LOGIN OTP EMAIL ERROR for ${email}:`, error.message);
@@ -356,7 +356,7 @@ const verifyLoginOTP = async (req, res) => {
       await user.save();
 
       try {
-        await sendOTP(user.email, otp);
+        await sendOTPEmail(user.email, otp);
       } catch (emailError) {
         console.error(`VERIFY LOGIN OTP VERIFICATION EMAIL ERROR for ${email}:`, emailError.message);
       }
@@ -450,7 +450,7 @@ const forgotPassword = async (req, res) => {
 
       // send verification email instead
       try {
-        await sendOTP(user.email, otp);
+        await sendOTPEmail(user.email, otp);
       } catch (emailError) {
         console.error(`VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
       }

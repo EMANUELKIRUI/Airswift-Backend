@@ -13,7 +13,7 @@ const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechCont
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
-const { sendOTP, verifyTransporter } = require("./services/emailService");
+const { sendOTPEmail } = require("./services/emailService");
 const { initializeSocket } = require("./utils/socketEmitter");
 
 // Connect to MongoDB
@@ -488,7 +488,7 @@ app.post("/api/test-otp", async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000);
 
-    await sendOTP(email, otp);
+    await sendOTPEmail(email, otp);
 
     console.log("OTP sent:", otp);
 

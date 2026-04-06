@@ -95,7 +95,7 @@ const deleteSetting = async (req, res) => {
 };
 
 const { Application, Job, User, Interview, AuditLog } = require('../models');
-const { sendEmail } = require('../services/emailService');
+const { sendEmail } = require('../utils/email');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
