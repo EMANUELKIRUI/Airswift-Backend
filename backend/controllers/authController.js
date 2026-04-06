@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { sendOTP } = require("../services/emailService");
 const { sendEmail } = require("../utils/email");
@@ -353,30 +354,36 @@ const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    if (!user) {
-      return res.status(400).json({ message: "User not found" });
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    if (user) {
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+      await user.save();
+
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+      try {
+        await sendEmail(
+          user.email,
+          "Reset Password",
+          `
+            <h2>Password Reset</h2>
+            <p>Click below to reset your password:</p>
+            <a href="${resetUrl}">${resetUrl}</a>
+            <p>This link expires in 15 minutes.</p>
+          `
+        );
+      } catch (emailError) {
+        console.error(`FORGOT PASSWORD EMAIL ERROR for ${email}:`, emailError.message);
+      }
     }
 
-    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-
-    user.resetToken = resetToken;
-    user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    await user.save();
-
-    let emailSent = false;
-    try {
-      await sendOTP(email, resetToken);
-      emailSent = true;
-    } catch (error) {
-      console.error(`FORGOT PASSWORD EMAIL ERROR for ${email}:`, error.message);
-    }
-
-    const responseMessage = emailSent
-      ? "Reset OTP sent"
-      : "Reset token generated, but email delivery failed";
-
-    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
+    res.json({ message: "If email exists, reset link sent" });
   } catch (err) {
     console.error("FORGOT PASSWORD ERROR:", err);
     return res.status(500).json({
@@ -389,25 +396,30 @@ const forgotPassword = async (req, res) => {
 // ✅ RESET PASSWORD - Verify OTP and update password
 const resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { token } = req.params;
+    const { password } = req.body;
 
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!token || !password) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const user = await User.findOne({ email });
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
-    if (!user || user.resetToken != otp) {
-      return res.status(400).json({ message: "Invalid OTP" });
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired token" });
     }
 
-    if (Date.now() > user.resetTokenExpiry) {
-      return res.status(400).json({ message: "OTP expired" });
-    }
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.resetToken = null;
-    user.resetTokenExpiry = null;
+    user.password = await bcrypt.hash(password, 10);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
 
     await user.save();
 
