@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { sendOTP } = require("../services/emailService");
 const { sendEmail } = require("../utils/email");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
+const { generateOTP } = require("../utils/generateOTP");
 
 // ✅ REGISTER - Send OTP
 const registerUser = async (req, res) => {
@@ -354,36 +355,64 @@ const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 🔴 CHECK IF VERIFIED FIRST
+    if (!user.isVerified) {
+      const otp = generateOTP();
+      console.log("OTP:", otp); // 👉 For testing since email might fail
+
+      user.otp = otp;
+      user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      await user.save();
+
+      // send verification email instead
+      try {
+        await sendOTP(user.email, otp);
+      } catch (emailError) {
+        console.error(`VERIFICATION OTP EMAIL ERROR for ${email}:`, emailError.message);
+      }
+
+      return res.status(400).json({
+        type: "NOT_VERIFIED",
+        message: "Account not verified. Verification code sent to your email."
+      });
+    }
+
+    // ✅ VERIFIED USER - Send reset email
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
-    if (user) {
-      user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
-      await user.save();
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    await user.save();
 
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-      try {
-        await sendEmail(
-          user.email,
-          "Reset Password",
-          `
-            <h2>Password Reset</h2>
-            <p>Click below to reset your password:</p>
-            <a href="${resetUrl}">${resetUrl}</a>
-            <p>This link expires in 15 minutes.</p>
-          `
-        );
-      } catch (emailError) {
-        console.error(`FORGOT PASSWORD EMAIL ERROR for ${email}:`, emailError.message);
-      }
+    try {
+      await sendEmail(
+        user.email,
+        "Reset Password",
+        `
+          <h2>Password Reset</h2>
+          <p>Click below to reset your password:</p>
+          <a href="${resetUrl}">${resetUrl}</a>
+          <p>This link expires in 15 minutes.</p>
+        `
+      );
+    } catch (emailError) {
+      console.error(`FORGOT PASSWORD EMAIL ERROR for ${email}:`, emailError.message);
     }
 
-    res.json({ message: "If email exists, reset link sent" });
+    res.json({
+      type: "RESET_SENT",
+      message: "Check your email for reset instructions"
+    });
   } catch (err) {
     console.error("FORGOT PASSWORD ERROR:", err);
     return res.status(500).json({
