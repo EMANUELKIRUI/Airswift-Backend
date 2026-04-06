@@ -185,9 +185,9 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    if (!user.isVerified) {
-      return res.status(401).json({ message: "Account not verified" });
-    }
+    // TEMPORARY BYPASS - DEV MODE
+    user.isVerified = true;
+    await user.save();
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
@@ -237,9 +237,9 @@ const sendLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    if (!user.isVerified) {
-      return res.status(400).json({ message: "Account not verified. Please verify your email first." });
-    }
+    // TEMPORARY BYPASS - DEV MODE
+    user.isVerified = true;
+    await user.save();
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -284,9 +284,9 @@ const verifyLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    if (!user.isVerified) {
-      return res.status(400).json({ message: "Account not verified" });
-    }
+    // TEMPORARY BYPASS - DEV MODE
+    user.isVerified = true;
+    await user.save();
 
     if (user.resetToken != otp) {
       return res.status(400).json({ message: "Invalid OTP" });
