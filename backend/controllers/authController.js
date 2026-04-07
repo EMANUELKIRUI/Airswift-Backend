@@ -364,6 +364,7 @@ const loginUser = async (req, res) => {
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
+    res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     console.log("LOGIN SUCCESS - User logged in:", user._id);

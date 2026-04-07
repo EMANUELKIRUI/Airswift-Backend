@@ -1,5 +1,4 @@
 const Joi = require('joi');
-const { Profile } = require('../models');
 const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
@@ -9,31 +8,80 @@ const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
   experience: Joi.string(),
   education: Joi.string(),
-  phone_number: Joi.string().pattern(/^\+256\d{9}$|^\+255\d{9}$|^\+250\d{9}$|^\+257\d{9}$/),
+  phone: Joi.string(),
+  location: Joi.string(),
+  name: Joi.string(),
+  profilePicture: Joi.string(),
 });
 
 const getProfile = async (req, res) => {
   try {
-    const profile = await Profile.findOne({ where: { user_id: req.user.id } });
-    if (!profile) return res.status(404).json({ message: 'Profile not found' });
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const profile = {
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      location: user.location,
+      skills: user.skills || [],
+      education: user.education,
+      experience: user.experience,
+      profilePicture: user.profilePicture,
+      cv: user.cv,
+    };
 
     res.json(profile);
   } catch (error) {
+    console.error('GET PROFILE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 const updateProfile = async (req, res) => {
   try {
-    const { error } = profileSchema.validate(req.body);
+    const { error, value } = profileSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    const [updated] = await Profile.update(req.body, { where: { user_id: req.user.id } });
-    if (!updated) return res.status(404).json({ message: 'Profile not found' });
+    console.log('UPDATE PROFILE - User ID:', req.user.id);
+    console.log('UPDATE PROFILE - Data:', value);
 
-    const profile = await Profile.findOne({ where: { user_id: req.user.id } });
-    res.json(profile);
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name: value.name || undefined,
+        phone: value.phone || undefined,
+        location: value.location || undefined,
+        skills: value.skills || undefined,
+        education: value.education || undefined,
+        experience: value.experience || undefined,
+        profilePicture: value.profilePicture || undefined,
+      },
+      { new: true, omitUndefined: true }
+    ).select('-password');
+
+    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+
+    console.log('UPDATE PROFILE - Success:', updatedUser._id);
+
+    const profile = {
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      location: updatedUser.location,
+      skills: updatedUser.skills || [],
+      education: updatedUser.education,
+      experience: updatedUser.experience,
+      profilePicture: updatedUser.profilePicture,
+      cv: updatedUser.cv,
+    };
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      profile,
+    });
   } catch (error) {
+    console.error('UPDATE PROFILE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -49,13 +97,39 @@ const uploadCV = async (req, res) => {
 
     const cv_url = uploadResult.secure_url;
 
-    await Profile.upsert({ user_id: req.user.id, cv_url });
+    console.log('UPLOAD CV - User ID:', req.user.id);
+    console.log('UPLOAD CV - CV URL:', cv_url);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { cv: cv_url },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     await fs.unlink(req.file.path).catch(() => null);
 
-    res.json({ message: 'CV uploaded successfully', cv_url });
+    console.log('UPLOAD CV - Success');
+
+    res.json({
+      message: 'CV uploaded successfully',
+      cv_url,
+      profile: {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        location: updatedUser.location,
+        skills: updatedUser.skills || [],
+        education: updatedUser.education,
+        experience: updatedUser.experience,
+        cv: updatedUser.cv,
+      },
+    });
   } catch (error) {
-    console.error('uploadCV error:', error);
+    console.error('UPLOAD CV ERROR:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
