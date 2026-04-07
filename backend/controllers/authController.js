@@ -204,6 +204,7 @@ const resendVerificationEmail = async (req, res) => {
 
 // ✅ LOGIN USER
 const loginUser = async (req, res) => {
+  console.log("LOGIN HIT"); // Debug logging
   try {
     const { email, password } = req.body;
 
@@ -246,10 +247,8 @@ const loginUser = async (req, res) => {
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
-    res.json({
-      message: "Login successful",
-      accessToken,
-      refreshToken,
+    res.status(200).json({
+      success: true,
       user: {
         id: user._id,
         name: user.name,
@@ -257,6 +256,7 @@ const loginUser = async (req, res) => {
         role: user.role,
         isVerified: user.isVerified,
       },
+      token: accessToken
     });
   } catch (err) {
     console.error("LOGIN USER ERROR:", err);

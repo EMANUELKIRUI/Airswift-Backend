@@ -375,7 +375,11 @@ io.on("connection", (socket) => {
     console.log("Database synced");
 
     // Email service is ready (Nodemailer)
-    console.log("✅ Email service is ready");
+    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      console.log("✅ Email service is ready");
+    } else {
+      console.log("⚠️  Email service not configured - email features disabled");
+    }
 
     // Create default admin user if MongoDB is available
     try {
@@ -422,14 +426,8 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS policy: Origin not allowed"));
-    },
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
+    origin: "https://airswift-frontend.vercel.app",
+    credentials: true
   })
 );
 app.options("*", cors());
