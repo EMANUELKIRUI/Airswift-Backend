@@ -106,8 +106,8 @@ const verifyEmailToken = async (req, res) => {
     user.verificationTokenExpires = null;
 
     // Generate access and refresh tokens using helpers
-    const accessToken = generateAccessToken(user._id);
-    const refreshTokenValue = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user);
+    const refreshTokenValue = generateRefreshToken(user);
 
     user.refreshToken = refreshTokenValue;
     await user.save();
@@ -231,8 +231,8 @@ const loginUser = async (req, res) => {
     }
 
     // Generate access and refresh tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     // Store refresh token in database
     user.refreshToken = refreshToken;
@@ -285,8 +285,8 @@ const adminLogin = async (req, res) => {
     }
 
     // Generate access and refresh tokens using helpers
-    const accessToken = generateAccessToken(admin._id);
-    const refreshToken = generateRefreshToken(admin._id);
+    const accessToken = generateAccessToken(admin);
+    const refreshToken = generateRefreshToken(admin);
 
     admin.refreshToken = refreshToken;
     await admin.save();
@@ -604,7 +604,7 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    const newAccessToken = generateAccessToken(user._id);
+    const newAccessToken = generateAccessToken(user);
 
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
