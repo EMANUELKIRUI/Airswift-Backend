@@ -12,12 +12,19 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async (to, subject, text) => {
-  await transporter.sendMail({
-    from: `"Airswift" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    text,
-  });
+  try {
+    await transporter.sendMail({
+      from: `"Airswift" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text,
+    });
+    console.log(`✅ Email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error.message);
+    throw error;
+  }
 };
 
 const sendOTPEmail = async (email, otp) => {
