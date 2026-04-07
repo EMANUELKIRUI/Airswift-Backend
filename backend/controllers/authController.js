@@ -2,18 +2,17 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { sendOTPEmail } = require("../services/emailService");
-const { sendEmail } = require("../utils/email");
+const { generateToken } = require("../utils/generateToken");
+const { sendEmail } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 
-// ✅ REGISTER - Send OTP
+// ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
     console.log("REGISTER BODY:", req.body);
-    console.log(req.body);
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -27,31 +26,39 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store OTP temporarily in DB for account verification
-    await User.create({
+    // Generate verification token
+    const verificationToken = generateToken();
+
+    // Create user with verification token
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
-      otp,
-      otpExpires: Date.now() + 10 * 60 * 1000, // 10 minutes
+      verificationToken,
+      isVerified: false,
     });
+
+    // Send verification email
+    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
 
     let emailSent = false;
     try {
-      await sendEmail(email, "Your Airswift OTP Code", otpTemplate(otp));
+      await sendEmail(
+        user.email,
+        "Activate your Airswift account",
+        `Click this link to activate your account: ${activationLink}`
+      );
       emailSent = true;
     } catch (error) {
       console.error(`REGISTER EMAIL ERROR for ${email}:`, error.message);
     }
 
     const responseMessage = emailSent
-      ? "OTP sent"
-      : "User registered, but OTP email could not be delivered";
+      ? "Verification email sent"
+      : "User registered, but verification email could not be delivered";
 
     res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
@@ -63,32 +70,23 @@ const registerUser = async (req, res) => {
   }
 };
 
-// ✅ VERIFY OTP - Mark account as verified
-const verifyOTP = async (req, res) => {
+// ✅ VERIFY EMAIL TOKEN - Activate account via email link
+const verifyEmailToken = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { token } = req.query;
 
-    if (!email || !otp) {
-      return res.status(400).json({ message: "Email and OTP required" });
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ verificationToken: token });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (user.otp !== otp) {
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
-
-    if (user.otpExpires < Date.now()) {
-      return res.status(400).json({ message: "OTP expired" });
+      return res.status(400).json({ message: "Invalid or expired token" });
     }
 
     user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
+    user.verificationToken = null;
 
     await user.save();
 
@@ -96,7 +94,7 @@ const verifyOTP = async (req, res) => {
       message: "Account verified successfully"
     });
   } catch (err) {
-    console.error("VERIFY OTP ERROR:", err);
+    console.error("VERIFY TOKEN ERROR:", err);
     return res.status(500).json({
       message: "Server error",
       error: err.message
@@ -104,8 +102,8 @@ const verifyOTP = async (req, res) => {
   }
 };
 
-// ✅ RESEND OTP (for registration)
-const resendOTP = async (req, res) => {
+// ✅ RESEND VERIFICATION EMAIL (for registration)
+const resendVerificationEmail = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -123,28 +121,34 @@ const resendOTP = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // Generate new verification token
+    const verificationToken = generateToken();
+    user.verificationToken = verificationToken;
 
     await user.save();
 
+    // Send verification email
+    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+
     let emailSent = false;
     try {
-      await sendOTPEmail(email, otp);
+      await sendEmail(
+        user.email,
+        "Activate your Airswift account",
+        `Click this link to activate your account: ${activationLink}`
+      );
       emailSent = true;
     } catch (error) {
-      console.error(`RESEND OTP EMAIL ERROR for ${email}:`, error.message);
+      console.error(`RESEND VERIFICATION EMAIL ERROR for ${email}:`, error.message);
     }
 
     const responseMessage = emailSent
-      ? "OTP resent successfully"
-      : "OTP generated, but email delivery failed";
+      ? "Verification email resent successfully"
+      : "Verification email generated, but delivery failed";
 
     res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
-    console.error("RESEND OTP ERROR:", err);
+    console.error("RESEND VERIFICATION EMAIL ERROR:", err);
     return res.status(500).json({
       message: "Server error",
       error: err.message
@@ -172,17 +176,9 @@ const loginUser = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-      user.otp = otp;
-      user.otpExpires = Date.now() + 10 * 60 * 1000;
-      await user.save();
-
-      await sendOTPEmail(user.email, otp);
-
       return res.status(403).json({
-        message: "Account not verified",
-        redirect: "/verify-otp",
+        message: "Please verify your email first. Check your inbox for the verification link.",
+        redirect: "/verify-email",
         email: user.email
       });
     }
@@ -605,8 +601,8 @@ const logout = (req, res) => {
 
 module.exports = {
   registerUser,
-  verifyOTP,
-  resendOTP,
+  verifyEmailToken,
+  resendVerificationEmail,
   loginUser,
   sendLoginOTP,
   verifyLoginOTP,
