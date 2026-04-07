@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const {
   registerUser,
   verifyEmailToken,
+  verifyRegistrationOTP,
   resendVerificationEmail,
   loginUser,
   sendLoginOTP,
@@ -18,6 +19,7 @@ const { verifyToken, authorizeRoles } = require("../middleware/auth");
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
 router.get("/verify", verifyEmailToken);
+router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/login", loginUser);
 router.post("/send-login-otp", sendLoginOTP);
