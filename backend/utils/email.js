@@ -1,21 +1,29 @@
 require('dotenv').config();
-const { Resend } = require("resend");
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-console.log("EMAIL CONFIG:", process.env.RESEND_API_KEY ? "✓ Configured" : "✗ Missing RESEND_API_KEY");
+console.log("EMAIL CONFIG:", process.env.EMAIL_HOST ? "✓ Configured" : "✗ Missing EMAIL_HOST");
 
 /**
- * Send email with Resend service
+ * Send email with Nodemailer
  * @param {string} to - Recipient email address
  * @param {string} subject - Email subject
  * @param {string} html - Email HTML content
- * @returns {Promise} - Resend response
+ * @returns {Promise} - Nodemailer response
  */
 const sendEmail = async (to, subject, html) => {
   try {
-    const result = await resend.emails.send({
-      from: "TALEX <onboarding@resend.dev>",
+    const result = await transporter.sendMail({
+      from: `"TALEX" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,
@@ -30,15 +38,15 @@ const sendEmail = async (to, subject, html) => {
 };
 
 /**
- * Verify Resend service connection
+ * Verify Nodemailer connection
  */
 const verifyTransporter = async () => {
   try {
-    await resend.domains.list();
-    console.log("✅ Resend email service is ready");
+    await transporter.verify();
+    console.log("✅ Nodemailer email service is ready");
     return true;
   } catch (error) {
-    console.error("❌ Resend service error:", error.message);
+    console.error("❌ Nodemailer service error:", error.message);
     return false;
   }
 };

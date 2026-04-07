@@ -1,11 +1,19 @@
-const { Resend } = require("resend");
+const nodemailer = require('nodemailer');
 const Joi = require('joi');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 /**
  * Email Service for Admin Dashboard
- * Send emails to applicants/candidates using Resend
+ * Send emails to applicants/candidates using Nodemailer
  */
 
 /**
@@ -46,8 +54,8 @@ const sendEmailToApplicant = async (req, res) => {
       </html>
     `;
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
+    await transporter.sendMail({
+      from: `"TALEX" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: subject,
       html: html,
@@ -113,8 +121,8 @@ const sendBulkEmails = async (req, res) => {
       `;
 
       try {
-        await resend.emails.send({
-          from: "onboarding@resend.dev",
+        await transporter.sendMail({
+          from: `"TALEX" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: subject,
           html: html,
@@ -172,8 +180,8 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
       </html>
     `;
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
+    await transporter.sendMail({
+      from: `"TALEX" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Interview Invitation - ${jobTitle}`,
       html: html,
@@ -214,8 +222,8 @@ const sendRejectionEmail = async (email, candidateName, jobTitle) => {
       </html>
     `;
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
+    await transporter.sendMail({
+      from: `"TALEX" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Application Status - ${jobTitle}`,
       html: html,
@@ -276,8 +284,8 @@ const sendOfferLetter = async (req, res) => {
       </html>
     `;
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
+    await transporter.sendMail({
+      from: `"TALEX" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Offer Letter - ${jobTitle}`,
       html: html,

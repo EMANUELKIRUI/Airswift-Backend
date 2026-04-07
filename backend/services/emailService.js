@@ -1,21 +1,36 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendEmail = async (to, subject, text) => {
+  await transporter.sendMail({
+    from: `"Airswift" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    text,
+  });
+};
 
 const sendOTPEmail = async (email, otp) => {
   try {
-    const response = await resend.emails.send({
-      from: 'TALEX <onboarding@resend.dev>',
-      to: email,
-      subject: 'OTP Verification',
-      html: `
-        <h2>TALEX Verification</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>Expires in 10 minutes</p>
-      `
-    });
+    const subject = 'OTP Verification';
+    const text = `
+TALEX Verification
 
+Your OTP is: ${otp}
+
+Expires in 10 minutes
+    `;
+
+    await sendEmail(email, subject, text);
     console.log(`✅ Email sent to ${email}`);
     return true;
 
@@ -25,4 +40,4 @@ const sendOTPEmail = async (email, otp) => {
   }
 };
 
-module.exports = { sendOTPEmail };
+module.exports = { sendOTPEmail, sendEmail };

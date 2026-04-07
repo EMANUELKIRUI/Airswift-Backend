@@ -369,7 +369,7 @@ io.on("connection", (socket) => {
     await sequelize.sync({ force: false, alter: false });
     console.log("Database synced");
 
-    // Email service is ready (Resend)
+    // Email service is ready (Nodemailer)
     console.log("✅ Email service is ready");
 
     // Create default admin user if MongoDB is available
