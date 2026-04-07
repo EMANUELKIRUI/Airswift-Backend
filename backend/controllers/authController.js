@@ -25,7 +25,33 @@ const registerUser = async (req, res) => {
     const existing = await findUserByEmail(email);
 
     if (existing) {
-      return res.status(400).json({ message: "User already exists" });
+      if (existing.isVerified) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      const otp = generateOTP().toString();
+      existing.otp = otp;
+      existing.otpExpires = Date.now() + 10 * 60 * 1000;
+      existing.name = name;
+      existing.password = await bcrypt.hash(password, 10);
+      await existing.save();
+
+      let emailSent = false;
+      try {
+        await sendOTPEmail(existing.email, otp);
+        emailSent = true;
+      } catch (error) {
+        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+      }
+
+      return res.status(409).json({
+        message: "Email already exists - not verified",
+        error: "EMAIL_NOT_VERIFIED",
+        unverified: true,
+        redirect: "/verify-otp",
+        email: existing.email,
+        otpSent: emailSent,
+      });
     }
 
     // Hash password before storing
@@ -57,7 +83,11 @@ const registerUser = async (req, res) => {
       ? "Verification OTP sent"
       : "User registered, but verification OTP could not be delivered";
 
-    res.status(emailSent ? 200 : 201).json({ message: responseMessage });
+    res.status(emailSent ? 200 : 201).json({
+      message: responseMessage,
+      redirect: "/verify-otp",
+      email: user.email,
+    });
   } catch (err) {
     console.error("REGISTER ERROR:", err);
     return res.status(500).json({
