@@ -24,7 +24,11 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "https://talex-frontend.vercel.app",
+    origin: [
+      "https://airswift-frontend.vercel.app",
+      "https://talex-frontend.vercel.app",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -409,10 +413,10 @@ io.on("connection", (socket) => {
   }
 })();
 
-app.use(cookieParser());
-
 const allowedOrigins = [
+  "https://airswift-frontend.vercel.app",
   "https://talex-frontend.vercel.app",
+  "http://localhost:3000",
 ];
 
 app.use(
@@ -423,10 +427,12 @@ app.use(
       }
       return callback(new Error("CORS policy: Origin not allowed"));
     },
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
-app.options("*", cors({ origin: allowedOrigins, credentials: true }));
+app.options("*", cors());
+app.use(cookieParser());
 app.use(express.json());
 
 // Root route
