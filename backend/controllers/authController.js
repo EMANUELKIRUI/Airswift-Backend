@@ -7,6 +7,7 @@ const { sendEmail } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
+const { findUserByEmail } = require("../utils/userHelpers");
 
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
@@ -21,7 +22,7 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await findUserByEmail(email);
 
     if (existing) {
       return res.status(400).json({ message: "User already exists" });
@@ -150,7 +151,7 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -210,7 +211,7 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -272,7 +273,7 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const admin = await User.findOne({ email: email.toLowerCase() });
+    const admin = await findUserByEmail(email);
 
     if (!admin || admin.role !== "admin") {
       return res.status(403).json({ error: "Access denied" });
@@ -323,7 +324,7 @@ const sendLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
@@ -386,7 +387,7 @@ const verifyLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserByEmail(email);
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
@@ -475,7 +476,7 @@ const forgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
