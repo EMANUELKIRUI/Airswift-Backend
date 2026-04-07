@@ -6,6 +6,7 @@ const { generateToken } = require("../utils/generateToken");
 const { sendEmail } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
+const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
 
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
@@ -29,20 +30,25 @@ const registerUser = async (req, res) => {
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate verification token
-    const verificationToken = generateToken();
+    // Generate secure verification token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
 
     // Create user with verification token
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
-      verificationToken,
+      verificationToken: hashedToken,
+      verificationTokenExpires: Date.now() + 10 * 60 * 1000, // 10 minutes
       isVerified: false,
     });
 
-    // Send verification email
-    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+    // Send verification email with raw token
+    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${rawToken}`;
 
     let emailSent = false;
     try {
@@ -79,7 +85,16 @@ const verifyEmailToken = async (req, res) => {
       return res.status(400).json({ message: "Token is required" });
     }
 
-    const user = await User.findOne({ verificationToken: token });
+    // Hash the incoming token to compare with stored hashed token
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      verificationToken: hashedToken,
+      verificationTokenExpires: { $gt: Date.now() } // Check expiry
+    });
 
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired token" });
@@ -87,11 +102,35 @@ const verifyEmailToken = async (req, res) => {
 
     user.isVerified = true;
     user.verificationToken = null;
+    user.verificationTokenExpires = null;
 
+    // Generate access and refresh tokens using helpers
+    const accessToken = generateAccessToken(user._id);
+    const refreshTokenValue = generateRefreshToken(user._id);
+
+    user.refreshToken = refreshTokenValue;
     await user.save();
 
+    // Set cookies
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    };
+
+    res.cookie("accessToken", accessToken, cookieOptions);
+    res.cookie("refreshToken", refreshTokenValue, cookieOptions);
+
     res.status(200).json({
-      message: "Account verified successfully"
+      message: "Account verified successfully",
+      accessToken,
+      refreshToken: refreshTokenValue,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
     });
   } catch (err) {
     console.error("VERIFY TOKEN ERROR:", err);
@@ -121,14 +160,20 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
-    // Generate new verification token
-    const verificationToken = generateToken();
-    user.verificationToken = verificationToken;
+    // Generate new secure verification token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(rawToken)
+      .digest("hex");
+
+    user.verificationToken = hashedToken;
+    user.verificationTokenExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
 
-    // Send verification email
-    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+    // Send verification email with raw token
+    const activationLink = `${process.env.FRONTEND_URL}/verify?token=${rawToken}`;
 
     let emailSent = false;
     try {
@@ -183,21 +228,27 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // Generate access and refresh tokens
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
-    res.cookie("token", token, {
+    // Store refresh token in database
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    });
+    };
+
+    res.cookie("accessToken", accessToken, cookieOptions);
+    res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -232,17 +283,9 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    const accessToken = jwt.sign(
-      { id: admin._id, role: "admin", email: admin.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
-
-    const refreshToken = jwt.sign(
-      { id: admin._id },
-      process.env.REFRESH_SECRET,
-      { expiresIn: "7d" }
-    );
+    // Generate access and refresh tokens using helpers
+    const accessToken = generateAccessToken(admin._id);
+    const refreshToken = generateRefreshToken(admin._id);
 
     admin.refreshToken = refreshToken;
     await admin.save();
@@ -253,7 +296,7 @@ const adminLogin = async (req, res) => {
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
     };
 
-    res.cookie("token", accessToken, cookieOptions);
+    res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
@@ -550,20 +593,19 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "No refresh token" });
     }
 
-    const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET
+    );
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.userId);
     if (!user || user.refreshToken !== token) {
       return res.status(401).json({ error: "Invalid token" });
     }
 
-    const newAccessToken = jwt.sign(
-      { id: user._id, role: user.role, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const newAccessToken = generateAccessToken(user._id);
 
-    res.cookie("token", newAccessToken, {
+    res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
@@ -593,10 +635,28 @@ const getMe = async (req, res) => {
 };
 
 // ✅ LOGOUT
-const logout = (req, res) => {
-  res.clearCookie("token");
-  res.clearCookie("refreshToken");
-  res.json({ message: "Logged out successfully" });
+const logout = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Clear refresh token from database
+    if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        user.refreshToken = null;
+        await user.save();
+      }
+    }
+
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.clearCookie("token");
+
+    res.json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.error("LOGOUT ERROR:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 module.exports = {
