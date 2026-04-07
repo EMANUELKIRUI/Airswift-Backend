@@ -1,4 +1,5 @@
-require("dotenv").config();
+const { loadEnv } = require("./config/env");
+loadEnv();
 
 const express = require("express");
 const http = require("http");

@@ -92,9 +92,14 @@ Run the demo: `open voice-interview-demo.html` (requires server running on port 
 3. Set up PostgreSQL database
 4. Configure environment variables in `.env`
 5. Run database sync: `npm start` (syncs on startup)
-
-
 6. Start server: `npm start`
+
+## Secure Secrets
+
+- Use a local `.env` file only in development.
+- Do not commit `.env` to source control; it is ignored by `.gitignore`.
+- In production, set environment variables through your host or secret manager.
+- The app only loads `.env` automatically when `NODE_ENV !== production`.
 
 ## Environment Variables
 

@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
-require("dotenv").config();
+const { loadEnv } = require("../config/env");
+loadEnv();
 const connectDB = require("../config/db");
 const User = require("../models/User");
 
