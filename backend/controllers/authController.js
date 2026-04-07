@@ -2,6 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const { generateToken } = require("../utils/generateToken");
 const { sendEmail, sendOTPEmail } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
@@ -282,32 +283,72 @@ const resendVerificationEmail = async (req, res) => {
 
 // ✅ LOGIN USER
 const loginUser = async (req, res) => {
-  console.log("LOGIN HIT"); // Debug logging
+  console.log("LOGIN HIT - Request body:", req.body);
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
+      console.log("LOGIN FAILED - Missing email or password");
       return res.status(400).json({ message: "Email and password are required" });
     }
 
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log("LOGIN FAILED - MongoDB not connected");
+      return res.status(503).json({
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
+
+    console.log("LOGIN - Looking up user:", email);
     const user = await findUserByEmail(email);
     if (!user) {
+      console.log("LOGIN FAILED - User not found:", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    console.log("LOGIN - Checking password for user:", user._id);
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.log("LOGIN FAILED - Password mismatch for user:", user._id);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     if (!user.isVerified) {
+      console.log("LOGIN ATTEMPT - User not verified, sending OTP:", user._id);
+
+      // Generate new OTP for verification
+      const otp = generateOTP().toString();
+      const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      // Update user with new OTP
+      user.otp = otp;
+      user.otpExpires = otpExpires;
+      await user.save();
+
+      // Send OTP email
+      let emailSent = false;
+      try {
+        await sendOTPEmail(user.email, otp);
+        emailSent = true;
+        console.log("LOGIN OTP SENT - OTP sent to:", user.email);
+      } catch (error) {
+        console.error(`LOGIN OTP EMAIL ERROR for ${user.email}:`, error.message);
+      }
+
+      const responseMessage = emailSent
+        ? "Verification OTP sent to your email. Please verify your account to login."
+        : "Please verify your email first. Check your inbox for the verification OTP.";
+
       return res.status(403).json({
-        message: "Please verify your email first. Check your inbox for the verification OTP.",
+        message: responseMessage,
         redirect: "/verify-otp",
         email: user.email
       });
     }
 
+    console.log("LOGIN SUCCESS - Generating tokens for user:", user._id);
     // Generate access and refresh tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -325,6 +366,7 @@ const loginUser = async (req, res) => {
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
+    console.log("LOGIN SUCCESS - User logged in:", user._id);
     res.status(200).json({
       success: true,
       user: {
@@ -351,15 +393,31 @@ const adminLogin = async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
+    // Only allow specific admin credentials
+    const ADMIN_EMAIL = "admin@talex.com";
+    const ADMIN_PASSWORD = "Admin123!";
+
+    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+      return res.status(403).json({ error: "Invalid admin credentials" });
+    }
+
+    // Check if MongoDB is connected
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
+
     const admin = await findUserByEmail(email);
 
     if (!admin || admin.role !== "admin") {
-      return res.status(403).json({ error: "Access denied" });
+      return res.status(403).json({ error: "Admin account not found or invalid" });
     }
 
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid credentials" });
+    // Verify the admin account is verified
+    if (!admin.isVerified) {
+      return res.status(403).json({ error: "Admin account not verified" });
     }
 
     // Generate access and refresh tokens using helpers

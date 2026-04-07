@@ -21,6 +21,7 @@ router.post("/register", registerUser);
 router.get("/verify", verifyEmailToken);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
+router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
 router.post("/login", loginUser);
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
