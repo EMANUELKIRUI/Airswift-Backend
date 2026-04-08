@@ -9,7 +9,7 @@ const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
-const { logRegistration, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
+const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 
 // Check if User is a Mongoose model or Sequelize model
 const isMongooseModel = User.prototype && User.prototype.save;
@@ -78,7 +78,7 @@ const registerUser = async (req, res) => {
     });
 
     // Log user registration
-    await logRegistration(user._id, req);
+    await logUserActivity(user._id, 'REGISTER', req);
 
     let emailSent = false;
     try {
@@ -96,6 +96,11 @@ const registerUser = async (req, res) => {
       message: responseMessage,
       redirect: "/verify-otp",
       email: user.email,
+      user: {
+        _id: user._id,
+        role: user.role || "user",
+        has_submitted: user.has_submitted || false,
+      },
     });
   } catch (err) {
     console.error("REGISTER ERROR:", err);

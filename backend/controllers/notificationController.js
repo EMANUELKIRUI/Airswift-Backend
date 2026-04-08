@@ -6,14 +6,16 @@ const getNotifications = async (req, res) => {
     const notifications = await Notification.find({ userId: req.user.id })
       .sort({ createdAt: -1 });
 
-    res.json(notifications);
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+    res.json({ notifications, unreadCount });
   } catch (error) {
     console.error('getNotifications error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-const markAsRead = async (req, res) => {
+const markNotificationRead = async (req, res) => {
   try {
     const notification = await Notification.findOne({
       _id: req.params.id,
@@ -27,9 +29,9 @@ const markAsRead = async (req, res) => {
     notification.is_read = true;
     await notification.save();
 
-    res.json({ message: 'Notification marked as read', notification });
+    res.json({ success: true, notification });
   } catch (error) {
-    console.error('markAsRead error:', error);
+    console.error('markNotificationRead error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -62,7 +64,7 @@ const createNotification = async ({ userId, title, message, link }) => {
 
 module.exports = {
   getNotifications,
-  markAsRead,
+  markNotificationRead,
   getUnreadCount,
   createNotification,
 };

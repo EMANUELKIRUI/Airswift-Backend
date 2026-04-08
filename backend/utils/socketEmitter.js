@@ -188,13 +188,15 @@ const emitNotification = (notificationData) => {
     return;
   }
 
-  io.to(`user_${userId}`).emit('notification', {
-    id: notification._id,
-    title: notification.title,
-    message: notification.message,
-    link: notification.link,
-    is_read: notification.is_read,
-    createdAt: notification.createdAt,
+  io.to(`user_${userId}`).emit('new_notification', {
+    notification: {
+      id: notification._id,
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      is_read: notification.is_read,
+      createdAt: notification.createdAt,
+    },
   });
 };
 
@@ -213,8 +215,8 @@ const emitDirectMessage = (message) => {
   }
 
   console.log('Emitting direct message:', { senderId, receiverId });
-  io.to(`user_${receiverId}`).emit('newMessage', message);
-  io.to(`user_${senderId}`).emit('newMessage', message);
+  io.to(`user_${receiverId}`).emit('new_message', { message });
+  io.to(`user_${senderId}`).emit('new_message', { message });
 };
 
 module.exports = {

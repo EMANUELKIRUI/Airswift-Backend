@@ -1,12 +1,15 @@
 const Joi = require('joi');
 const { Op } = require('sequelize');
-const { Application, Job, Profile, Payment, User } = require('../models');
+const { Application, Job, Profile, Payment, User, Notification } = require('../models');
 const { sendEmail, sendStageEmail } = require('../utils/notifications');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
 const { logAuditEvent } = require('../utils/auditLogger');
 const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate } = require('../utils/socketEmitter');
 const fs = require('fs').promises;
+
+const isMongooseModel = User.prototype && typeof User.prototype.save === 'function';
+const isSequelizeModel = User.prototype && typeof User.prototype.update === 'function';
 
 // For document upload path building
 const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
@@ -166,6 +169,74 @@ const applyForJob = async (req, res) => {
 
     res.status(201).json(application);
   } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createApplication = async (req, res) => {
+  try {
+    const { jobId, nationalId, phone } = req.body;
+
+    if (!jobId || !nationalId || !phone) {
+      return res.status(400).json({ message: 'All fields required' });
+    }
+
+    if (!req.files?.passport?.[0] || !req.files?.cv?.[0]) {
+      return res.status(400).json({ message: 'Passport & CV required' });
+    }
+
+    const existing = await Application.findOne({ where: { user_id: req.user.id, job_id: jobId } });
+    if (existing) {
+      return res.status(400).json({ message: 'Already applied' });
+    }
+
+    const application = await Application.create({
+      user_id: req.user.id,
+      job_id: jobId,
+      national_id: nationalId,
+      phone,
+      passport_path: req.files.passport[0].path,
+      cv_path: req.files.cv[0].path,
+      status: 'pending',
+    });
+
+    if (isMongooseModel) {
+      await User.findByIdAndUpdate(req.user.id, {
+        has_submitted: true,
+      });
+    } else if (isSequelizeModel) {
+      await User.update({ has_submitted: true }, { where: { id: req.user.id } });
+    }
+
+    await Notification.create({
+      userId: req.user.id,
+      title: 'New Application',
+      message: 'A new user has applied',
+    });
+
+    res.json({ success: true, application });
+  } catch (err) {
+    console.error('createApplication error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getUserApplications = async (req, res) => {
+  try {
+    const applications = await Application.findAll({
+      where: { user_id: req.user.id },
+      include: [{ model: Job, attributes: ['title'] }],
+      order: [['created_at', 'DESC']],
+    });
+
+    const formatted = applications.map((app) => ({
+      job_id: app.Job ? { title: app.Job.title } : null,
+      status: app.status,
+    }));
+
+    res.json({ applications: formatted });
+  } catch (error) {
+    console.error('getUserApplications error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -463,6 +534,8 @@ const uploadApplicantDocs = async (req, res) => {
 };
 
 module.exports = {
+  createApplication,
+  getUserApplications,
   applyForJob,
   getMyApplications,
   getAllApplicationsAdmin,
