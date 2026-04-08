@@ -4,6 +4,10 @@ const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
 const { extractCVText, extractSkills, extractEducation, extractExperience } = require('../utils/cvParser');
 
+// Check if User is a Mongoose model or Sequelize model
+const isMongooseModel = User.prototype && User.prototype.save;
+const isSequelizeModel = User.prototype && User.prototype.update;
+
 const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
   experience: Joi.string(),
@@ -16,7 +20,16 @@ const profileSchema = Joi.object({
 
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    let user;
+    
+    if (isMongooseModel) {
+      user = await User.findById(req.user.id).select('-password');
+    } else if (isSequelizeModel) {
+      user = await User.findByPk(req.user.id);
+    } else {
+      return res.status(500).json({ message: 'User model not properly configured' });
+    }
+
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const profile = {
@@ -24,7 +37,7 @@ const getProfile = async (req, res) => {
       email: user.email,
       phone: user.phone,
       location: user.location,
-      skills: user.skills || [],
+      skills: Array.isArray(user.skills) ? user.skills : (user.skills ? JSON.parse(user.skills) : []),
       education: user.education,
       experience: user.experience,
       profilePicture: user.profilePicture,
@@ -46,30 +59,58 @@ const updateProfile = async (req, res) => {
     console.log('UPDATE PROFILE - User ID:', req.user.id);
     console.log('UPDATE PROFILE - Data:', value);
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        name: value.name || undefined,
-        phone: value.phone || undefined,
-        location: value.location || undefined,
-        skills: value.skills || undefined,
-        education: value.education || undefined,
-        experience: value.experience || undefined,
-        profilePicture: value.profilePicture || undefined,
-      },
-      { new: true, omitUndefined: true }
-    ).select('-password');
+    let updatedUser;
+
+    if (isMongooseModel) {
+      // Build update object with only defined values
+      const updateData = {};
+      if (value.name !== undefined) updateData.name = value.name;
+      if (value.phone !== undefined) updateData.phone = value.phone;
+      if (value.location !== undefined) updateData.location = value.location;
+      if (value.skills !== undefined) updateData.skills = value.skills;
+      if (value.education !== undefined) updateData.education = value.education;
+      if (value.experience !== undefined) updateData.experience = value.experience;
+      if (value.profilePicture !== undefined) updateData.profilePicture = value.profilePicture;
+
+      updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        updateData,
+        { new: true }
+      ).select('-password');
+    } else if (isSequelizeModel) {
+      // Build update object for Sequelize
+      const updateData = {};
+      if (value.name !== undefined) updateData.name = value.name;
+      if (value.phone !== undefined) updateData.phone = value.phone;
+      if (value.location !== undefined) updateData.location = value.location;
+      if (value.skills !== undefined) updateData.skills = value.skills;
+      if (value.education !== undefined) updateData.education = value.education;
+      if (value.experience !== undefined) updateData.experience = value.experience;
+      if (value.profilePicture !== undefined) updateData.profilePicture = value.profilePicture;
+
+      const [affectedRows] = await User.update(updateData, {
+        where: { id: req.user.id }
+      });
+
+      if (affectedRows === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      updatedUser = await User.findByPk(req.user.id);
+    } else {
+      return res.status(500).json({ message: 'User model not properly configured' });
+    }
 
     if (!updatedUser) return res.status(404).json({ message: 'User not found' });
 
-    console.log('UPDATE PROFILE - Success:', updatedUser._id);
+    console.log('UPDATE PROFILE - Success:', isMongooseModel ? updatedUser._id : updatedUser.id);
 
     const profile = {
       name: updatedUser.name,
       email: updatedUser.email,
       phone: updatedUser.phone,
       location: updatedUser.location,
-      skills: updatedUser.skills || [],
+      skills: Array.isArray(updatedUser.skills) ? updatedUser.skills : (updatedUser.skills ? JSON.parse(updatedUser.skills) : []),
       education: updatedUser.education,
       experience: updatedUser.experience,
       profilePicture: updatedUser.profilePicture,
@@ -100,11 +141,28 @@ const uploadCV = async (req, res) => {
     console.log('UPLOAD CV - User ID:', req.user.id);
     console.log('UPLOAD CV - CV URL:', cv_url);
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      { cv: cv_url },
-      { new: true }
-    );
+    let updatedUser;
+
+    if (isMongooseModel) {
+      updatedUser = await User.findByIdAndUpdate(
+        req.user.id,
+        { cv: cv_url },
+        { new: true }
+      );
+    } else if (isSequelizeModel) {
+      const [affectedRows] = await User.update(
+        { cv: cv_url },
+        { where: { id: req.user.id } }
+      );
+
+      if (affectedRows === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      updatedUser = await User.findByPk(req.user.id);
+    } else {
+      return res.status(500).json({ message: 'User model not properly configured' });
+    }
 
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
@@ -122,7 +180,7 @@ const uploadCV = async (req, res) => {
         email: updatedUser.email,
         phone: updatedUser.phone,
         location: updatedUser.location,
-        skills: updatedUser.skills || [],
+        skills: Array.isArray(updatedUser.skills) ? updatedUser.skills : (updatedUser.skills ? JSON.parse(updatedUser.skills) : []),
         education: updatedUser.education,
         experience: updatedUser.experience,
         cv: updatedUser.cv,
@@ -155,19 +213,44 @@ const setupProfile = async (req, res) => {
     const experience = extractExperience(cvText);
 
     // 4. Save user profile
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      {
-        name,
-        phone,
-        location,
-        cv: filePath,
-        skills,
-        education,
-        experience,
-      },
-      { new: true }
-    );
+    let user;
+
+    if (isMongooseModel) {
+      user = await User.findByIdAndUpdate(
+        req.user.id,
+        {
+          name,
+          phone,
+          location,
+          cv: filePath,
+          skills,
+          education,
+          experience,
+        },
+        { new: true }
+      );
+    } else if (isSequelizeModel) {
+      const [affectedRows] = await User.update(
+        {
+          name,
+          phone,
+          location,
+          cv: filePath,
+          skills,
+          education,
+          experience,
+        },
+        { where: { id: req.user.id } }
+      );
+
+      if (affectedRows === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      user = await User.findByPk(req.user.id);
+    } else {
+      return res.status(500).json({ error: 'User model not properly configured' });
+    }
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -180,7 +263,7 @@ const setupProfile = async (req, res) => {
         phone: user.phone,
         location: user.location,
         cv: user.cv,
-        skills: user.skills,
+        skills: Array.isArray(user.skills) ? user.skills : (user.skills ? JSON.parse(user.skills) : []),
         education: user.education,
         experience: user.experience,
       },

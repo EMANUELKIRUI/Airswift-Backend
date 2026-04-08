@@ -95,6 +95,10 @@ const deleteSetting = async (req, res) => {
 };
 
 const { Application, Job, User, Interview, AuditLog } = require('../models');
+
+// Check if User is a Mongoose model or Sequelize model
+const isMongooseModel = User.prototype && User.prototype.save;
+const isSequelizeModel = User.prototype && User.prototype.update;
 const { sendEmail } = require('../utils/email');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
@@ -112,8 +116,18 @@ const getAllApplications = async (req, res) => {
     });
 
     const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
-    const users = await User.find({ _id: { $in: userIds } }).lean();
-    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+    
+    let users = [];
+    if (isMongooseModel) {
+      users = await User.find({ _id: { $in: userIds } }).lean();
+    } else if (isSequelizeModel) {
+      users = await User.findAll({ where: { id: userIds } });
+    }
+    
+    const userMap = users.reduce((acc, user) => {
+      const userId = isMongooseModel ? user._id.toString() : user.id.toString();
+      return { ...acc, [userId]: user };
+    }, {});
 
     // Format applications for frontend compatibility
     const formattedApplications = applications.map((app) => ({
@@ -173,7 +187,13 @@ const updateStatus = async (req, res) => {
 const getStats = async (req, res) => {
   try {
     const UserModel = require('../models/User');
-    const users = await UserModel.countDocuments();
+    let users = 0;
+    
+    if (isMongooseModel) {
+      users = await UserModel.countDocuments();
+    } else if (isSequelizeModel) {
+      users = await UserModel.count();
+    }
     const applications = await Application.count();
     const jobs = await Job.count();
     const interviews = await Interview.count();
@@ -198,7 +218,12 @@ const sendInterview = async (req, res) => {
 
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    const applicant = application.user_id ? await User.findById(application.user_id) : null;
+    let applicant = null;
+    if (application.user_id) {
+      applicant = isMongooseModel 
+        ? await User.findById(application.user_id) 
+        : await User.findByPk(application.user_id);
+    }
     if (!applicant || !applicant.email) {
       return res.status(400).json({ message: 'Applicant email not available' });
     }
@@ -228,7 +253,12 @@ const generateOffer = async (req, res) => {
 
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    const applicant = application.user_id ? await User.findById(application.user_id) : null;
+    let applicant = null;
+    if (application.user_id) {
+      applicant = isMongooseModel 
+        ? await User.findById(application.user_id) 
+        : await User.findByPk(application.user_id);
+    }
     const job = application.Job;
 
     // Create PDF document
@@ -571,8 +601,12 @@ const updateApplicantStatusWithSocket = async (req, res) => {
     await application.update({ status: normalizedStatus });
 
     // Get applicant info for real-time update
-    const applicant = application.user_id ? 
-      await UserModel.findById(application.user_id).lean() : null;
+    let applicant = null;
+    if (application.user_id) {
+      applicant = isMongooseModel
+        ? await UserModel.findById(application.user_id).lean()
+        : (await UserModel.findByPk(application.user_id))?.toJSON();
+    }
 
     // Log audit event
     await logAuditEvent(req.user.id, 'applicant_status_updated', 'application', id, {
@@ -677,6 +711,7 @@ const sendBulkEmailToApplicants = async (req, res) => {
 
     const { sendEmail } = require('../utils/email');
     const UserModel = require('../models/User');
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
     const results = [];
 
     // Fetch all applications with applicant data
@@ -703,8 +738,12 @@ const sendBulkEmailToApplicants = async (req, res) => {
 
     for (const application of applications) {
       try {
-        const applicant = application.user_id ? 
-          await UserModel.findById(application.user_id).lean() : null;
+        let applicant = null;
+        if (application.user_id) {
+          applicant = isUserMongoose
+            ? await UserModel.findById(application.user_id).lean()
+            : (await UserModel.findByPk(application.user_id))?.toJSON();
+        }
 
         if (!applicant || !applicant.email) {
           results.push({
@@ -1023,25 +1062,52 @@ const getAllUsers = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const UserModel = require('../models/User');
-    let query = {};
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
+    
+    let users, total;
 
-    if (role) query.role = role;
-    if (isVerified !== undefined) query.isVerified = isVerified === 'true';
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
+    if (isUserMongoose) {
+      let query = {};
+      if (role) query.role = role;
+      if (isVerified !== undefined) query.isVerified = isVerified === 'true';
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      users = await UserModel.find(query)
+        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .skip(offset)
+        .lean();
+
+      total = await UserModel.countDocuments(query);
+    } else {
+      const { Op } = require('sequelize');
+      let where = {};
+      if (role) where.role = role;
+      if (isVerified !== undefined) where.isVerified = isVerified === 'true';
+      if (search) {
+        where[Op.or] = [
+          { name: { [Op.like]: `%${search}%` } },
+          { email: { [Op.like]: `%${search}%` } }
+        ];
+      }
+
+      const { count, rows } = await UserModel.findAndCountAll({
+        where,
+        order: [['createdAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
+      });
+
+      users = rows.map(u => u.toJSON());
+      total = count;
     }
-
-    const users = await UserModel.find(query)
-      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip(offset)
-      .lean();
-
-    const total = await UserModel.countDocuments(query);
 
     res.json({
       users,
@@ -1063,10 +1129,19 @@ const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     const UserModel = require('../models/User');
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
 
-    const user = await UserModel.findById(id)
-      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-      .lean();
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id)
+        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+        .lean();
+    } else {
+      user = await UserModel.findByPk(id, {
+        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
+      });
+      if (user) user = user.toJSON();
+    }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -1086,7 +1161,14 @@ const updateUser = async (req, res) => {
     const { name, email, phone, location, skills, education, experience, profilePicture } = req.body;
 
     const UserModel = require('../models/User');
-    const user = await UserModel.findById(id);
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
+
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id);
+    } else {
+      user = await UserModel.findByPk(id);
+    }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -1109,9 +1191,17 @@ const updateUser = async (req, res) => {
     }, req);
 
     // Return user without sensitive fields
-    const updatedUser = await UserModel.findById(id)
-      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-      .lean();
+    let updatedUser;
+    if (isUserMongoose) {
+      updatedUser = await UserModel.findById(id)
+        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+        .lean();
+    } else {
+      updatedUser = await UserModel.findByPk(id, {
+        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
+      });
+      if (updatedUser) updatedUser = updatedUser.toJSON();
+    }
 
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {
@@ -1125,8 +1215,15 @@ const deactivateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const UserModel = require('../models/User');
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
 
-    const user = await UserModel.findById(id);
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id);
+    } else {
+      user = await UserModel.findByPk(id);
+    }
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -1151,8 +1248,15 @@ const activateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const UserModel = require('../models/User');
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
 
-    const user = await UserModel.findById(id);
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id);
+    } else {
+      user = await UserModel.findByPk(id);
+    }
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -1180,7 +1284,14 @@ const changeUserRole = async (req, res) => {
     }
 
     const UserModel = require('../models/User');
-    const user = await UserModel.findById(id);
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
+
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id);
+    } else {
+      user = await UserModel.findByPk(id);
+    }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -1207,8 +1318,15 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const UserModel = require('../models/User');
+    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
 
-    const user = await UserModel.findById(id);
+    let user;
+    if (isUserMongoose) {
+      user = await UserModel.findById(id);
+    } else {
+      user = await UserModel.findByPk(id);
+    }
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 
+// Mongoose schema for production (MongoDB Atlas)
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -49,4 +52,79 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("User", userSchema);
+// Sequelize model for fallback (SQLite)
+const UserSequelize = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true,
+    },
+  },
+  password: {
+    type: DataTypes.STRING,
+  },
+  role: {
+    type: DataTypes.ENUM('user', 'admin', 'recruiter'),
+    defaultValue: 'user',
+  },
+  isVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  verificationToken: DataTypes.STRING,
+  verificationTokenExpires: DataTypes.DATE,
+  otp: DataTypes.STRING,
+  otpExpires: DataTypes.DATE,
+  resetToken: DataTypes.STRING,
+  resetTokenExpiry: DataTypes.DATE,
+  resetPasswordToken: DataTypes.STRING,
+  resetPasswordExpire: DataTypes.DATE,
+  refreshToken: DataTypes.STRING,
+  authProvider: {
+    type: DataTypes.STRING,
+    defaultValue: 'local',
+  },
+  profilePicture: DataTypes.STRING,
+  firebaseUid: DataTypes.STRING,
+  phone: DataTypes.STRING,
+  location: DataTypes.STRING,
+  cv: DataTypes.STRING,
+  skills: {
+    type: DataTypes.TEXT, // Store as JSON string
+    get() {
+      const value = this.getDataValue('skills');
+      return value ? JSON.parse(value) : [];
+    },
+    set(value) {
+      this.setDataValue('skills', JSON.stringify(value));
+    },
+  },
+  education: DataTypes.TEXT,
+  experience: DataTypes.TEXT,
+}, {
+  timestamps: true,
+});
+
+// Export both models - use Mongoose if available, fallback to Sequelize
+let UserModel;
+
+try {
+  // Try to use Mongoose model
+  UserModel = mongoose.model('User', userSchema);
+} catch (error) {
+  console.warn('MongoDB not available, using Sequelize fallback for User model');
+  UserModel = UserSequelize;
+}
+
+module.exports = UserModel;

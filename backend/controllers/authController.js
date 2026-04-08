@@ -8,7 +8,11 @@ const { sendEmail, sendOTPEmail } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
-const { findUserByEmail } = require("../utils/userHelpers");
+const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
+
+// Check if User is a Mongoose model or Sequelize model
+const isMongooseModel = User.prototype && User.prototype.save;
+const isSequelizeModel = User.prototype && User.prototype.update;
 
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
@@ -113,10 +117,22 @@ const verifyEmailToken = async (req, res) => {
       .update(token)
       .digest("hex");
 
-    const user = await User.findOne({
-      verificationToken: hashedToken,
-      verificationTokenExpires: { $gt: Date.now() } // Check expiry
-    });
+    let user;
+    if (isMongooseModel) {
+      user = await User.findOne({
+        verificationToken: hashedToken,
+        verificationTokenExpires: { $gt: Date.now() } // Check expiry
+      });
+    } else if (isSequelizeModel) {
+      user = await User.findOne({
+        where: {
+          verificationToken: hashedToken,
+          verificationTokenExpires: {
+            [require('sequelize').Op.gt]: new Date()
+          }
+        }
+      });
+    }
 
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired token" });
@@ -736,7 +752,7 @@ const refreshToken = async (req, res) => {
       process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET
     );
 
-    const user = await User.findById(decoded.userId);
+    const user = await findUserById(decoded.userId);
     if (!user || user.refreshToken !== token) {
       return res.status(401).json({ error: "Invalid token" });
     }
@@ -759,13 +775,23 @@ const refreshToken = async (req, res) => {
 // ✅ GET ME
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await findUserById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ user });
+    // Return user data without password
+    let userData;
+    if (isMongooseModel) {
+      userData = user.toObject();
+      delete userData.password;
+    } else if (isSequelizeModel) {
+      userData = user.toJSON();
+      delete userData.password;
+    }
+
+    res.json({ user: userData });
   } catch (error) {
     console.error("GET ME ERROR:", error);
     res.status(500).json({ message: "Server error" });
@@ -779,7 +805,7 @@ const logout = async (req, res) => {
 
     // Clear refresh token from database
     if (userId) {
-      const user = await User.findById(userId);
+      const user = await findUserById(userId);
       if (user) {
         user.refreshToken = null;
         await user.save();

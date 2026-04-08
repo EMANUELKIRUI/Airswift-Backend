@@ -367,18 +367,24 @@ io.on("connection", (socket) => {
 
 (async () => {
   try {
-    await sequelize.authenticate();
-    console.log("Database connected");
-    
-    // Sync database models
-    await sequelize.sync({ force: false, alter: false });
-    console.log("Database synced");
+    // Try to connect to SQL database (optional)
+    try {
+      await sequelize.authenticate();
+      console.log("✅ Database connected");
+      
+      // Sync database models
+      await sequelize.sync({ force: false, alter: false });
+      console.log("✅ Database synced");
+    } catch (dbError) {
+      console.warn("⚠️  Database connection failed:", dbError.message);
+      console.warn("⚠️  Continuing without SQL database - some features may be limited");
+    }
 
     // Email service is ready (Nodemailer)
     if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       console.log("✅ Email service is ready");
     } else {
-      console.log("⚠️  Email service not configured - email features disabled");
+      console.warn("⚠️  Email service not configured - email features disabled");
     }
 
     // Create default admin user if MongoDB is available
