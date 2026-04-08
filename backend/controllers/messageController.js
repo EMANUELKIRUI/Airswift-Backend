@@ -4,6 +4,11 @@ const { emitDirectMessage } = require('../utils/socketEmitter');
 
 const sendMessage = async (req, res) => {
   try {
+    // Only admin can send messages
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can send messages' });
+    }
+
     const {
       receiverId,
       user_id,

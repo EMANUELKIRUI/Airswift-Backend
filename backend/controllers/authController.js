@@ -823,6 +823,11 @@ const logout = async (req, res) => {
   try {
     const { userId } = req.body;
 
+    // Log logout activity
+    if (userId) {
+      await logUserActivity(userId, 'LOGOUT', req);
+    }
+
     // Clear refresh token from database
     if (userId) {
       const user = await findUserById(userId);

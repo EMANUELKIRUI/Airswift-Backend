@@ -1,5 +1,8 @@
 const Joi = require('joi');
 const { Settings } = require('../models');
+const Notification = require('../models/Notification');
+const Message = require('../models/Message');
+const { createNotification } = require('./notificationController');
 
 // Validation schemas
 const settingsSchema = Joi.object({
@@ -165,7 +168,9 @@ const updateStatus = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status.' });
     }
 
-    const app = await Application.findByPk(req.params.id);
+    const app = await Application.findByPk(req.params.id, {
+      include: [{ model: Job, attributes: ['title'] }]
+    });
     if (!app) return res.status(404).json({ message: 'Application not found' });
 
     const oldStatus = app.status;
@@ -178,9 +183,61 @@ const updateStatus = async (req, res) => {
       new_status: normalizedStatus
     }, req);
 
-    res.json(app);
+    // Create notification for user
+    await createNotification({
+      userId: app.user_id,
+      title: 'Application Update',
+      message: `Your application has been ${normalizedStatus}`,
+    });
+
+    // If shortlisted, send interview message
+    if (normalizedStatus === 'shortlisted') {
+      await Message.create({
+        senderId: req.user.id, // admin
+        receiverId: app.user_id,
+        subject: 'Interview Invitation',
+        text: 'You have been shortlisted. Interview details coming soon.',
+        interview_date: '',
+        interview_time: '',
+      });
+    }
+
+    res.json({ success: true });
   } catch (error) {
     console.error('updateStatus error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const sendInterviewMessage = async (req, res) => {
+  try {
+    const { user_id, subject, message, interview_date, interview_time } = req.body;
+
+    const msg = await Message.create({
+      senderId: req.user.id,
+      receiverId: user_id,
+      subject,
+      text: message,
+      interview_date: interview_date ? new Date(interview_date) : null,
+      interview_time,
+    });
+
+    // Create notification
+    await createNotification({
+      userId: user_id,
+      title: 'New Message',
+      message: subject,
+    });
+
+    // Emit real-time event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('new_message', { message: msg });
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('sendInterviewMessage error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -1481,6 +1538,7 @@ module.exports = {
   deleteSetting,
   getAllApplications,
   updateStatus,
+  sendInterviewMessage,
   getStats,
   sendInterview,
   generateOffer,

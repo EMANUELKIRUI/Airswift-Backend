@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const {
   registerUser,
   verifyEmailToken,
@@ -16,13 +17,22 @@ const {
 } = require("../controllers/authController");
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
 
+// Rate limiter for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per windowMs
+  message: 'Too many login attempts from this IP, please try again after 15 minutes.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
 router.get("/verify", verifyEmailToken);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
-router.post("/login", loginUser);
+router.post("/login", loginLimiter, loginUser);
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);

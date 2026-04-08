@@ -6,6 +6,7 @@ const { adminLogin } = require('../controllers/authController');
 const {
   getAllApplications,
   updateStatus,
+  sendInterviewMessage,
   getStats,
   sendInterview,
   generateOffer,
@@ -97,6 +98,7 @@ router.delete('/settings/:key', adminMiddleware, deleteSetting);
 router.get('/applications', adminMiddleware, getAllApplications);
 router.put('/application/:id', adminMiddleware, updateStatus);
 router.patch('/applications/:id', adminMiddleware, updateStatus);
+router.post('/messages/send', adminMiddleware, sendInterviewMessage);
 router.get('/stats', adminMiddleware, getStats);
 router.post('/send-interview/:id', adminMiddleware, sendInterview);
 router.post('/generate-offer/:id', adminMiddleware, generateOffer);
