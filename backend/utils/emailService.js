@@ -12,6 +12,23 @@ const transporter = nodemailer.createTransport({
   family: 4, // Force IPv4
 });
 
+const renderTemplate = (template, variables = {}) => {
+  return template.replace(/{{\s*([^}]+)\s*}}/g, (_, key) => {
+    const value = variables[key.trim()];
+    return value !== undefined && value !== null ? value : '';
+  });
+};
+
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
+  return transporter.sendMail({
+    from: `"TALEX" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html,
+    attachments,
+  });
+};
+
 /**
  * Email Service for Admin Dashboard
  * Send emails to applicants/candidates using Nodemailer
@@ -304,6 +321,8 @@ const sendOfferLetter = async (req, res) => {
 };
 
 module.exports = {
+  renderTemplate,
+  sendEmail,
   sendEmailToApplicant,
   sendBulkEmails,
   sendInterviewInvitation,

@@ -4,7 +4,7 @@ const { emitDirectMessage } = require('../utils/socketEmitter');
 
 const sendMessage = async (req, res) => {
   try {
-    const { receiverId, text } = req.body;
+    const { receiverId, subject, text, interview_date, interview_time, attachment_path, applicationId } = req.body;
 
     if (!receiverId || !text) {
       return res.status(400).json({ message: 'receiverId and text are required' });
@@ -18,7 +18,13 @@ const sendMessage = async (req, res) => {
     const message = await Message.create({
       senderId: req.user.id,
       receiverId,
+      subject,
       text,
+      interview_date: interview_date ? new Date(interview_date) : null,
+      interview_time: interview_time || null,
+      attachment_path: attachment_path || null,
+      is_read: false,
+      applicationId: applicationId || null,
     });
 
     const populatedMessage = await message

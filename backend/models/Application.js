@@ -27,6 +27,21 @@ const Application = sequelize.define('Application', {
     type: DataTypes.ENUM('pending', 'shortlisted', 'interview', 'rejected', 'hired'),
     defaultValue: 'pending',
   },
+  phone: {
+    type: DataTypes.STRING,
+  },
+  national_id: {
+    type: DataTypes.STRING,
+  },
+  cv_path: {
+    type: DataTypes.STRING,
+  },
+  passport_path: {
+    type: DataTypes.STRING,
+  },
+  national_id_path: {
+    type: DataTypes.STRING,
+  },
   cover_letter: {
     type: DataTypes.TEXT,
   },

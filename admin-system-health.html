@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Health Dashboard - Admin Panel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .status-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .status-card.up::before { background: #28a745; }
+        .status-card.warning::before { background: #ffc107; }
+        .status-card.critical::before { background: #dc3545; }
+        .status-card.down::before { background: #6c757d; }
+
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .status-card.up .status-icon { color: #28a745; }
+        .status-card.warning .status-icon { color: #ffc107; }
+        .status-card.critical .status-icon { color: #dc3545; }
+        .status-card.down .status-icon { color: #6c757d; }
+
+        .status-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .status-subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .metrics-section {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .metrics-table {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .metrics-table-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .metrics-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px 20px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .metrics-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .metric-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .metric-status.healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .metric-status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .metric-status.critical {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .charts-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .charts-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .charts-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .alerts-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .alerts-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .alerts-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .alerts-count {
+            background: #dc3545;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .alert-item.warning {
+            border-color: #ffc107;
+            background: #fff3cd;
+        }
+
+        .alert-item.critical {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .alert-icon {
+            font-size: 20px;
+        }
+
+        .alert-item.warning .alert-icon { color: #856404; }
+        .alert-item.critical .alert-icon { color: #721c24; }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-message {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .alert-details {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .alert-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .controls-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .metrics-section {
+                grid-template-columns: 1fr;
+            }
+
+            .status-overview {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-heartbeat"></i> System Health Dashboard</h1>
+            <p>Real-time monitoring of server performance, database connectivity, and system resources</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="error" style="display: none;"></div>
+
+        <!-- Status Overview Cards -->
+        <div class="status-overview">
+            <div class="status-card up" id="serverStatus">
+                <div class="status-icon"><i class="fas fa-server"></i></div>
+                <div class="status-title">Server Status</div>
+                <div class="status-value">UP</div>
+                <div class="status-subtitle" id="serverUptime">Loading...</div>
+            </div>
+
+            <div class="status-card up" id="databaseStatus">
+                <div class="status-icon"><i class="fas fa-database"></i></div>
+                <div class="status-title">Database</div>
+                <div class="status-value">UP</div>
+                <div class="status-subtitle" id="dbResponseTime">Loading...</div>
+            </div>
+
+            <div class="status-card" id="cpuStatus">
+                <div class="status-icon"><i class="fas fa-microchip"></i></div>
+                <div class="status-title">CPU Usage</div>
+                <div class="status-value" id="cpuValue">0%</div>
+                <div class="status-subtitle" id="cpuDetails">Loading...</div>
+            </div>
+
+            <div class="status-card" id="memoryStatus">
+                <div class="status-icon"><i class="fas fa-memory"></i></div>
+                <div class="status-title">Memory Usage</div>
+                <div class="status-value" id="memoryValue">0%</div>
+                <div class="status-subtitle" id="memoryDetails">Loading...</div>
+            </div>
+
+            <div class="status-card" id="diskStatus">
+                <div class="status-icon"><i class="fas fa-hdd"></i></div>
+                <div class="status-title">Disk Usage</div>
+                <div class="status-value" id="diskValue">0%</div>
+                <div class="status-subtitle" id="diskDetails">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="controls-section">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label for="autoRefresh">Auto Refresh</label>
+                    <select id="autoRefresh">
+                        <option value="5000">5 seconds</option>
+                        <option value="10000">10 seconds</option>
+                        <option value="30000">30 seconds</option>
+                        <option value="60000">1 minute</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="chartPeriod">Chart Period</label>
+                    <select id="chartPeriod">
+                        <option value="1">Last Hour</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="24" selected>Last 24 Hours</option>
+                        <option value="72">Last 3 Days</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: end;">
+                    <button class="btn btn-primary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt"></i> Refresh Now
+                    </button>
+                    <button class="btn btn-success" onclick="startMonitoring()">
+                        <i class="fas fa-play"></i> Start Monitoring
+                    </button>
+                    <button class="btn btn-danger" onclick="stopMonitoring()">
+                        <i class="fas fa-stop"></i> Stop Monitoring
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="alerts-section">
+            <div class="alerts-header">
+                <div class="alerts-title">Active Alerts</div>
+                <div class="alerts-count" id="alertsCount">0</div>
+            </div>
+            <div id="alertsContainer">
+                <div class="loading">No active alerts</div>
+            </div>
+        </div>
+
+        <!-- Metrics and Charts -->
+        <div class="metrics-section">
+            <!-- Metrics Table -->
+            <div class="metrics-table">
+                <div class="metrics-table-header">System Metrics</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metricsTableBody">
+                        <tr>
+                            <td colspan="3" class="loading">Loading metrics...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-section">
+                <div class="charts-header">
+                    <div class="charts-title">Performance Trends</div>
+                    <div class="chart-controls">
+                        <button class="btn btn-secondary" onclick="resetCharts()">
+                            <i class="fas fa-undo"></i> Reset Zoom
+                        </button>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="last-updated" id="lastUpdated">
+            Last updated: Never
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        let socket;
+        let autoRefreshInterval;
+        let performanceChart;
+        let chartData = {
+            labels: [],
+            cpu: [],
+            memory: [],
+            disk: []
+        };
+        let currentHealthData = {};
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSocket();
+            initializeCharts();
+            loadInitialData();
+            setupAutoRefresh();
+        });
+
+        // Initialize Socket.io connection
+        function initializeSocket() {
+            socket = io();
+
+            socket.on('connect', function() {
+                console.log('Connected to health monitoring');
+            });
+
+            socket.on('system_health_update', function(data) {
+                updateHealthData(data.metrics);
+                updateAlerts(data.alerts);
+            });
+
+            socket.on('system_health_alert', function(data) {
+                updateAlerts(data.alerts);
+                showNotification('New system alert detected!', 'warning');
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from health monitoring');
+                showError('Lost connection to health monitoring server');
+            });
+        }
+
+        // Initialize Chart.js
+        function initializeCharts() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU Usage (%)',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Memory Usage (%)',
+                        data: [],
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Disk Usage (%)',
+                        data: [],
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Usage (%)'
+                            },
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // Load initial data
+        async function loadInitialData() {
+            try {
+                await Promise.all([
+                    loadHealthData(),
+                    loadChartData(),
+                    loadAlerts()
+                ]);
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                showError('Failed to load initial data');
+            }
+        }
+
+        // Load current health data
+        async function loadHealthData() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/system-health', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load health data');
+                }
+
+                const data = await response.json();
+                updateHealthData(data);
+
+            } catch (error) {
+                console.error('Error loading health data:', error);
+                showError('Failed to load health data: ' + error.message);
+            }
+        }
+
+        // Load chart data
+        async function loadChartData() {
+            try {
+                const period = document.getElementById('chartPeriod').value;
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch(`/api/system-health/history?hours=${period}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load chart data');
+                }
+
+                const data = await response.json();
+                updateChartData(data.data);
+
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        // Load alerts
+        async function loadAlerts() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/system-health/alerts', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load alerts');
+                }
+
+                const data = await response.json();
+                updateAlerts(data.alerts);
+
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        // Update health data display
+        function updateHealthData(data) {
+            currentHealthData = data;
+            const timestamp = new Date(data.timestamp || Date.now());
+
+            // Update status cards
+            updateStatusCard('serverStatus', data.server?.status === 'UP', 'UP', `${Math.round(data.server?.uptime / 3600)}h uptime`);
+            updateStatusCard('databaseStatus', data.database?.status === 'UP', data.database?.status || 'DOWN', data.database?.responseTime || 'N/A');
+
+            // Update metrics cards
+            updateMetricsCard('cpuStatus', data.cpu?.usage || 0, `${data.cpu?.cores || 0} cores`);
+            updateMetricsCard('memoryStatus', data.memory?.usage || 0, `${data.memory?.used || 0}MB / ${data.memory?.total || 0}MB`);
+            updateMetricsCard('diskStatus', data.disk?.usage || 0, `${data.disk?.used || 0}GB / ${data.disk?.total || 0}GB`);
+
+            // Update metrics table
+            updateMetricsTable(data);
+
+            // Update last updated time
+            document.getElementById('lastUpdated').textContent = `Last updated: ${timestamp.toLocaleString()}`;
+
+            // Add to chart data
+            addDataPoint(data);
+        }
+
+        // Update status card
+        function updateStatusCard(cardId, isUp, value, subtitle) {
+            const card = document.getElementById(cardId);
+            const valueEl = card.querySelector('.status-value');
+            const subtitleEl = card.querySelector('.status-subtitle');
+
+            card.className = `status-card ${isUp ? 'up' : 'down'}`;
+            valueEl.textContent = value;
+            subtitleEl.textContent = subtitle;
+        }
+
+        // Update metrics card
+        function updateMetricsCard(cardId, value, subtitle) {
+            const card = document.getElementById(cardId);
+            const valueEl = card.querySelector('.status-value');
+            const subtitleEl = card.querySelector('.status-subtitle');
+
+            // Determine status based on thresholds
+            let statusClass = 'up';
+            if (value > 85) statusClass = 'critical';
+            else if (value > 70) statusClass = 'warning';
+
+            card.className = `status-card ${statusClass}`;
+            valueEl.textContent = `${Math.round(value)}%`;
+            subtitleEl.textContent = subtitle;
+        }
+
+        // Update metrics table
+        function updateMetricsTable(data) {
+            const tbody = document.getElementById('metricsTableBody');
+
+            const metrics = [
+                { name: 'CPU Usage', value: `${data.cpu?.usage || 0}%`, threshold: 85 },
+                { name: 'Memory Usage', value: `${data.memory?.usage || 0}%`, threshold: 90 },
+                { name: 'Disk Usage', value: `${data.disk?.usage || 0}%`, threshold: 80 },
+                { name: 'Database Status', value: data.database?.status || 'DOWN', threshold: 'UP' },
+                { name: 'Server Uptime', value: `${Math.round((data.server?.uptime || 0) / 3600)}h`, threshold: null },
+                { name: 'Response Time', value: data.database?.responseTime || 'N/A', threshold: null }
+            ];
+
+            tbody.innerHTML = metrics.map(metric => {
+                let statusClass = 'healthy';
+                let statusText = 'Normal';
+                let icon = 'check-circle';
+
+                if (metric.threshold !== null) {
+                    if (typeof metric.threshold === 'number') {
+                        const numericValue = parseFloat(metric.value);
+                        if (numericValue > metric.threshold) {
+                            statusClass = 'critical';
+                            statusText = 'Critical';
+                            icon = 'exclamation-triangle';
+                        } else if (numericValue > metric.threshold * 0.8) {
+                            statusClass = 'warning';
+                            statusText = 'Warning';
+                            icon = 'exclamation-circle';
+                        }
+                    } else if (metric.value !== metric.threshold) {
+                        statusClass = 'critical';
+                        statusText = 'Down';
+                        icon = 'times-circle';
+                    }
+                }
+
+                return `
+                    <tr>
+                        <td>${metric.name}</td>
+                        <td>${metric.value}</td>
+                        <td>
+                            <span class="metric-status ${statusClass}">
+                                <i class="fas fa-${icon}"></i> ${statusText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update alerts display
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alertsContainer');
+            const countEl = document.getElementById('alertsCount');
+
+            countEl.textContent = alerts.length;
+
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="loading">No active alerts</div>';
+                return;
+            }
+
+            container.innerHTML = alerts.map(alert => {
+                const time = new Date(alert.timestamp || Date.now());
+                return `
+                    <div class="alert-item ${alert.type}">
+                        <div class="alert-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="alert-content">
+                            <div class="alert-message">${alert.message}</div>
+                            <div class="alert-details">
+                                Value: ${alert.value} | Threshold: ${alert.threshold}
+                            </div>
+                        </div>
+                        <div class="alert-time">${time.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update chart data
+        function updateChartData(data) {
+            chartData.labels = data.map(point => {
+                const date = new Date(point.timestamp);
+                return date.toLocaleTimeString();
+            });
+            chartData.cpu = data.map(point => point.cpu);
+            chartData.memory = data.map(point => point.memory);
+            chartData.disk = data.map(point => point.disk);
+
+            performanceChart.data.labels = chartData.labels;
+            performanceChart.data.datasets[0].data = chartData.cpu;
+            performanceChart.data.datasets[1].data = chartData.memory;
+            performanceChart.data.datasets[2].data = chartData.disk;
+            performanceChart.update();
+        }
+
+        // Add data point to chart
+        function addDataPoint(data) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+
+            // Keep only last 50 data points
+            if (chartData.labels.length >= 50) {
+                chartData.labels.shift();
+                chartData.cpu.shift();
+                chartData.memory.shift();
+                chartData.disk.shift();
+            }
+
+            chartData.labels.push(timeString);
+            chartData.cpu.push(data.cpu?.usage || 0);
+            chartData.memory.push(data.memory?.usage || 0);
+            chartData.disk.push(data.disk?.usage || 0);
+
+            performanceChart.data.labels = chartData.labels;
+            performanceChart.data.datasets[0].data = chartData.cpu;
+            performanceChart.data.datasets[1].data = chartData.memory;
+            performanceChart.data.datasets[2].data = chartData.disk;
+            performanceChart.update();
+        }
+
+        // Setup auto refresh
+        function setupAutoRefresh() {
+            const autoRefreshSelect = document.getElementById('autoRefresh');
+
+            autoRefreshSelect.addEventListener('change', function() {
+                clearInterval(autoRefreshInterval);
+
+                if (this.value !== 'off') {
+                    autoRefreshInterval = setInterval(() => {
+                        refreshData();
+                    }, parseInt(this.value));
+                }
+            });
+
+            // Start with 5 second refresh
+            autoRefreshInterval = setInterval(() => {
+                refreshData();
+            }, 5000);
+        }
+
+        // Refresh data manually
+        async function refreshData() {
+            await loadHealthData();
+        }
+
+        // Chart period change
+        document.getElementById('chartPeriod').addEventListener('change', function() {
+            loadChartData();
+        });
+
+        // Reset charts
+        function resetCharts() {
+            performanceChart.resetZoom();
+        }
+
+        // Start monitoring
+        async function startMonitoring() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/system-health/start', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ interval: 5000 })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to start monitoring');
+                }
+
+                const data = await response.json();
+                showNotification('Health monitoring started', 'success');
+
+            } catch (error) {
+                console.error('Error starting monitoring:', error);
+                showError('Failed to start monitoring: ' + error.message);
+            }
+        }
+
+        // Stop monitoring
+        async function stopMonitoring() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/system-health/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to stop monitoring');
+                }
+
+                const data = await response.json();
+                showNotification('Health monitoring stopped', 'info');
+
+            } catch (error) {
+                console.error('Error stopping monitoring:', error);
+                showError('Failed to stop monitoring: ' + error.message);
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#d4edda' : type === 'warning' ? '#fff3cd' : '#cce5ff'};
+                color: ${type === 'success' ? '#155724' : type === 'warning' ? '#856404' : '#004085'};
+                padding: 15px 20px;
+                border-radius: 4px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                max-width: 300px;
+            `;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,120 +1,71 @@
 const Joi = require('joi');
-const { Interview, Application, User } = require('../models');
+const { Application, User, Interview } = require('../models');
 const { generateInterviewQuestions, scoreInterviewResponse, generateOverallInterviewScore } = require('../utils/aiInterview');
 const { logAuditEvent } = require('../utils/auditLogger');
 const { sendStageEmail } = require('../utils/notifications');
 const { sendInterviewInvitation } = require('../services/emailService');
 const { createZoomMeeting } = require('../services/zoomService');
-const { emitInterviewScheduled } = require('../utils/socketEmitter');
+const { emitInterviewScheduled, emitInterviewRescheduled } = require('../utils/socketEmitter');
+const interviewService = require('../services/interviewService');
 
 // Validation schemas
 const createInterviewSchema = Joi.object({
   application_id: Joi.number().integer().required(),
   scheduled_at: Joi.date().required(),
   type: Joi.string().valid('video', 'voice_ai', 'in_person').default('video'),
-  meeting_link: Joi.string().uri().optional(),
+  mode: Joi.string().valid('online', 'in_person', 'hybrid').default('online'),
+  duration: Joi.number().integer().min(10).default(30),
+  timezone: Joi.string().optional().default('UTC'),
+  meeting_link: Joi.string().uri().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+  interviewer_ids: Joi.array().items(Joi.string()).optional(),
 });
 
 const updateInterviewSchema = Joi.object({
-  status: Joi.string().valid('scheduled', 'in_progress', 'completed', 'cancelled'),
-  notes: Joi.string().optional(),
+  status: Joi.string().valid('scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled').optional(),
+  notes: Joi.string().optional().allow('', null),
   ai_responses: Joi.array().optional(),
+  type: Joi.string().valid('video', 'voice_ai', 'in_person').optional(),
+  mode: Joi.string().valid('online', 'in_person', 'hybrid').optional(),
+  duration: Joi.number().integer().min(10).optional(),
+  timezone: Joi.string().optional(),
+  meeting_link: Joi.string().uri().optional().allow('', null),
+  interviewer_ids: Joi.array().items(Joi.string()).optional(),
+  cancel_reason: Joi.string().optional().allow('', null),
+});
+
+const rescheduleInterviewSchema = Joi.object({
+  scheduled_at: Joi.date().required(),
+  duration: Joi.number().integer().min(10).optional(),
+  timezone: Joi.string().optional(),
+  meeting_link: Joi.string().uri().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+  interviewer_ids: Joi.array().items(Joi.string()).optional(),
+});
+
+const updateInterviewStatusSchema = Joi.object({
+  status: Joi.string().valid('scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled').required(),
+  cancel_reason: Joi.string().optional().allow('', null),
+  notes: Joi.string().optional().allow('', null),
+});
+
+const createFeedbackSchema = Joi.object({
+  interviewer_id: Joi.string().optional(),
+  rating: Joi.number().integer().min(1).max(5).required(),
+  comments: Joi.string().optional().allow('', null),
 });
 
 // Create new interview
 const createInterview = async (req, res) => {
   try {
-    const { application_id, scheduled_at, type } = req.body;
-
-    const { error } = createInterviewSchema.validate(req.body);
+    const { error, value } = createInterviewSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    // Check if application exists
-    const application = await Application.findByPk(application_id, {
-      include: [{ model: require('../models').Job }]
-    });
-    if (!application) return res.status(404).json({ message: 'Application not found' });
-
-    // Generate unique room ID
-    const roomId = `interview-${application_id}-${Date.now()}`;
-
-    // Generate AI questions if voice interview
-    let aiQuestions = null;
-    if (type === 'voice_ai') {
-      aiQuestions = await generateInterviewQuestions(
-        application.Job.title,
-        application.Job.description || '',
-        application.skills || []
-      );
-    }
-
-    let meetingLink = req.body.meeting_link;
-
-    if (type === 'video' && !meetingLink) {
-      try {
-        meetingLink = await createZoomMeeting({
-          topic: `Interview for ${application.Job.title}`,
-          startTime: scheduled_at,
-          duration: 30,
-          timezone: 'UTC',
-        });
-      } catch (zoomError) {
-        console.error('createZoomMeeting error:', zoomError);
-      }
-    }
-
-    const interview = await Interview.create({
-      application_id,
-      interviewer_id: req.user.id,
-      room_id: roomId,
-      type,
-      scheduled_at,
-      meeting_link: meetingLink,
-      ai_questions: aiQuestions,
-    });
-
-    if (application && application.Job && application.user_id) {
-      const applicant = await User.findById(application.user_id);
-      if (applicant?.email) {
-        try {
-          await sendInterviewInvitation(
-            applicant.email,
-            applicant.name || 'Candidate',
-            application.Job.title,
-            scheduled_at,
-            meetingLink
-          );
-        } catch (emailError) {
-          console.error('sendInterviewInvitation error:', emailError);
-        }
-      }
-    }
-
-    emitInterviewScheduled({
-      applicationId: application.id,
-      interviewId: interview.id,
-      scheduled_at,
-      type,
-      meeting_link: meetingLink,
-      applicantId: application.user_id,
-    });
-
-    if (application.status !== 'interview') {
-      await application.update({ status: 'interview' });
-    }
-
-    // Log audit event
-    await logAuditEvent(req.user.id, 'interview_created', 'interview', interview.id, {
-      application_id,
-      type,
-      room_id: roomId,
-      meeting_link: meetingLink,
-    }, req);
-
+    const interview = await interviewService.scheduleInterview({ payload: value, adminId: req.user.id, req });
     res.status(201).json(interview);
   } catch (error) {
     console.error('createInterview error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
@@ -162,81 +113,25 @@ const getInterview = async (req, res) => {
 // Update interview
 const updateInterview = async (req, res) => {
   try {
-    const { error } = updateInterviewSchema.validate(req.body);
+    const { error, value } = updateInterviewSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    const interview = await Interview.findByPk(req.params.id);
-    if (!interview) return res.status(404).json({ message: 'Interview not found' });
-
-    const { status, notes, ai_responses } = req.body;
-
-    // Calculate AI score if responses provided
-    let aiScore = interview.ai_score;
-    if (ai_responses && interview.ai_questions) {
-      const questionScores = [];
-      for (let i = 0; i < ai_responses.length; i++) {
-        const score = await scoreInterviewResponse(
-          interview.ai_questions[i],
-          ai_responses[i],
-          interview.Application?.Job?.description || ''
-        );
-        questionScores.push(score);
-      }
-      aiScore = generateOverallInterviewScore(questionScores);
-    }
-
-    await interview.update({
-      status: status || interview.status,
-      notes: notes !== undefined ? notes : interview.notes,
-      ai_responses: ai_responses || interview.ai_responses,
-      ai_score: aiScore,
-      started_at: status === 'in_progress' && !interview.started_at ? new Date() : interview.started_at,
-      ended_at: status === 'completed' && !interview.ended_at ? new Date() : interview.ended_at,
-    });
-
-    // Log audit event
-    await logAuditEvent(req.user.id, 'interview_updated', 'interview', interview.id, {
-      status,
-      ai_score: aiScore
-    }, req);
-
+    const interview = await interviewService.updateInterview({ id: req.params.id, payload: value, adminId: req.user.id, req });
     res.json(interview);
   } catch (error) {
     console.error('updateInterview error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
 // Get interviews for admin
 const getAdminInterviews = async (req, res) => {
   try {
-    const interviews = await Interview.findAll({
-      include: [
-        {
-          model: Application,
-          include: [
-            { model: require('../models').Job, attributes: ['title'] }
-          ]
-        }
-      ],
-      order: [['created_at', 'DESC']],
-    });
-
-    const userIds = [...new Set(interviews
-      .map((interview) => interview.Application?.user_id)
-      .filter(Boolean))];
-    const users = await User.find({ _id: { $in: userIds } }).lean();
-    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
-
-    const formatted = interviews.map((interview) => ({
-      ...interview.toJSON(),
-      applicant: userMap[interview.Application?.user_id] || null,
-    }));
-
-    res.json(formatted);
+    const result = await interviewService.getInterviewList(req.query);
+    res.json(result);
   } catch (error) {
     console.error('getAdminInterviews error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
@@ -252,7 +147,77 @@ const getMyInterviews = async (req, res) => {
     });
     res.json(interviews);
   } catch (error) {
+    console.error('getMyInterviews error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getInterviewCalendar = async (req, res) => {
+  try {
+    const calendar = await interviewService.getInterviewCalendar(req.query.month);
+    res.json(calendar);
+  } catch (error) {
+    console.error('getInterviewCalendar error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+const rescheduleInterview = async (req, res) => {
+  try {
+    const { error, value } = rescheduleInterviewSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    const interview = await interviewService.rescheduleInterview({ id: req.params.id, payload: value, adminId: req.user.id, req });
+    res.json(interview);
+  } catch (error) {
+    console.error('rescheduleInterview error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+const updateInterviewStatus = async (req, res) => {
+  try {
+    const { error, value } = updateInterviewStatusSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    const interview = await interviewService.updateInterviewStatus({ id: req.params.id, payload: value, adminId: req.user.id, req });
+    res.json(interview);
+  } catch (error) {
+    console.error('updateInterviewStatus error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+const getInterviewMetrics = async (req, res) => {
+  try {
+    const metrics = await interviewService.getInterviewMetrics();
+    res.json(metrics);
+  } catch (error) {
+    console.error('getInterviewMetrics error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+const getInterviewFeedback = async (req, res) => {
+  try {
+    const feedback = await interviewService.getFeedbackForInterview(req.params.id);
+    res.json(feedback);
+  } catch (error) {
+    console.error('getInterviewFeedback error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+const addInterviewFeedback = async (req, res) => {
+  try {
+    const { error, value } = createFeedbackSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
+    const feedback = await interviewService.addInterviewFeedback({ interviewId: req.params.id, payload: value, adminId: req.user.id, req });
+    res.status(201).json(feedback);
+  } catch (error) {
+    console.error('addInterviewFeedback error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 

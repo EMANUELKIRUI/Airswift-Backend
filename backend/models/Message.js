@@ -12,9 +12,33 @@ const messageSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    subject: {
+      type: String,
+      default: null,
+    },
     text: {
       type: String,
       required: true,
+    },
+    interview_date: {
+      type: Date,
+      default: null,
+    },
+    interview_time: {
+      type: String,
+      default: null,
+    },
+    attachment_path: {
+      type: String,
+      default: null,
+    },
+    is_read: {
+      type: Boolean,
+      default: false,
+    },
+    applicationId: {
+      type: Number,
+      default: null,
     },
   },
   {

@@ -16,6 +16,7 @@ const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { sendOTPEmail } = require("./services/emailService");
 const { initializeSocket } = require("./utils/socketEmitter");
+const maintenanceMode = require('./middleware/maintenanceMode');
 
 // Connect to MongoDB
 connectDB();
@@ -37,6 +38,10 @@ const io = socketIo(server, {
 
 // Initialize Socket.io emitter utility
 initializeSocket(io);
+
+// Initialize System Health Monitor
+const healthMonitor = require('./services/systemHealthMonitor');
+healthMonitor.startMonitoring(5000); // Monitor every 5 seconds
 
 // Socket.io for WebRTC video interviews and applicant tracking
 const interviewRooms = new Map();
@@ -104,6 +109,20 @@ io.on("connection", (socket) => {
     const roomName = `admin_${adminId}`;
     socket.join(roomName);
     console.log(`Socket ${socket.id} joined room ${roomName}`);
+  });
+
+  socket.on("joinUserRoom", ({ userId }) => {
+    if (!userId) {
+      return socket.emit('socket-error', { message: 'userId is required to join user room' });
+    }
+
+    if (socket.user.id !== userId) {
+      return socket.emit('socket-error', { message: 'Unauthorized user room access' });
+    }
+
+    const roomName = `user_${userId}`;
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined user room ${roomName}`);
   });
 
   // Broadcast applicant status update to all admins
@@ -372,8 +391,8 @@ io.on("connection", (socket) => {
       await sequelize.authenticate();
       console.log("✅ Database connected");
       
-      // Sync database models
-      await sequelize.sync({ force: false, alter: false });
+      // Sync database models and apply safe alterations for new settings fields
+      await sequelize.sync({ force: false, alter: true });
       console.log("✅ Database synced");
     } catch (dbError) {
       console.warn("⚠️  Database connection failed:", dbError.message);
@@ -445,6 +464,7 @@ app.use(
 app.options("*", cors());
 app.use(cookieParser());
 app.use(express.json());
+app.use(maintenanceMode);
 
 // Root route
 app.get('/', (req, res) => {
@@ -483,6 +503,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/messages", require("./routes/messages"));
+app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/jobs", require("./routes/jobs"));
 app.use("/api/job-search", require("./routes/jobSearch"));
 app.use("/api/applications", require("./routes/applications"));
@@ -495,6 +516,8 @@ app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
+app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
+app.use("/api/system-health", require("./routes/systemHealth"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/email", require("./routes/email"));
 

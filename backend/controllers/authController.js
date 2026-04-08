@@ -9,6 +9,7 @@ const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
+const { logRegistration, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 
 // Check if User is a Mongoose model or Sequelize model
 const isMongooseModel = User.prototype && User.prototype.save;
@@ -75,6 +76,9 @@ const registerUser = async (req, res) => {
       verificationToken: null,
       verificationTokenExpires: null,
     });
+
+    // Log user registration
+    await logRegistration(user._id, req);
 
     let emailSent = false;
     try {
@@ -321,6 +325,8 @@ const loginUser = async (req, res) => {
     const user = await findUserByEmail(email);
     if (!user) {
       console.log("LOGIN FAILED - User not found:", email);
+      // Log failed login attempt
+      await logFailedLogin(req, email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -328,6 +334,8 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("LOGIN FAILED - Password mismatch for user:", user._id);
+      // Log failed login attempt
+      await logFailedLogin(req, email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -384,6 +392,10 @@ const loginUser = async (req, res) => {
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     console.log("LOGIN SUCCESS - User logged in:", user._id);
+
+    // Log successful login
+    await logLogin(user._id, req);
+
     res.status(200).json({
       success: true,
       user: {
@@ -392,8 +404,11 @@ const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         isVerified: user.isVerified,
+        has_submitted: user.has_submitted || false,
       },
-      token: accessToken
+      token: accessToken,
+      has_submitted: user.has_submitted || false,
+      redirect_to: (user.has_submitted || false) ? '/dashboard' : '/application-form'
     });
   } catch (err) {
     console.error("LOGIN USER ERROR:", err);

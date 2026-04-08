@@ -5,11 +5,16 @@ const Job = require('./Job');
 const JobCategory = require('./JobCategory');
 const Application = require('./Application');
 const Interview = require('./Interview');
+const InterviewFeedback = require('./InterviewFeedback');
+const InterviewParticipant = require('./InterviewParticipant');
 const Payment = require('./Payment');
 const Settings = require('./Settings');
 const About = require('./About');
 const Report = require('./Report');
 const AuditLog = require('./AuditLog');
+const Notification = require('./Notification');
+const EmailTemplate = require('./EmailTemplate');
+const UserActivityAudit = require('./UserActivityAudit');
 
 // Associations (Note: User is now a Mongoose model, skip Sequelize associations for it)
 // For gradual migration, associations are preserved for Sequelize models only
@@ -31,10 +36,12 @@ Application.belongsTo(Job, { foreignKey: 'job_id' });
 // Application.belongsTo(User, { foreignKey: 'user_id' });
 
 Interview.belongsTo(Application, { foreignKey: 'application_id' });
+Interview.hasMany(InterviewFeedback, { foreignKey: 'interview_id', as: 'feedback' });
+Interview.hasMany(InterviewParticipant, { foreignKey: 'interview_id', as: 'participants' });
 
 // Payment.belongsTo(User, { foreignKey: 'user_id' });
 
-Interview.belongsTo(Application, { foreignKey: 'application_id' });
+// Interview.belongsTo(Application, { foreignKey: 'application_id' });
 // Interview.belongsTo(User, { foreignKey: 'interviewer_id', as: 'interviewer' });
 
 // Payment.belongsTo(User, { foreignKey: 'user_id' });
@@ -54,9 +61,14 @@ module.exports = {
   JobCategory,
   Application,
   Interview,
+  InterviewFeedback,
+  InterviewParticipant,
   Payment,
   Settings,
   About,
   Report,
   AuditLog,
+  Notification,
+  EmailTemplate,
+  UserActivityAudit,
 };

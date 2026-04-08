@@ -104,6 +104,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { logAuditEvent } = require('../utils/auditLogger');
+const userManagementService = require('../services/userManagementService');
 const { analyzeCV, extractTextFromPDF } = require('../utils/cvAnalyzer');
 
 const getAllApplications = async (req, res) => {
@@ -1055,93 +1056,20 @@ const seedTestJobs = async (req, res) => {
 
 // ========== USER MANAGEMENT ==========
 
-// Get all users with pagination and filtering
 const getAllUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 50, role, isVerified, search } = req.query;
-    const offset = (page - 1) * limit;
-
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-    
-    let users, total;
-
-    if (isUserMongoose) {
-      let query = {};
-      if (role) query.role = role;
-      if (isVerified !== undefined) query.isVerified = isVerified === 'true';
-      if (search) {
-        query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } }
-        ];
-      }
-
-      users = await UserModel.find(query)
-        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-        .sort({ createdAt: -1 })
-        .limit(parseInt(limit))
-        .skip(offset)
-        .lean();
-
-      total = await UserModel.countDocuments(query);
-    } else {
-      const { Op } = require('sequelize');
-      let where = {};
-      if (role) where.role = role;
-      if (isVerified !== undefined) where.isVerified = isVerified === 'true';
-      if (search) {
-        where[Op.or] = [
-          { name: { [Op.like]: `%${search}%` } },
-          { email: { [Op.like]: `%${search}%` } }
-        ];
-      }
-
-      const { count, rows } = await UserModel.findAndCountAll({
-        where,
-        order: [['createdAt', 'DESC']],
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
-      });
-
-      users = rows.map(u => u.toJSON());
-      total = count;
-    }
-
-    res.json({
-      users,
-      pagination: {
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / limit),
-        limit: parseInt(limit)
-      }
-    });
+    const users = await userManagementService.getUsers(req.query);
+    res.json(users);
   } catch (error) {
     console.error('getAllUsers error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Get user by ID
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id)
-        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-        .lean();
-    } else {
-      user = await UserModel.findByPk(id, {
-        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
-      });
-      if (user) user = user.toJSON();
-    }
+    const user = await userManagementService.getUserById(id);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -1154,196 +1082,106 @@ const getUserById = async (req, res) => {
   }
 };
 
-// Update user details
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, location, skills, education, experience, profilePicture } = req.body;
-
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id);
-    } else {
-      user = await UserModel.findByPk(id);
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Update allowed fields
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (phone !== undefined) user.phone = phone;
-    if (location !== undefined) user.location = location;
-    if (skills !== undefined) user.skills = skills;
-    if (education !== undefined) user.education = education;
-    if (experience !== undefined) user.experience = experience;
-    if (profilePicture !== undefined) user.profilePicture = profilePicture;
-
-    await user.save();
-
-    await logAuditEvent(req.user.id, 'user_updated', 'user', id, {
-      updatedFields: Object.keys(req.body)
-    }, req);
-
-    // Return user without sensitive fields
-    let updatedUser;
-    if (isUserMongoose) {
-      updatedUser = await UserModel.findById(id)
-        .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-        .lean();
-    } else {
-      updatedUser = await UserModel.findByPk(id, {
-        attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] }
-      });
-      if (updatedUser) updatedUser = updatedUser.toJSON();
-    }
-
+    const updatedUser = await userManagementService.updateUser(id, req.body, req.user.id, req);
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {
     console.error('updateUser error:', error);
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Deactivate user account
 const deactivateUser = async (req, res) => {
   try {
-    const { id } = req.params;
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id);
-    } else {
-      user = await UserModel.findByPk(id);
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Add a deactivated field or set isVerified to false
-    user.isVerified = false;
-    await user.save();
-
-    await logAuditEvent(req.user.id, 'user_deactivated', 'user', id, {
-      reason: req.body.reason || 'Admin action'
-    }, req);
-
+    await userManagementService.setUserVerification(req.params.id, false, req.user.id, req, req.body.reason || 'Admin action');
     res.json({ message: 'User account deactivated successfully' });
   } catch (error) {
     console.error('deactivateUser error:', error);
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Activate user account
 const activateUser = async (req, res) => {
   try {
-    const { id } = req.params;
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id);
-    } else {
-      user = await UserModel.findByPk(id);
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    user.isVerified = true;
-    await user.save();
-
-    await logAuditEvent(req.user.id, 'user_activated', 'user', id, {}, req);
-
+    await userManagementService.setUserVerification(req.params.id, true, req.user.id, req);
     res.json({ message: 'User account activated successfully' });
   } catch (error) {
     console.error('activateUser error:', error);
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Change user role
 const changeUserRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-
-    if (!['user', 'admin', 'recruiter'].includes(role)) {
-      return res.status(400).json({ message: 'Invalid role. Must be user, admin, or recruiter' });
-    }
-
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id);
-    } else {
-      user = await UserModel.findByPk(id);
-    }
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const oldRole = user.role;
-    user.role = role;
-    await user.save();
-
-    await logAuditEvent(req.user.id, 'user_role_changed', 'user', id, {
-      oldRole,
-      newRole: role
-    }, req);
-
-    res.json({ message: `User role changed from ${oldRole} to ${role}` });
+    const result = await userManagementService.changeUserRole(id, role, req.user.id, req);
+    res.json({ message: `User role changed from ${result.oldRole} to ${result.newRole}`, user: result.user });
   } catch (error) {
     console.error('changeUserRole error:', error);
+    if (error.message === 'User not found' || error.message.startsWith('Invalid role')) {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Delete user (soft delete by marking as deleted)
-const deleteUser = async (req, res) => {
+const impersonateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const UserModel = require('../models/User');
-    const isUserMongoose = UserModel.prototype && UserModel.prototype.save;
-
-    let user;
-    if (isUserMongoose) {
-      user = await UserModel.findById(id);
-    } else {
-      user = await UserModel.findByPk(id);
+    const payload = await userManagementService.impersonateUser(id);
+    res.json({ message: 'Impersonation token generated', ...payload });
+  } catch (error) {
+    console.error('impersonateUser error:', error);
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
     }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+const bulkUpdateUserStatus = async (req, res) => {
+  try {
+    const { ids, isVerified } = req.body;
+    const updatedCount = await userManagementService.bulkUpdateUserStatus(ids, isVerified, req.user.id, req);
+    res.json({ message: `${updatedCount} users updated`, updatedCount });
+  } catch (error) {
+    console.error('bulkUpdateUserStatus error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
 
-    // Instead of hard delete, we can add a deletedAt field or just log the deletion
-    // For now, we'll do a soft delete by setting a flag
-    user.isVerified = false;
-    user.email = `${user.email}.deleted.${Date.now()}`; // Prevent email conflicts
-    await user.save();
+const bulkChangeUserRoles = async (req, res) => {
+  try {
+    const { ids, role } = req.body;
+    const updatedCount = await userManagementService.bulkChangeUserRoles(ids, role, req.user.id, req);
+    res.json({ message: `${updatedCount} users updated`, updatedCount });
+  } catch (error) {
+    console.error('bulkChangeUserRoles error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
 
-    await logAuditEvent(req.user.id, 'user_deleted', 'user', id, {
-      reason: req.body.reason || 'Admin action'
-    }, req);
-
+const deleteUser = async (req, res) => {
+  try {
+    await userManagementService.softDeleteUser(req.params.id, req.body.reason || 'Admin action', req.user.id, req);
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('deleteUser error:', error);
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -1662,6 +1500,9 @@ module.exports = {
   deactivateUser,
   activateUser,
   changeUserRole,
+  impersonateUser,
+  bulkUpdateUserStatus,
+  bulkChangeUserRoles,
   deleteUser,
   getSystemHealth,
   bulkUpdateApplications,

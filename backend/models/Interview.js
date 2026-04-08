@@ -27,17 +27,50 @@ const Interview = sequelize.define('Interview', {
     type: DataTypes.STRING,
     allowNull: false, // Unique room identifier
   },
+  interviewer_ids: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: [],
+  },
   type: {
     type: DataTypes.ENUM('video', 'voice_ai', 'in_person'),
     defaultValue: 'video',
+  },
+  mode: {
+    type: DataTypes.ENUM('online', 'in_person', 'hybrid'),
+    defaultValue: 'online',
+  },
+  duration: {
+    type: DataTypes.INTEGER,
+    defaultValue: 30,
+  },
+  timezone: {
+    type: DataTypes.STRING,
+    defaultValue: 'UTC',
   },
   meeting_link: {
     type: DataTypes.STRING,
     allowNull: true,
   },
   status: {
-    type: DataTypes.ENUM('scheduled', 'in_progress', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('scheduled', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled'),
     defaultValue: 'scheduled',
+  },
+  cancel_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  rescheduled_from: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  reminder_24h_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  reminder_1h_sent: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
   },
   scheduled_at: {
     type: DataTypes.DATE,
@@ -52,11 +85,11 @@ const Interview = sequelize.define('Interview', {
     allowNull: true,
   },
   ai_questions: {
-    type: DataTypes.JSON, // Array of AI-generated questions
+    type: DataTypes.JSON,
     allowNull: true,
   },
   ai_responses: {
-    type: DataTypes.JSON, // Candidate responses
+    type: DataTypes.JSON,
     allowNull: true,
   },
   ai_score: {

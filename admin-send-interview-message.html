@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Interview Message - Admin Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumb {
+            font-size: 14px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .applicant-info {
+            border-left: 4px solid #667eea;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+        }
+
+        .applicant-info h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .applicant-info h3::before {
+            content: "👤";
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            color: #333;
+        }
+
+        .form-section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-section h3::before {
+            content: "✍️";
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="time"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="date"]:focus,
+        input[type="time"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .file-upload {
+            position: relative;
+        }
+
+        .file-upload input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: inline-block;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .file-upload:hover .file-upload-label {
+            background: #667eea;
+            color: white;
+        }
+
+        .file-preview {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-preview.show {
+            display: flex;
+        }
+
+        .file-icon {
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .submit-btn.sending::before {
+            content: "⏳";
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .validation-error {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .validation-error.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="breadcrumb">Admin Panel > Applications > Send Message</div>
+            <h1>Send Interview Message</h1>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div id="alert" class="alert"></div>
+
+        <!-- Applicant Info -->
+        <div class="card applicant-info">
+            <h3>Applicant Information</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Name</div>
+                    <div class="info-value" id="applicantName">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email</div>
+                    <div class="info-value" id="applicantEmail">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Job Position</div>
+                    <div class="info-value" id="jobTitle">Loading...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Application Status</div>
+                    <div class="info-value" id="applicationStatus">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Form -->
+        <div class="card form-section">
+            <h3>Interview Message</h3>
+            <form id="interviewForm" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="subject">Subject *</label>
+                    <input type="text" id="subject" name="subject" required
+                           placeholder="e.g., Interview Invitation - Software Developer">
+                    <div class="validation-error" id="subjectError">Subject is required</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message *</label>
+                    <textarea id="message" name="message" rows="6" required
+                        placeholder="Dear [Applicant Name],
+
+We are pleased to invite you for an interview for the [Job Position] position.
+
+Interview Details:
+Date: [Date]
+Time: [Time]
+
+Please prepare the following documents:
+- Updated CV
+- National ID
+- Passport
+
+See attached instructions for more details.
+
+Best regards,
+TALEX HR Team"></textarea>
+                    <div class="validation-error" id="messageError">Message is required</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="interview_date">Interview Date *</label>
+                        <input type="date" id="interview_date" name="interview_date" required>
+                        <div class="validation-error" id="dateError">Please select interview date</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="interview_time">Interview Time *</label>
+                        <input type="time" id="interview_time" name="interview_time" required>
+                        <div class="validation-error" id="timeError">Please select interview time</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="attachment">Upload Interview Instructions (PDF)</label>
+                    <div class="file-upload">
+                        <input type="file" id="attachment" name="attachment" accept=".pdf">
+                        <div class="file-upload-label" id="fileLabel">
+                            📎 Choose PDF file (optional)
+                        </div>
+                    </div>
+                    <div class="file-preview" id="filePreview">
+                        <span class="file-icon">📄</span>
+                        <span id="fileName"></span>
+                        <button type="button" onclick="clearFile()" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;">✕</button>
+                    </div>
+                    <div class="validation-error" id="fileError">Only PDF files are allowed</div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    🚀 Send Message
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const applicationId = urlParams.get('applicationId');
+
+        // DOM elements
+        const form = document.getElementById('interviewForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const alertDiv = document.getElementById('alert');
+        const fileInput = document.getElementById('attachment');
+        const fileLabel = document.getElementById('fileLabel');
+        const filePreview = document.getElementById('filePreview');
+        const fileName = document.getElementById('fileName');
+
+        // Validation elements
+        const subjectError = document.getElementById('subjectError');
+        const messageError = document.getElementById('messageError');
+        const dateError = document.getElementById('dateError');
+        const timeError = document.getElementById('timeError');
+        const fileError = document.getElementById('fileError');
+
+        // Load applicant data
+        async function loadApplicantData() {
+            if (!applicationId) {
+                showAlert('No application ID provided', 'error');
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch(`/api/admin/applications/${applicationId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load applicant data');
+                }
+
+                const data = await response.json();
+
+                // Update UI with applicant info
+                document.getElementById('applicantName').textContent = data.applicant?.name || 'Unknown';
+                document.getElementById('applicantEmail').textContent = data.applicant?.email || 'Unknown';
+                document.getElementById('jobTitle').textContent = data.Job?.title || 'Unknown Position';
+                document.getElementById('applicationStatus').textContent = data.status || 'Unknown';
+
+                // Pre-fill subject
+                document.getElementById('subject').value = `Interview Invitation - ${data.Job?.title || 'Position'}`;
+
+            } catch (error) {
+                console.error('Error loading applicant data:', error);
+                showAlert('Failed to load applicant information', 'error');
+            }
+        }
+
+        // File handling
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+
+            if (file) {
+                // Validate file type
+                if (file.type !== 'application/pdf') {
+                    showValidationError(fileError);
+                    clearFile();
+                    return;
+                }
+
+                hideValidationError(fileError);
+                fileName.textContent = file.name;
+                filePreview.classList.add('show');
+                fileLabel.textContent = '📎 File selected - click to change';
+            } else {
+                clearFile();
+            }
+        });
+
+        function clearFile() {
+            fileInput.value = '';
+            filePreview.classList.remove('show');
+            fileLabel.textContent = '📎 Choose PDF file (optional)';
+            hideValidationError(fileError);
+        }
+
+        // Form validation
+        function validateForm() {
+            let isValid = true;
+
+            const subject = document.getElementById('subject').value.trim();
+            const message = document.getElementById('message').value.trim();
+            const date = document.getElementById('interview_date').value;
+            const time = document.getElementById('interview_time').value;
+
+            if (!subject) {
+                showValidationError(subjectError);
+                isValid = false;
+            } else {
+                hideValidationError(subjectError);
+            }
+
+            if (!message) {
+                showValidationError(messageError);
+                isValid = false;
+            } else {
+                hideValidationError(messageError);
+            }
+
+            if (!date) {
+                showValidationError(dateError);
+                isValid = false;
+            } else {
+                hideValidationError(dateError);
+            }
+
+            if (!time) {
+                showValidationError(timeError);
+                isValid = false;
+            } else {
+                hideValidationError(timeError);
+            }
+
+            return isValid;
+        }
+
+        function showValidationError(element) {
+            element.classList.add('show');
+        }
+
+        function hideValidationError(element) {
+            element.classList.remove('show');
+        }
+
+        // Alert messages
+        function showAlert(message, type) {
+            alertDiv.textContent = message;
+            alertDiv.className = `alert ${type} show`;
+
+            setTimeout(() => {
+                alertDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        // Form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!validateForm()) {
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="sending"></span> Sending...';
+            submitBtn.classList.add('sending');
+
+            try {
+                const formData = new FormData();
+                formData.append('applicationId', applicationId);
+                formData.append('subject', document.getElementById('subject').value);
+                formData.append('message', document.getElementById('message').value);
+                formData.append('interview_date', document.getElementById('interview_date').value);
+                formData.append('interview_time', document.getElementById('interview_time').value);
+
+                if (fileInput.files[0]) {
+                    formData.append('attachment', fileInput.files[0]);
+                }
+
+                const token = localStorage.getItem('adminToken');
+                const response = await fetch('/api/admin/send-interview-message', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showAlert('✅ Interview message sent successfully!', 'success');
+
+                    // Reset form
+                    form.reset();
+                    clearFile();
+
+                    // Redirect after success
+                    setTimeout(() => {
+                        window.location.href = '/admin/applications';
+                    }, 2000);
+
+                } else {
+                    throw new Error(result.message || 'Failed to send message');
+                }
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showAlert('❌ ' + error.message, 'error');
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚀 Send Message';
+                submitBtn.classList.remove('sending');
+            }
+        });
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadApplicantData();
+        });
+    </script>
+</body>
+</html>

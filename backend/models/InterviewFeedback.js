@@ -1,27 +1,33 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Settings = sequelize.define('Settings', {
+const InterviewFeedback = sequelize.define('InterviewFeedback', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
   },
-  key: {
+  interview_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Interviews',
+      key: 'id',
+    },
+  },
+  interviewer_id: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
   },
-  category: {
-    type: DataTypes.STRING,
+  rating: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 'general',
+    validate: {
+      min: 1,
+      max: 5,
+    },
   },
-  value: {
-    type: DataTypes.JSON,
-    allowNull: true,
-  },
-  description: {
+  comments: {
     type: DataTypes.TEXT,
     allowNull: true,
   },
@@ -29,10 +35,8 @@ const Settings = sequelize.define('Settings', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
-  updated_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
+}, {
+  timestamps: false,
 });
 
-module.exports = Settings;
+module.exports = InterviewFeedback;

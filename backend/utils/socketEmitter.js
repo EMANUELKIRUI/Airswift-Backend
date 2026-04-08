@@ -176,6 +176,28 @@ const notifyAdminDashboard = (event, data) => {
   }
 };
 
+const emitNotification = (notificationData) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  const { userId, notification } = notificationData;
+  if (!userId) {
+    console.warn('Notification missing userId');
+    return;
+  }
+
+  io.to(`user_${userId}`).emit('notification', {
+    id: notification._id,
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+    is_read: notification.is_read,
+    createdAt: notification.createdAt,
+  });
+};
+
 const emitDirectMessage = (message) => {
   if (!io) {
     console.warn('Socket.io not initialized');
@@ -209,4 +231,5 @@ module.exports = {
   emitApplicationPipelineUpdate,
   notifyAdminDashboard,
   emitDirectMessage,
+  emitNotification,
 };

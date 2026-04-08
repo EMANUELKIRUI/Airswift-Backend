@@ -15,12 +15,14 @@ const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
 const applySchema = Joi.object({
   job_id: Joi.number().integer().required(),
   cover_letter: Joi.string(),
+  phone: Joi.string().required(),
+  national_id: Joi.string().required(),
 });
 
 const applyForJob = async (req, res) => {
   try {
     const job_id = req.body.job_id || req.body.jobId;
-    const { cover_letter } = req.body;
+    const { cover_letter, phone, national_id } = req.body;
 
     if (!job_id) {
       return res.status(400).json({ message: 'Please select a job' });
@@ -76,14 +78,26 @@ const applyForJob = async (req, res) => {
     const application = await Application.create({
       job_id,
       user_id: req.user.id,
+      phone,
+      national_id,
       cover_letter,
       cv_url: cvUrl,
+      cv_path: cvUrl,
       national_id_url: nationalIdUrl,
+      national_id_path: nationalIdUrl,
       passport_url: passportUrl,
+      passport_path: passportUrl,
       cv: encryptedCV,
       nationalId: encryptedNationalId,
       passport: encryptedPassport,
     });
+
+    // mark the current user as having submitted an application
+    if (isMongooseModel) {
+      await User.findByIdAndUpdate(req.user.id, { has_submitted: true, phone }, { new: true });
+    } else if (isSequelizeModel) {
+      await User.update({ has_submitted: true, phone }, { where: { id: req.user.id } });
+    }
 
     // AI CV Analysis
     try {

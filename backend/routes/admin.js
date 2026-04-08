@@ -1,12 +1,9 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const adminMiddleware = require('../middleware/admin');
 const { adminLogin } = require('../controllers/authController');
 const {
-  getAllSettings,
-  getSettingByKey,
-  createSetting,
-  updateSetting,
-  deleteSetting,
   getAllApplications,
   updateStatus,
   getStats,
@@ -35,8 +32,52 @@ const {
   getAllPayments,
   updatePaymentStatus,
   getPaymentStats,
+  bulkUpdateUserStatus,
+  bulkChangeUserRoles,
+  impersonateUser,
 } = require('../controllers/adminController');
+const {
+  getAllSettings,
+  getSettingsByCategory,
+  getSettingByKey,
+  createSetting,
+  updateSetting,
+  deleteSetting,
+  getFeatureFlags,
+} = require('../controllers/settingsController');
+const {
+  getAllTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+} = require('../controllers/emailTemplateController');
+const { sendInterviewMessage } = require('../controllers/interviewMessageController');
 const { getDashboardSummary } = require('../controllers/dashboardController');
+const { seedEmailTemplates } = require('../scripts/seedEmailTemplates');
+
+const interviewStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/interviews/');
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const interviewUpload = multer({
+  storage: interviewStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF attachments are allowed'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+});
 
 const router = express.Router();
 
@@ -45,6 +86,8 @@ router.post('/login', adminLogin);
 
 // Settings routes
 router.get('/settings', adminMiddleware, getAllSettings);
+router.get('/settings/feature-flags', adminMiddleware, getFeatureFlags);
+router.get('/settings/category/:category', adminMiddleware, getSettingsByCategory);
 router.get('/settings/:key', adminMiddleware, getSettingByKey);
 router.post('/settings', adminMiddleware, createSetting);
 router.put('/settings/:key', adminMiddleware, updateSetting);
@@ -75,7 +118,27 @@ router.patch('/applicants/status', adminMiddleware, updateApplicantStatusWithSoc
 router.post('/email/send', adminMiddleware, sendEmailToApplicant);
 router.post('/email/send-bulk', adminMiddleware, sendBulkEmailToApplicants);
 
+// Interview messaging routes
+router.post('/send-interview-message', adminMiddleware, interviewUpload.single('attachment'), sendInterviewMessage);
+
+// Email template manager routes
+router.get('/email-templates', adminMiddleware, getAllTemplates);
+router.get('/email-templates/:id', adminMiddleware, getTemplateById);
+router.post('/email-templates', adminMiddleware, createTemplate);
+router.put('/email-templates/:id', adminMiddleware, updateTemplate);
+router.delete('/email-templates/:id', adminMiddleware, deleteTemplate);
+
 // Seed test jobs for development/testing
+
+// Seed email templates
+router.post('/seed-email-templates', adminMiddleware, async (req, res) => {
+  try {
+    await seedEmailTemplates();
+    res.json({ message: 'Email templates seeded successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error seeding templates', error: error.message });
+  }
+});
 router.post('/seed-jobs', adminMiddleware, seedTestJobs);
 
 router.get('/dashboard', adminMiddleware, getDashboardSummary);
@@ -88,6 +151,9 @@ router.put('/users/:id', adminMiddleware, updateUser);
 router.patch('/users/:id/deactivate', adminMiddleware, deactivateUser);
 router.patch('/users/:id/activate', adminMiddleware, activateUser);
 router.patch('/users/:id/role', adminMiddleware, changeUserRole);
+router.post('/users/:id/impersonate', adminMiddleware, impersonateUser);
+router.patch('/users/bulk-status', adminMiddleware, bulkUpdateUserStatus);
+router.patch('/users/bulk-role', adminMiddleware, bulkChangeUserRoles);
 router.delete('/users/:id', adminMiddleware, deleteUser);
 
 // System Health & Monitoring routes

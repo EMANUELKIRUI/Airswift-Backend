@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema(
       default: "user",
       enum: ["user", "admin", "recruiter"],
     },
+    has_submitted: {
+      type: Boolean,
+      default: false,
+    },
     isVerified: {
       type: Boolean,
       default: false,
@@ -77,6 +81,10 @@ const UserSequelize = sequelize.define('User', {
   role: {
     type: DataTypes.ENUM('user', 'admin', 'recruiter'),
     defaultValue: 'user',
+  },
+  has_submitted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
