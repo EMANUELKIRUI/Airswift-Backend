@@ -6,6 +6,9 @@ const {
   startHealthMonitoring,
   stopHealthMonitoring,
   quickHealthCheck,
+  getServerHealth,
+  getDatabaseHealth,
+  getServiceHealth,
 } = require('../controllers/systemHealthController');
 const adminMiddleware = require('../middleware/admin');
 
@@ -13,6 +16,9 @@ const router = express.Router();
 
 // All health routes require admin access
 router.get('/', adminMiddleware, getSystemHealth);
+router.get('/server', adminMiddleware, getServerHealth);
+router.get('/db', adminMiddleware, getDatabaseHealth);
+router.get('/services', adminMiddleware, getServiceHealth);
 router.get('/history', adminMiddleware, getHealthHistory);
 router.get('/alerts', adminMiddleware, getHealthAlerts);
 router.get('/quick', adminMiddleware, quickHealthCheck);

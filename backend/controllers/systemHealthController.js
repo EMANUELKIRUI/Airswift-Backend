@@ -158,6 +158,61 @@ const quickHealthCheck = async (req, res) => {
   }
 };
 
+const getServerHealth = async (req, res) => {
+  try {
+    const healthStatus = healthMonitor.getHealthStatus();
+    res.json({
+      server: healthStatus.server,
+      cpu: healthStatus.cpu,
+      memory: healthStatus.memory,
+      disk: healthStatus.disk,
+      application: healthStatus.application,
+      timestamp: healthStatus.timestamp || new Date()
+    });
+  } catch (error) {
+    console.error('Get server health error:', error);
+    res.status(500).json({ error: 'Unable to retrieve server health', message: error.message });
+  }
+};
+
+const getDatabaseHealth = async (req, res) => {
+  try {
+    const healthStatus = healthMonitor.getHealthStatus();
+    res.json({
+      database: healthStatus.database || {},
+      timestamp: healthStatus.timestamp || new Date()
+    });
+  } catch (error) {
+    console.error('Get database health error:', error);
+    res.status(500).json({ error: 'Unable to retrieve database health', message: error.message });
+  }
+};
+
+const getServiceHealth = async (req, res) => {
+  try {
+    const healthStatus = healthMonitor.getHealthStatus();
+    const emailConfigured = Boolean(process.env.EMAIL_HOST || process.env.SMTP_HOST || process.env.EMAIL_USER || process.env.EMAIL_PASS);
+    const aiConfigured = Boolean(process.env.OPENAI_API_KEY || process.env.AI_SERVICE_URL || process.env.AI_API_KEY);
+
+    res.json({
+      aiService: {
+        status: aiConfigured ? 'ONLINE' : 'UNCONFIGURED',
+        configured: aiConfigured
+      },
+      emailService: {
+        status: emailConfigured ? 'ONLINE' : 'UNCONFIGURED',
+        configured: emailConfigured
+      },
+      database: healthStatus.database || {},
+      uptime: os.uptime(),
+      timestamp: healthStatus.timestamp || new Date()
+    });
+  } catch (error) {
+    console.error('Get service health error:', error);
+    res.status(500).json({ error: 'Unable to retrieve service health', message: error.message });
+  }
+};
+
 /**
  * Determine overall system status based on individual components
  */
@@ -186,4 +241,7 @@ module.exports = {
   startHealthMonitoring,
   stopHealthMonitoring,
   quickHealthCheck,
+  getServerHealth,
+  getDatabaseHealth,
+  getServiceHealth,
 };

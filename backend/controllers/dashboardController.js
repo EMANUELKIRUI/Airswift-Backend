@@ -1,5 +1,138 @@
-const { Application, Job, Interview, User, Payment } = require('../models');
+const { Application, Job, Interview, User, Payment, AuditLog } = require('../models');
+const settingsService = require('../services/settingsService');
+const { redisClient, isRedisEnabled } = require('../config/redisClient');
 const { Op } = require('sequelize');
+
+const DASHBOARD_CACHE_TTL = 120; // seconds
+
+const cacheRead = async (key, fetcher) => {
+  if (!isRedisEnabled) {
+    return fetcher();
+  }
+
+  try {
+    const cached = await redisClient.get(key);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const fresh = await fetcher();
+    await redisClient.set(key, JSON.stringify(fresh), { EX: DASHBOARD_CACHE_TTL });
+    return fresh;
+  } catch (error) {
+    console.warn('Dashboard cache error:', error.message);
+    return fetcher();
+  }
+};
+
+const buildDateRange = ({ range = '7d', start, end }) => {
+  const now = new Date();
+  let startDate;
+  let endDate = end ? new Date(end) : now;
+
+  if (start) {
+    startDate = new Date(start);
+  } else if (range === '30d') {
+    startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 29);
+  } else if (range === '7d') {
+    startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 6);
+  } else {
+    const match = String(range).match(/^(\d+)d$/);
+    if (match) {
+      const days = parseInt(match[1], 10);
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - (days - 1));
+    } else {
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 6);
+    }
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  return { startDate, endDate };
+};
+
+const calculateGrowth = (current, previous) => {
+  if (previous === 0) {
+    return current > 0 ? 100 : 0;
+  }
+  return Number((((current - previous) / previous) * 100).toFixed(2));
+};
+
+const countRecordsBetween = async (Model, whereClause) => {
+  return Model.count({ where: whereClause });
+};
+
+const getApplicationsInRange = async (start, end) => {
+  return Application.count({
+    where: {
+      created_at: {
+        [Op.between]: [start, end]
+      }
+    }
+  });
+};
+
+const getJobsInRange = async (start, end) => {
+  return Job.count({
+    where: {
+      created_at: {
+        [Op.between]: [start, end]
+      }
+    }
+  });
+};
+
+const calculateConversionRate = async (start, end) => {
+  const total = await Application.count({
+    where: {
+      created_at: {
+        [Op.between]: [start, end]
+      }
+    }
+  });
+
+  const hired = await Application.count({
+    where: {
+      status: 'hired',
+      created_at: {
+        [Op.between]: [start, end]
+      }
+    }
+  });
+
+  return total > 0 ? Number(((hired / total) * 100).toFixed(2)) : 0;
+};
+
+const calculateAverageTimeToHire = async (start, end) => {
+  const where = { status: 'hired' };
+  if (start && end) {
+    where.created_at = {
+      [Op.between]: [start, end]
+    };
+  }
+
+  const hiredApplications = await Application.findAll({
+    where,
+    attributes: ['created_at', 'updated_at'],
+    raw: true
+  });
+
+  if (!hiredApplications.length) {
+    return 0;
+  }
+
+  const totalDays = hiredApplications.reduce((sum, app) => {
+    const daysToHire = Math.round((new Date(app.updated_at) - new Date(app.created_at)) / (1000 * 60 * 60 * 24));
+    return sum + daysToHire;
+  }, 0);
+
+  return Math.round(totalDays / hiredApplications.length);
+};
 
 /**
  * Analytics Dashboard Controllers
@@ -200,16 +333,57 @@ const getInterviewStats = async (req, res) => {
 // Get hiring funnel (conversion rates)
 const getHiringFunnel = async (req, res) => {
   try {
-    const total = await Application.count();
-    const shortlisted = await Application.count({ where: { status: { [Op.in]: ['shortlisted', 'interview', 'hired'] } } });
-    const interviewed = await Application.count({ where: { status: { [Op.in]: ['interview', 'hired'] } } });
+    const totalApplications = await Application.count();
+    const interviewsScheduled = await Interview.count({
+      where: {
+        status: {
+          [Op.in]: ['scheduled', 'in_progress', 'completed']
+        }
+      }
+    });
     const hired = await Application.count({ where: { status: 'hired' } });
+    const offerLogs = await AuditLog.count({
+      where: {
+        action: {
+          [Op.in]: ['offer_letter_generated', 'offer_sent', 'offer_created']
+        }
+      }
+    });
+
+    const jobViewsLogCount = await AuditLog.count({
+      where: {
+        action: {
+          [Op.in]: ['job_view', 'job_viewed', 'job_impression']
+        }
+      }
+    });
 
     const funnel = [
-      { stage: 'Applications', count: total, percentage: 100 },
-      { stage: 'Shortlisted', count: shortlisted, percentage: total > 0 ? ((shortlisted / total) * 100).toFixed(2) : 0 },
-      { stage: 'Interviewed', count: interviewed, percentage: total > 0 ? ((interviewed / total) * 100).toFixed(2) : 0 },
-      { stage: 'Hired', count: hired, percentage: total > 0 ? ((hired / total) * 100).toFixed(2) : 0 }
+      {
+        stage: 'Job Views',
+        count: jobViewsLogCount,
+        percentage: totalApplications > 0 ? Number(((jobViewsLogCount / totalApplications) * 100).toFixed(2)) : 0
+      },
+      {
+        stage: 'Applications Submitted',
+        count: totalApplications,
+        percentage: 100
+      },
+      {
+        stage: 'Interviews Scheduled',
+        count: interviewsScheduled,
+        percentage: totalApplications > 0 ? Number(((interviewsScheduled / totalApplications) * 100).toFixed(2)) : 0
+      },
+      {
+        stage: 'Offers Made',
+        count: offerLogs,
+        percentage: totalApplications > 0 ? Number(((offerLogs / totalApplications) * 100).toFixed(2)) : 0
+      },
+      {
+        stage: 'Hires',
+        count: hired,
+        percentage: totalApplications > 0 ? Number(((hired / totalApplications) * 100).toFixed(2)) : 0
+      }
     ];
 
     res.json(funnel);
@@ -282,26 +456,12 @@ const getTopSkills = async (req, res) => {
 // Get average time to hire
 const getAverageTimeToHire = async (req, res) => {
   try {
-    const hiredApplications = await Application.findAll({
-      where: { status: 'hired' },
-      attributes: ['created_at', 'updated_at'],
-      raw: true
-    });
-
-    if (hiredApplications.length === 0) {
-      return res.json({ days: 0, candidates: 0 });
-    }
-
-    const totalDays = hiredApplications.reduce((sum, app) => {
-      const daysToHire = Math.floor((new Date(app.updated_at) - new Date(app.created_at)) / (1000 * 60 * 60 * 24));
-      return sum + daysToHire;
-    }, 0);
-
-    const averageDays = Math.round(totalDays / hiredApplications.length);
+    const averageDays = await calculateAverageTimeToHire();
+    const hiredApplications = await Application.count({ where: { status: 'hired' } });
 
     res.json({
       days: averageDays,
-      candidates: hiredApplications.length
+      candidates: hiredApplications
     });
   } catch (error) {
     console.error('getAverageTimeToHire error:', error);
@@ -309,35 +469,238 @@ const getAverageTimeToHire = async (req, res) => {
   }
 };
 
-// Get dashboard summary
 const getDashboardSummary = async (req, res) => {
   try {
-    const totalApplications = await Application.count();
-    const totalJobs = await Job.count();
-    const totalInterviews = await Interview.count();
-    const totalHired = await Application.count({ where: { status: 'hired' } });
-    const avgScore = await Application.findAll({
-      attributes: [[
-        require('sequelize').fn('AVG', require('sequelize').col('score')), 'avg'
-      ]],
+    const summary = await cacheRead('dashboard:summary', async () => {
+      const totalApplications = await Application.count();
+      const activeJobs = await Job.count({ where: { status: 'active' } });
+      const totalInterviews = await Interview.count();
+      const totalHired = await Application.count({ where: { status: 'hired' } });
+      const conversionRate = totalApplications > 0 ? Number(((totalHired / totalApplications) * 100).toFixed(2)) : 0;
+      const avgTimeToHire = await calculateAverageTimeToHire();
+
+      const { startDate, endDate } = buildDateRange({ range: '30d' });
+      const previousStart = new Date(startDate);
+      const previousEnd = new Date(endDate);
+      previousStart.setDate(previousStart.getDate() - 30);
+      previousEnd.setDate(previousEnd.getDate() - 30);
+
+      const [currentApplications, previousApplications, currentJobs, previousJobs, currentConversion, previousConversion, currentTimeToHire, previousTimeToHire] = await Promise.all([
+        getApplicationsInRange(startDate, endDate),
+        getApplicationsInRange(previousStart, previousEnd),
+        getJobsInRange(startDate, endDate),
+        getJobsInRange(previousStart, previousEnd),
+        calculateConversionRate(startDate, endDate),
+        calculateConversionRate(previousStart, previousEnd),
+        calculateAverageTimeToHire(startDate, endDate),
+        calculateAverageTimeToHire(previousStart, previousEnd)
+      ]);
+
+      return {
+        totalApplications,
+        activeJobs,
+        conversionRate,
+        avgTimeToHire,
+        growth: {
+          applications: calculateGrowth(currentApplications, previousApplications),
+          jobs: calculateGrowth(currentJobs, previousJobs),
+          conversion: calculateGrowth(currentConversion, previousConversion),
+          timeToHire: calculateGrowth(currentTimeToHire, previousTimeToHire)
+        },
+        summary: {
+          totalApplications,
+          activeJobs,
+          totalInterviews,
+          totalHired,
+          conversionRate,
+          avgTimeToHire
+        }
+      };
+    });
+
+    res.json(summary);
+  } catch (error) {
+    console.error('getDashboardSummary error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getDashboardTrends = async (req, res) => {
+  try {
+    const { range, start, end } = req.query;
+    const { startDate, endDate } = buildDateRange({ range: range || '7d', start, end });
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    const applications = await Application.findAll({
+      where: {
+        created_at: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      attributes: ['created_at'],
       raw: true
     });
 
-    res.json({
-      totalApplications,
-      totalJobs,
-      totalInterviews,
-      totalHired,
-      averageScore: avgScore[0]?.avg || 0,
-      summary: {
-        applications: totalApplications,
-        jobs: totalJobs,
-        interviews: totalInterviews,
-        hired: totalHired
+    const dayMap = {};
+    for (let i = 0; i < days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const key = date.toISOString().split('T')[0];
+      dayMap[key] = 0;
+    }
+
+    applications.forEach(app => {
+      const key = new Date(app.created_at).toISOString().split('T')[0];
+      if (dayMap[key] !== undefined) {
+        dayMap[key]++;
       }
     });
+
+    const trendData = Object.keys(dayMap).map(date => ({
+      date,
+      applications: dayMap[date]
+    }));
+
+    res.json({
+      range: range || '7d',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      data: trendData
+    });
   } catch (error) {
-    console.error('getDashboardSummary error:', error);
+    console.error('getDashboardTrends error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getDashboardActivities = async (req, res) => {
+  try {
+    const applications = await Application.findAll({
+      limit: 15,
+      order: [['created_at', 'DESC']],
+      include: [{ model: Job, attributes: ['title'] }],
+      raw: true,
+      nest: true
+    });
+
+    const jobs = await Job.findAll({
+      limit: 10,
+      order: [['created_at', 'DESC']],
+      raw: true
+    });
+
+    const interviews = await Interview.findAll({
+      limit: 10,
+      order: [['created_at', 'DESC']],
+      include: [{ model: Application, include: [{ model: Job, attributes: ['title'] }] }],
+      raw: true,
+      nest: true
+    });
+
+    const users = await User.find({}).sort({ createdAt: -1 }).limit(10).lean();
+
+    const auditLogs = await AuditLog.findAll({
+      limit: 15,
+      order: [['created_at', 'DESC']],
+      raw: true
+    });
+
+    const buildActivity = (item) => ({
+      id: item.id || `${item.resource}_${item.resource_id}_${item.action}`,
+      timestamp: item.created_at || item.createdAt || new Date(),
+      type: item.type || item.resource || 'activity',
+      action: item.action || 'updated',
+      resource: item.resource || 'generic',
+      resourceId: item.resource_id || item.id || null,
+      title: item.title || item.job?.title || item.Job?.title || item.name || item.action,
+      details: item.details || item.status || '',
+      summary: item.summary || '',
+      raw: item
+    });
+
+    const applicationActivities = applications.map((application) => buildActivity({
+      id: `application_${application.id}`,
+      created_at: application.created_at,
+      type: 'application',
+      action: application.status === 'hired' ? 'hired' : 'applied',
+      resource: 'application',
+      resource_id: application.id,
+      title: application.Job?.title || 'Application',
+      details: `${application.candidate_name || 'Candidate'} applied for ${application.Job?.title || 'a role'}`
+    }));
+
+    const jobActivities = jobs.map((job) => buildActivity({
+      id: `job_${job.id}`,
+      created_at: job.created_at,
+      type: 'job',
+      action: 'job_posted',
+      resource: 'job',
+      resource_id: job.id,
+      title: job.title,
+      details: `New job posted: ${job.title}`
+    }));
+
+    const interviewActivities = interviews.map((interview) => buildActivity({
+      id: `interview_${interview.id}`,
+      created_at: interview.created_at,
+      type: 'interview',
+      action: 'interview_scheduled',
+      resource: 'interview',
+      resource_id: interview.id,
+      title: interview.Application?.Job?.title || 'Interview',
+      details: `Interview scheduled for ${interview.Application?.Job?.title || 'a candidate'} on ${new Date(interview.scheduled_at).toLocaleString()}`
+    }));
+
+    const userActivities = users.map((user) => buildActivity({
+      id: `user_${user._id}`,
+      created_at: user.createdAt,
+      type: 'user',
+      action: 'user_registered',
+      resource: 'user',
+      resource_id: user._id,
+      title: user.name || user.email,
+      details: `New user registered: ${user.name || user.email}`
+    }));
+
+    const auditActivities = auditLogs.map((log) => buildActivity({
+      id: `audit_${log.id}`,
+      created_at: log.created_at,
+      type: 'audit',
+      action: log.action,
+      resource: log.resource,
+      resource_id: log.resource_id,
+      title: `${log.action} ${log.resource}`,
+      details: log.details ? JSON.stringify(log.details) : ''
+    }));
+
+    const feed = [...applicationActivities, ...jobActivities, ...interviewActivities, ...userActivities, ...auditActivities]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 50);
+
+    res.json({ activities: feed, count: feed.length });
+  } catch (error) {
+    console.error('getDashboardActivities error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getDashboardSettingsSummary = async (req, res) => {
+  try {
+    const [platformName, currencySetting, maintenanceSetting, featureFlags] = await Promise.all([
+      settingsService.getSettingByKey('platform_name'),
+      settingsService.getSettingByKey('currency'),
+      settingsService.getSettingByKey('maintenance_mode'),
+      settingsService.getFeatureFlags()
+    ]);
+
+    res.json({
+      platformName: platformName?.value || 'Airswift',
+      currency: currencySetting?.value || 'USD',
+      maintenanceMode: maintenanceSetting?.value || false,
+      featureFlags
+    });
+  } catch (error) {
+    console.error('getDashboardSettingsSummary error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -352,5 +715,8 @@ module.exports = {
   getPaymentStats,
   getTopSkills,
   getAverageTimeToHire,
-  getDashboardSummary
+  getDashboardSummary,
+  getDashboardTrends,
+  getDashboardActivities,
+  getDashboardSettingsSummary
 };

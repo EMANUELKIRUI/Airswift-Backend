@@ -53,7 +53,7 @@ const {
   deleteTemplate,
 } = require('../controllers/emailTemplateController');
 const { sendInterviewMessage } = require('../controllers/interviewMessageController');
-const { getDashboardSummary } = require('../controllers/dashboardController');
+const { getDashboardSummary, getDashboardTrends, getHiringFunnel, getDashboardActivities, getDashboardSettingsSummary } = require('../controllers/dashboardController');
 const { seedEmailTemplates } = require('../scripts/seedEmailTemplates');
 
 const interviewStorage = multer.diskStorage({
@@ -143,6 +143,10 @@ router.post('/seed-jobs', adminMiddleware, seedTestJobs);
 
 router.get('/dashboard', adminMiddleware, getDashboardSummary);
 router.get('/dashboard/summary', adminMiddleware, getDashboardSummary);
+router.get('/dashboard/trends', adminMiddleware, getDashboardTrends);
+router.get('/dashboard/funnel', adminMiddleware, getHiringFunnel);
+router.get('/dashboard/activities', adminMiddleware, getDashboardActivities);
+router.get('/dashboard/settings-summary', adminMiddleware, getDashboardSettingsSummary);
 
 // User Management routes
 router.get('/users', adminMiddleware, getAllUsers);
@@ -158,6 +162,7 @@ router.delete('/users/:id', adminMiddleware, deleteUser);
 
 // System Health & Monitoring routes
 router.get('/health', adminMiddleware, getSystemHealth);
+router.get('/system/health', adminMiddleware, getSystemHealth);
 
 // Bulk Operations routes
 router.patch('/applications/bulk-update', adminMiddleware, bulkUpdateApplications);

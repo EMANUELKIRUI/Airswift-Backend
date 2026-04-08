@@ -10,7 +10,10 @@ const {
   getPaymentStats,
   getTopSkills,
   getAverageTimeToHire,
-  getDashboardSummary
+  getDashboardSummary,
+  getDashboardTrends,
+  getDashboardActivities,
+  getDashboardSettingsSummary
 } = require('../controllers/dashboardController');
 
 const router = express.Router();
@@ -20,6 +23,9 @@ router.use(adminMiddleware);
 
 // Get dashboard summary
 router.get('/summary', getDashboardSummary);
+router.get('/trends', getDashboardTrends);
+router.get('/activities', getDashboardActivities);
+router.get('/settings-summary', getDashboardSettingsSummary);
 
 // Application statistics
 router.get('/applications/stats', getApplicationStats);
