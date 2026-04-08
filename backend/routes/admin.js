@@ -6,7 +6,6 @@ const { adminLogin } = require('../controllers/authController');
 const {
   getAllApplications,
   updateStatus,
-  sendInterviewMessage,
   getStats,
   sendInterview,
   generateOffer,
