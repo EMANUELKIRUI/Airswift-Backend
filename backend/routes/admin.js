@@ -22,6 +22,19 @@ const {
   sendEmailToApplicant,
   sendBulkEmailToApplicants,
   seedTestJobs,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deactivateUser,
+  activateUser,
+  changeUserRole,
+  deleteUser,
+  getSystemHealth,
+  bulkUpdateApplications,
+  bulkDeleteApplications,
+  getAllPayments,
+  updatePaymentStatus,
+  getPaymentStats,
 } = require('../controllers/adminController');
 const { getDashboardSummary } = require('../controllers/dashboardController');
 
@@ -67,5 +80,26 @@ router.post('/seed-jobs', adminMiddleware, seedTestJobs);
 
 router.get('/dashboard', adminMiddleware, getDashboardSummary);
 router.get('/dashboard/summary', adminMiddleware, getDashboardSummary);
+
+// User Management routes
+router.get('/users', adminMiddleware, getAllUsers);
+router.get('/users/:id', adminMiddleware, getUserById);
+router.put('/users/:id', adminMiddleware, updateUser);
+router.patch('/users/:id/deactivate', adminMiddleware, deactivateUser);
+router.patch('/users/:id/activate', adminMiddleware, activateUser);
+router.patch('/users/:id/role', adminMiddleware, changeUserRole);
+router.delete('/users/:id', adminMiddleware, deleteUser);
+
+// System Health & Monitoring routes
+router.get('/health', adminMiddleware, getSystemHealth);
+
+// Bulk Operations routes
+router.patch('/applications/bulk-update', adminMiddleware, bulkUpdateApplications);
+router.delete('/applications/bulk-delete', adminMiddleware, bulkDeleteApplications);
+
+// Payment Management routes
+router.get('/payments', adminMiddleware, getAllPayments);
+router.put('/payments/:id/status', adminMiddleware, updatePaymentStatus);
+router.get('/payments/stats', adminMiddleware, getPaymentStats);
 
 module.exports = router;

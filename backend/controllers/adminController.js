@@ -1014,6 +1014,509 @@ const seedTestJobs = async (req, res) => {
   }
 };
 
+// ========== USER MANAGEMENT ==========
+
+// Get all users with pagination and filtering
+const getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, role, isVerified, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    const UserModel = require('../models/User');
+    let query = {};
+
+    if (role) query.role = role;
+    if (isVerified !== undefined) query.isVerified = isVerified === 'true';
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const users = await UserModel.find(query)
+      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(offset)
+      .lean();
+
+    const total = await UserModel.countDocuments(query);
+
+    res.json({
+      users,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('getAllUsers error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get user by ID
+const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const UserModel = require('../models/User');
+
+    const user = await UserModel.findById(id)
+      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('getUserById error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update user details
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, location, skills, education, experience, profilePicture } = req.body;
+
+    const UserModel = require('../models/User');
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update allowed fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (location !== undefined) user.location = location;
+    if (skills !== undefined) user.skills = skills;
+    if (education !== undefined) user.education = education;
+    if (experience !== undefined) user.experience = experience;
+    if (profilePicture !== undefined) user.profilePicture = profilePicture;
+
+    await user.save();
+
+    await logAuditEvent(req.user.id, 'user_updated', 'user', id, {
+      updatedFields: Object.keys(req.body)
+    }, req);
+
+    // Return user without sensitive fields
+    const updatedUser = await UserModel.findById(id)
+      .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
+      .lean();
+
+    res.json({ message: 'User updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error('updateUser error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Deactivate user account
+const deactivateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const UserModel = require('../models/User');
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Add a deactivated field or set isVerified to false
+    user.isVerified = false;
+    await user.save();
+
+    await logAuditEvent(req.user.id, 'user_deactivated', 'user', id, {
+      reason: req.body.reason || 'Admin action'
+    }, req);
+
+    res.json({ message: 'User account deactivated successfully' });
+  } catch (error) {
+    console.error('deactivateUser error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Activate user account
+const activateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const UserModel = require('../models/User');
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    await logAuditEvent(req.user.id, 'user_activated', 'user', id, {}, req);
+
+    res.json({ message: 'User account activated successfully' });
+  } catch (error) {
+    console.error('activateUser error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Change user role
+const changeUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['user', 'admin', 'recruiter'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be user, admin, or recruiter' });
+    }
+
+    const UserModel = require('../models/User');
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const oldRole = user.role;
+    user.role = role;
+    await user.save();
+
+    await logAuditEvent(req.user.id, 'user_role_changed', 'user', id, {
+      oldRole,
+      newRole: role
+    }, req);
+
+    res.json({ message: `User role changed from ${oldRole} to ${role}` });
+  } catch (error) {
+    console.error('changeUserRole error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Delete user (soft delete by marking as deleted)
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const UserModel = require('../models/User');
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Instead of hard delete, we can add a deletedAt field or just log the deletion
+    // For now, we'll do a soft delete by setting a flag
+    user.isVerified = false;
+    user.email = `${user.email}.deleted.${Date.now()}`; // Prevent email conflicts
+    await user.save();
+
+    await logAuditEvent(req.user.id, 'user_deleted', 'user', id, {
+      reason: req.body.reason || 'Admin action'
+    }, req);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('deleteUser error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ========== SYSTEM HEALTH & MONITORING ==========
+
+// System health check
+const getSystemHealth = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const sequelize = require('../config/database');
+    const os = require('os');
+    const process = require('process');
+
+    // Database connectivity checks
+    let mongoStatus = 'unknown';
+    let sqlStatus = 'unknown';
+
+    try {
+      // Check MongoDB
+      await mongoose.connection.db.admin().ping();
+      mongoStatus = 'healthy';
+    } catch (error) {
+      mongoStatus = 'unhealthy';
+    }
+
+    try {
+      // Check SQL database
+      await sequelize.authenticate();
+      sqlStatus = 'healthy';
+    } catch (error) {
+      sqlStatus = 'unhealthy';
+    }
+
+    // System metrics
+    const systemInfo = {
+      uptime: process.uptime(),
+      memory: {
+        used: Math.round((os.totalmem() - os.freemem()) / 1024 / 1024), // MB
+        total: Math.round(os.totalmem() / 1024 / 1024), // MB
+        percentage: Math.round(((os.totalmem() - os.freemem()) / os.totalmem()) * 100)
+      },
+      cpu: {
+        cores: os.cpus().length,
+        load: os.loadavg()[0] // 1-minute load average
+      },
+      platform: os.platform(),
+      nodeVersion: process.version
+    };
+
+    // Service status
+    const services = {
+      mongodb: mongoStatus,
+      database: sqlStatus,
+      email: process.env.BREVO_API_KEY ? 'configured' : 'not_configured',
+      openai: process.env.OPENAI_API_KEY ? 'configured' : 'not_configured',
+      zoom: process.env.ZOOM_CLIENT_ID ? 'configured' : 'not_configured'
+    };
+
+    res.json({
+      status: mongoStatus === 'healthy' && sqlStatus === 'healthy' ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      system: systemInfo,
+      services,
+      version: process.env.npm_package_version || '1.0.0'
+    });
+  } catch (error) {
+    console.error('getSystemHealth error:', error);
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Unable to perform health check',
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
+// ========== BULK OPERATIONS ==========
+
+// Bulk update application statuses
+const bulkUpdateApplications = async (req, res) => {
+  try {
+    const { applicationIds, status, reason } = req.body;
+
+    if (!applicationIds || !Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({ message: 'applicationIds array is required' });
+    }
+
+    if (!status) {
+      return res.status(400).json({ message: 'status is required' });
+    }
+
+    const validStatuses = ['pending', 'shortlisted', 'interview', 'rejected', 'hired'];
+    if (!validStatuses.includes(status.toLowerCase())) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const normalizedStatus = status.toLowerCase();
+
+    // Update applications
+    const [affectedRows] = await Application.update(
+      { status: normalizedStatus, updated_at: new Date() },
+      { where: { id: applicationIds } }
+    );
+
+    // Log bulk audit event
+    await logAuditEvent(req.user.id, 'bulk_application_status_update', 'application', null, {
+      count: applicationIds.length,
+      new_status: normalizedStatus,
+      reason: reason || 'Bulk admin action'
+    }, req);
+
+    res.json({
+      message: `${affectedRows} applications updated successfully`,
+      updated: affectedRows,
+      status: normalizedStatus
+    });
+  } catch (error) {
+    console.error('bulkUpdateApplications error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Bulk delete applications
+const bulkDeleteApplications = async (req, res) => {
+  try {
+    const { applicationIds, reason } = req.body;
+
+    if (!applicationIds || !Array.isArray(applicationIds) || applicationIds.length === 0) {
+      return res.status(400).json({ message: 'applicationIds array is required' });
+    }
+
+    const [affectedRows] = await Application.destroy({
+      where: { id: applicationIds }
+    });
+
+    // Log bulk audit event
+    await logAuditEvent(req.user.id, 'bulk_application_deletion', 'application', null, {
+      count: applicationIds.length,
+      reason: reason || 'Bulk admin action'
+    }, req);
+
+    res.json({
+      message: `${affectedRows} applications deleted successfully`,
+      deleted: affectedRows
+    });
+  } catch (error) {
+    console.error('bulkDeleteApplications error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ========== PAYMENT MANAGEMENT ==========
+
+// Get all payments with filtering and pagination
+const getAllPayments = async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, service_type, start_date, end_date } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = {};
+
+    if (status) whereClause.status = status;
+    if (service_type) whereClause.service_type = service_type;
+
+    if (start_date || end_date) {
+      whereClause.created_at = {};
+      if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+      if (end_date) whereClause.created_at[Op.lte] = new Date(end_date);
+    }
+
+    const { count, rows: payments } = await Payment.findAndCountAll({
+      where: whereClause,
+      order: [['created_at', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      include: [
+        {
+          model: Application,
+          attributes: ['id', 'status'],
+          include: [{ model: require('../models').Job, attributes: ['title'] }]
+        }
+      ]
+    });
+
+    // Get user details
+    const userIds = [...new Set(payments.map(p => p.user_id).filter(Boolean))];
+    const UserModel = require('../models/User');
+    const users = await UserModel.find({ _id: { $in: userIds } }).lean();
+    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+
+    const paymentsWithUsers = payments.map(payment => ({
+      ...payment.toJSON(),
+      user: userMap[payment.user_id] || null
+    }));
+
+    res.json({
+      payments: paymentsWithUsers,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        pages: Math.ceil(count / limit),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('getAllPayments error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update payment status
+const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    const validStatuses = ['pending', 'completed', 'failed', 'refunded'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const payment = await Payment.findByPk(id);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+
+    const oldStatus = payment.status;
+    await payment.update({
+      status,
+      notes: notes || payment.notes,
+      updated_at: new Date()
+    });
+
+    await logAuditEvent(req.user.id, 'payment_status_updated', 'payment', id, {
+      old_status: oldStatus,
+      new_status: status,
+      notes
+    }, req);
+
+    res.json({ message: 'Payment status updated successfully', payment });
+  } catch (error) {
+    console.error('updatePaymentStatus error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get payment statistics
+const getPaymentStats = async (req, res) => {
+  try {
+    const totalRevenue = await Payment.findAll({
+      attributes: [
+        [require('sequelize').fn('SUM', require('sequelize').col('amount')), 'total']
+      ],
+      where: { status: 'completed' },
+      raw: true
+    });
+
+    const paymentsByType = await Payment.findAll({
+      attributes: [
+        'service_type',
+        [require('sequelize').fn('COUNT', require('sequelize').col('id')), 'count'],
+        [require('sequelize').fn('SUM', require('sequelize').col('amount')), 'total']
+      ],
+      where: { status: 'completed' },
+      group: ['service_type'],
+      raw: true
+    });
+
+    const monthlyRevenue = await Payment.findAll({
+      attributes: [
+        [require('sequelize').fn('DATE_FORMAT', require('sequelize').col('created_at'), '%Y-%m'), 'month'],
+        [require('sequelize').fn('SUM', require('sequelize').col('amount')), 'total']
+      ],
+      where: { status: 'completed' },
+      group: [require('sequelize').fn('DATE_FORMAT', require('sequelize').col('created_at'), '%Y-%m')],
+      order: [[require('sequelize').fn('DATE_FORMAT', require('sequelize').col('created_at'), '%Y-%m'), 'DESC']],
+      limit: 12,
+      raw: true
+    });
+
+    res.json({
+      totalRevenue: totalRevenue[0]?.total || 0,
+      paymentsByType: paymentsByType || [],
+      monthlyRevenue: monthlyRevenue || []
+    });
+  } catch (error) {
+    console.error('getPaymentStats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllSettings,
   getSettingByKey,
@@ -1034,5 +1537,18 @@ module.exports = {
   updateApplicantStatusWithSocket,
   sendEmailToApplicant,
   sendBulkEmailToApplicants,
-  seedTestJobs
+  seedTestJobs,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deactivateUser,
+  activateUser,
+  changeUserRole,
+  deleteUser,
+  getSystemHealth,
+  bulkUpdateApplications,
+  bulkDeleteApplications,
+  getAllPayments,
+  updatePaymentStatus,
+  getPaymentStats
 };
