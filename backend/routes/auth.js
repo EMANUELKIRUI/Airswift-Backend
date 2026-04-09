@@ -16,6 +16,7 @@ const {
   logout
 } = require("../controllers/authController");
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
+const { findUserById } = require("../utils/userHelpers");
 
 // Rate limiter for login attempts
 const loginLimiter = rateLimit({
@@ -44,13 +45,62 @@ router.post("/logout", logout);
 router.get("/me", verifyToken, getMe);
 
 // Debug endpoint to check authentication
-router.get("/debug", (req, res) => {
+router.get("/debug", async (req, res) => {
+  const cookies = req.cookies || {};
+  const accessToken = cookies.accessToken || null;
+  const refreshToken = cookies.refreshToken || null;
+  const authHeader = req.headers.authorization || null;
+
+  const accessTokenInfo = {
+    present: !!accessToken,
+    valid: false,
+    decoded: null,
+    error: null,
+    source: accessToken ? 'cookie' : (authHeader && authHeader.startsWith('Bearer ') ? 'authHeader' : null),
+  };
+
+  const refreshTokenInfo = {
+    present: !!refreshToken,
+    valid: false,
+    decoded: null,
+    error: null,
+    matchesStoredToken: null,
+  };
+
+  if (accessToken) {
+    try {
+      accessTokenInfo.decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+      accessTokenInfo.valid = true;
+    } catch (err) {
+      accessTokenInfo.error = err.message;
+    }
+  }
+
+  if (refreshToken) {
+    try {
+      refreshTokenInfo.decoded = jwt.verify(
+        refreshToken,
+        process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET
+      );
+      refreshTokenInfo.valid = true;
+      const userId = refreshTokenInfo.decoded.userId || refreshTokenInfo.decoded.id;
+      if (userId) {
+        const user = await findUserById(userId);
+        refreshTokenInfo.matchesStoredToken = !!user && user.refreshToken === refreshToken;
+      }
+    } catch (err) {
+      refreshTokenInfo.error = err.message;
+    }
+  }
+
   res.json({
     hasCookies: !!req.cookies,
     cookies: Object.keys(req.cookies || {}),
-    hasAuthHeader: !!req.headers.authorization,
-    authHeaderValue: req.headers.authorization ? req.headers.authorization.substring(0, 20) + "..." : null,
-    message: "Debug info - check browser console for full details"
+    hasAuthHeader: !!authHeader,
+    authHeaderValue: authHeader ? authHeader.substring(0, 20) + "..." : null,
+    accessTokenInfo,
+    refreshTokenInfo,
+    message: "Debug info - use /api/auth/debug in the browser to inspect auth state."
   });
 });
 

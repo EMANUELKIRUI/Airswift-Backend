@@ -608,7 +608,7 @@ const verifyLoginOTP = async (req, res) => {
 
     const refreshTokenValue = jwt.sign(
       { id: user._id },
-      process.env.REFRESH_SECRET,
+      process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -771,12 +771,13 @@ const refreshToken = async (req, res) => {
       return res.status(401).json({ error: "No refresh token" });
     }
 
-    const decoded = jwt.verify(
+        const decoded = jwt.verify(
       token,
       process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET
     );
 
-    const user = await findUserById(decoded.userId);
+    const userId = decoded.userId || decoded.id;
+    const user = await findUserById(userId);
     if (!user || user.refreshToken !== token) {
       return res.status(401).json({ error: "Invalid token" });
     }
