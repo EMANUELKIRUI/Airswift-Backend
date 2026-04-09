@@ -11,6 +11,13 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHel
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
 const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 
+const buildCookieOptions = (req) => ({
+  httpOnly: true,
+  secure: req.secure || process.env.NODE_ENV === "production" || req.headers["x-forwarded-proto"] === "https",
+  sameSite: "none",
+  path: "/",
+});
+
 // Check if User is a Mongoose model or Sequelize model
 const isMongooseModel = User.prototype && User.prototype.save;
 const isSequelizeModel = User.prototype && User.prototype.update;
@@ -160,13 +167,7 @@ const verifyEmailToken = async (req, res) => {
     user.refreshToken = refreshTokenValue;
     await user.save();
 
-    // Set cookies
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    };
+    const cookieOptions = buildCookieOptions(req);
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshTokenValue, cookieOptions);
@@ -229,12 +230,7 @@ const verifyRegistrationOTP = async (req, res) => {
     user.refreshToken = refreshTokenValue;
     await user.save();
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    };
+    const cookieOptions = buildCookieOptions(req);
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshTokenValue, cookieOptions);
@@ -388,12 +384,7 @@ const loginUser = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      path: "/",
-    };
+    const cookieOptions = buildCookieOptions(req);
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
@@ -466,12 +457,7 @@ const adminLogin = async (req, res) => {
     admin.refreshToken = refreshToken;
     await admin.save();
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    };
+    const cookieOptions = buildCookieOptions(req);
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
@@ -615,12 +601,7 @@ const verifyLoginOTP = async (req, res) => {
     user.refreshToken = refreshTokenValue;
     await user.save();
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    };
+    const cookieOptions = buildCookieOptions(req);
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshTokenValue, cookieOptions);
@@ -784,12 +765,7 @@ const refreshToken = async (req, res) => {
 
     const newAccessToken = generateAccessToken(user);
 
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      path: "/",
-    });
+    res.cookie("accessToken", newAccessToken, buildCookieOptions(req));
 
     res.json({ accessToken: newAccessToken });
   } catch (err) {
