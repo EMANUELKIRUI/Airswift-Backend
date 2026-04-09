@@ -43,6 +43,17 @@ router.post("/logout", logout);
 // Health-check/test route
 router.get("/me", verifyToken, getMe);
 
+// Debug endpoint to check authentication
+router.get("/debug", (req, res) => {
+  res.json({
+    hasCookies: !!req.cookies,
+    cookies: Object.keys(req.cookies || {}),
+    hasAuthHeader: !!req.headers.authorization,
+    authHeaderValue: req.headers.authorization ? req.headers.authorization.substring(0, 20) + "..." : null,
+    message: "Debug info - check browser console for full details"
+  });
+});
+
 // Protected route example
 router.get("/profile", verifyToken, (req, res) => {
   res.json({ message: "Protected data", user: req.user });

@@ -11,7 +11,15 @@ const verifyToken = (req, res, next) => {
   }
 
   if (!token) {
+    console.warn("⚠️  VerifyToken: No token found in cookies or Authorization header");
+    console.warn("Cookies:", Object.keys(req.cookies || {}));
+    console.warn("Auth header:", req.headers.authorization ? "Present" : "Missing");
     return res.status(401).json({ message: 'Not authenticated' });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error("❌ JWT_SECRET is not set!");
+    return res.status(500).json({ message: 'Server error: JWT_SECRET not configured' });
   }
 
   try {
@@ -19,6 +27,7 @@ const verifyToken = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
+    console.error("❌ Token verification failed:", err.message);
     res.status(403).json({ message: 'Invalid token' });
   }
 };

@@ -471,6 +471,7 @@ const adminLogin = async (req, res) => {
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
+    res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
