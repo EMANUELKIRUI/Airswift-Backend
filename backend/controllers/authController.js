@@ -163,8 +163,8 @@ const verifyEmailToken = async (req, res) => {
     // Set cookies
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: true,
+      sameSite: "none",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -230,8 +230,8 @@ const verifyRegistrationOTP = async (req, res) => {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: true,
+      sameSite: "none",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -466,8 +466,8 @@ const adminLogin = async (req, res) => {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: true,
+      sameSite: "none",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -615,8 +615,8 @@ const verifyLoginOTP = async (req, res) => {
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: true,
+      sameSite: "none",
     };
 
     res.cookie("token", accessToken, cookieOptions);
@@ -782,8 +782,8 @@ const refreshToken = async (req, res) => {
 
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      secure: true,
+      sameSite: "none",
     });
 
     res.json({ accessToken: newAccessToken });
