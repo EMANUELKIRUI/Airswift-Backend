@@ -11,12 +11,18 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHel
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
 const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 
-const buildCookieOptions = (req) => ({
-  httpOnly: true,
-  secure: req.secure || process.env.NODE_ENV === "production" || req.headers["x-forwarded-proto"] === "https",
-  sameSite: "none",
-  path: "/",
-});
+const buildCookieOptions = (req) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const domain = isProduction ? "talex-backend-fjt3.onrender.com" : undefined;
+
+  return {
+    httpOnly: true,
+    secure: req.secure || isProduction || req.headers["x-forwarded-proto"] === "https",
+    sameSite: "none",
+    path: "/",
+    domain,
+  };
+};
 
 // Check if User is a Mongoose model or Sequelize model
 const isMongooseModel = User.prototype && User.prototype.save;
@@ -819,8 +825,9 @@ const logout = async (req, res) => {
       }
     }
 
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    const cookieOptions = buildCookieOptions(req);
+    res.clearCookie("accessToken", { ...cookieOptions, httpOnly: false, secure: false });
+    res.clearCookie("refreshToken", { ...cookieOptions, httpOnly: false, secure: false });
 
     res.json({ message: "Logged out successfully" });
   } catch (err) {

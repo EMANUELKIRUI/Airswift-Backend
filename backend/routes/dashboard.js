@@ -1,4 +1,5 @@
 const express = require('express');
+const { verifyToken } = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 const {
   getApplicationStats,
@@ -18,7 +19,8 @@ const {
 
 const router = express.Router();
 
-// All dashboard routes require admin authentication
+// All dashboard routes require authentication and admin role
+router.use(verifyToken);
 router.use(adminMiddleware);
 
 // Get dashboard summary
