@@ -165,6 +165,7 @@ const verifyEmailToken = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -232,6 +233,7 @@ const verifyRegistrationOTP = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
@@ -389,11 +391,11 @@ const loginUser = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     console.log("LOGIN SUCCESS - User logged in:", user._id);
@@ -468,10 +470,10 @@ const adminLogin = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
     };
 
     res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("token", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
@@ -617,9 +619,10 @@ const verifyLoginOTP = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
     };
 
-    res.cookie("token", accessToken, cookieOptions);
+    res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshTokenValue, cookieOptions);
 
     res.json({
@@ -784,6 +787,7 @@ const refreshToken = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "none",
+      path: "/",
     });
 
     res.json({ accessToken: newAccessToken });
@@ -840,7 +844,6 @@ const logout = async (req, res) => {
 
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
-    res.clearCookie("token");
 
     res.json({ message: "Logged out successfully" });
   } catch (err) {

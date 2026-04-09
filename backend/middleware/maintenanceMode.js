@@ -11,7 +11,7 @@ const allowedPaths = [
 ];
 
 const extractToken = (req) => {
-  let token = req.cookies?.accessToken || req.cookies?.token || null;
+  let token = req.cookies?.accessToken || null;
   if (!token) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
