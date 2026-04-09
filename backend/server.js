@@ -435,7 +435,38 @@ io.on("connection", (socket) => {
     } catch (mongoError) {
       console.warn("⚠️  Could not access MongoDB for admin user creation:");
       console.warn(`   ${mongoError.message}`);
-      console.warn("   Admin user creation skipped - proceed with caution");
+      console.warn("   Attempting to create admin in SQL database...");
+
+      try {
+        const adminEmail = "admin@talex.com";
+        const adminPassword = "Admin123!";
+        const adminName = "Admin User";
+
+        const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+        if (!existingAdmin) {
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(adminPassword, salt);
+
+          await User.create({
+            name: adminName,
+            email: adminEmail,
+            password: hashedPassword,
+            role: "admin",
+            isVerified: true,
+            authProvider: "local",
+          });
+
+          console.log("✅ Default admin user created in SQL database");
+          console.log(`📧 Email: ${adminEmail}`);
+          console.log(`🔑 Password: ${adminPassword}`);
+        } else {
+          console.log("ℹ️  Admin user already exists in SQL database");
+        }
+      } catch (sqlError) {
+        console.warn("⚠️  Could not create admin user in SQL database either:");
+        console.warn(`   ${sqlError.message}`);
+        console.warn("   Admin user creation skipped - proceed with caution");
+      }
     }
   } catch (error) {
     console.error("Database connection error:", error);
