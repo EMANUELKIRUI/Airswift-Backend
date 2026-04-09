@@ -18,7 +18,7 @@ const {
 const { verifyToken } = require('../middleware/auth');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { upload } = require('../middleware/upload');
-const adminMiddleware = require('../middleware/admin');
+const adminOnly = require('../middleware/admin');
 
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -62,10 +62,10 @@ router.post('/upload-documents', verifyToken, cloudUpload.fields([
 router.post('/:id/attend-interview', verifyToken, markInterviewAttended);
 
 // Admin routes
-router.get('/admin/all', adminMiddleware, getAllApplicationsAdmin);
-router.get('/:id/download', adminMiddleware, downloadCV);
-router.put('/:id/status', adminMiddleware, updateApplicationStatus);
-router.post('/admin/message-applicants', adminMiddleware, sendMessageToApplicants);
-router.post('/admin/:id/schedule-interview', adminMiddleware, scheduleInterview);
+router.get('/admin/all', verifyToken, adminOnly, getAllApplicationsAdmin);
+router.get('/:id/download', verifyToken, adminOnly, downloadCV);
+router.put('/:id/status', verifyToken, adminOnly, updateApplicationStatus);
+router.post('/admin/message-applicants', verifyToken, adminOnly, sendMessageToApplicants);
+router.post('/admin/:id/schedule-interview', verifyToken, adminOnly, scheduleInterview);
 
 module.exports = router;

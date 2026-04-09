@@ -1,7 +1,8 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const adminMiddleware = require('../middleware/admin');
+const { verifyToken } = require('../middleware/auth');
+const adminOnly = require('../middleware/admin');
 const { adminLogin } = require('../controllers/authController');
 const {
   getAllApplications,
@@ -85,54 +86,54 @@ const router = express.Router();
 router.post('/login', adminLogin);
 
 // Settings routes
-router.get('/settings', adminMiddleware, getAllSettings);
-router.get('/settings/feature-flags', adminMiddleware, getFeatureFlags);
-router.get('/settings/category/:category', adminMiddleware, getSettingsByCategory);
-router.get('/settings/:key', adminMiddleware, getSettingByKey);
-router.post('/settings', adminMiddleware, createSetting);
-router.put('/settings/:key', adminMiddleware, updateSetting);
-router.delete('/settings/:key', adminMiddleware, deleteSetting);
+router.get('/settings', verifyToken, adminOnly, getAllSettings);
+router.get('/settings/feature-flags', verifyToken, adminOnly, getFeatureFlags);
+router.get('/settings/category/:category', verifyToken, adminOnly, getSettingsByCategory);
+router.get('/settings/:key', verifyToken, adminOnly, getSettingByKey);
+router.post('/settings', verifyToken, adminOnly, createSetting);
+router.put('/settings/:key', verifyToken, adminOnly, updateSetting);
+router.delete('/settings/:key', verifyToken, adminOnly, deleteSetting);
 
 // Admin application control routes
-router.get('/applications', adminMiddleware, getAllApplications);
-router.put('/application/:id', adminMiddleware, updateStatus);
-router.patch('/applications/:id', adminMiddleware, updateStatus);
-router.post('/messages/send', adminMiddleware, sendInterviewMessage);
-router.get('/stats', adminMiddleware, getStats);
-router.post('/send-interview/:id', adminMiddleware, sendInterview);
-router.post('/generate-offer/:id', adminMiddleware, generateOffer);
+router.get('/applications', verifyToken, adminOnly, getAllApplications);
+router.put('/application/:id', verifyToken, adminOnly, updateStatus);
+router.patch('/applications/:id', verifyToken, adminOnly, updateStatus);
+router.post('/messages/send', verifyToken, adminOnly, sendInterviewMessage);
+router.get('/stats', verifyToken, adminOnly, getStats);
+router.post('/send-interview/:id', verifyToken, adminOnly, sendInterview);
+router.post('/generate-offer/:id', verifyToken, adminOnly, generateOffer);
 
 // Job Management routes
-router.get('/jobs', adminMiddleware, getJobs);
-router.post('/jobs', adminMiddleware, createJob);
-router.put('/jobs/:id', adminMiddleware, updateJob);
-router.delete('/jobs/:id', adminMiddleware, deleteJob);
+router.get('/jobs', verifyToken, adminOnly, getJobs);
+router.post('/jobs', verifyToken, adminOnly, createJob);
+router.put('/jobs/:id', verifyToken, adminOnly, updateJob);
+router.delete('/jobs/:id', verifyToken, adminOnly, deleteJob);
 
 // AI CV Scoring routes
-router.post('/cv-scoring/analyze', adminMiddleware, analyzeSingleCV);
-router.post('/cv-scoring/bulk-analyze', adminMiddleware, bulkAnalyzeCV);
+router.post('/cv-scoring/analyze', verifyToken, adminOnly, analyzeSingleCV);
+router.post('/cv-scoring/bulk-analyze', verifyToken, adminOnly, bulkAnalyzeCV);
 
 // Real-time applicant tracking routes
-router.patch('/applicants/status', adminMiddleware, updateApplicantStatusWithSocket);
+router.patch('/applicants/status', verifyToken, adminOnly, updateApplicantStatusWithSocket);
 
 // Email communication routes
-router.post('/email/send', adminMiddleware, sendEmailToApplicant);
-router.post('/email/send-bulk', adminMiddleware, sendBulkEmailToApplicants);
+router.post('/email/send', verifyToken, adminOnly, sendEmailToApplicant);
+router.post('/email/send-bulk', verifyToken, adminOnly, sendBulkEmailToApplicants);
 
 // Interview messaging routes
-router.post('/send-interview-message', adminMiddleware, interviewUpload.single('attachment'), sendInterviewMessage);
+router.post('/send-interview-message', verifyToken, adminOnly, interviewUpload.single('attachment'), sendInterviewMessage);
 
 // Email template manager routes
-router.get('/email-templates', adminMiddleware, getAllTemplates);
-router.get('/email-templates/:id', adminMiddleware, getTemplateById);
-router.post('/email-templates', adminMiddleware, createTemplate);
-router.put('/email-templates/:id', adminMiddleware, updateTemplate);
-router.delete('/email-templates/:id', adminMiddleware, deleteTemplate);
+router.get('/email-templates', verifyToken, adminOnly, getAllTemplates);
+router.get('/email-templates/:id', verifyToken, adminOnly, getTemplateById);
+router.post('/email-templates', verifyToken, adminOnly, createTemplate);
+router.put('/email-templates/:id', verifyToken, adminOnly, updateTemplate);
+router.delete('/email-templates/:id', verifyToken, adminOnly, deleteTemplate);
 
 // Seed test jobs for development/testing
 
 // Seed email templates
-router.post('/seed-email-templates', adminMiddleware, async (req, res) => {
+router.post('/seed-email-templates', verifyToken, adminOnly, async (req, res) => {
   try {
     await seedEmailTemplates();
     res.json({ message: 'Email templates seeded successfully' });
@@ -140,38 +141,38 @@ router.post('/seed-email-templates', adminMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Error seeding templates', error: error.message });
   }
 });
-router.post('/seed-jobs', adminMiddleware, seedTestJobs);
+router.post('/seed-jobs', verifyToken, adminOnly, seedTestJobs);
 
-router.get('/dashboard', adminMiddleware, getDashboardSummary);
-router.get('/dashboard/summary', adminMiddleware, getDashboardSummary);
-router.get('/dashboard/trends', adminMiddleware, getDashboardTrends);
-router.get('/dashboard/funnel', adminMiddleware, getHiringFunnel);
-router.get('/dashboard/activities', adminMiddleware, getDashboardActivities);
-router.get('/dashboard/settings-summary', adminMiddleware, getDashboardSettingsSummary);
+router.get('/dashboard', verifyToken, adminOnly, getDashboardSummary);
+router.get('/dashboard/summary', verifyToken, adminOnly, getDashboardSummary);
+router.get('/dashboard/trends', verifyToken, adminOnly, getDashboardTrends);
+router.get('/dashboard/funnel', verifyToken, adminOnly, getHiringFunnel);
+router.get('/dashboard/activities', verifyToken, adminOnly, getDashboardActivities);
+router.get('/dashboard/settings-summary', verifyToken, adminOnly, getDashboardSettingsSummary);
 
 // User Management routes
-router.get('/users', adminMiddleware, getAllUsers);
-router.get('/users/:id', adminMiddleware, getUserById);
-router.put('/users/:id', adminMiddleware, updateUser);
-router.patch('/users/:id/deactivate', adminMiddleware, deactivateUser);
-router.patch('/users/:id/activate', adminMiddleware, activateUser);
-router.patch('/users/:id/role', adminMiddleware, changeUserRole);
-router.post('/users/:id/impersonate', adminMiddleware, impersonateUser);
-router.patch('/users/bulk-status', adminMiddleware, bulkUpdateUserStatus);
-router.patch('/users/bulk-role', adminMiddleware, bulkChangeUserRoles);
-router.delete('/users/:id', adminMiddleware, deleteUser);
+router.get('/users', verifyToken, adminOnly, getAllUsers);
+router.get('/users/:id', verifyToken, adminOnly, getUserById);
+router.put('/users/:id', verifyToken, adminOnly, updateUser);
+router.patch('/users/:id/deactivate', verifyToken, adminOnly, deactivateUser);
+router.patch('/users/:id/activate', verifyToken, adminOnly, activateUser);
+router.patch('/users/:id/role', verifyToken, adminOnly, changeUserRole);
+router.post('/users/:id/impersonate', verifyToken, adminOnly, impersonateUser);
+router.patch('/users/bulk-status', verifyToken, adminOnly, bulkUpdateUserStatus);
+router.patch('/users/bulk-role', verifyToken, adminOnly, bulkChangeUserRoles);
+router.delete('/users/:id', verifyToken, adminOnly, deleteUser);
 
 // System Health & Monitoring routes
-router.get('/health', adminMiddleware, getSystemHealth);
-router.get('/system/health', adminMiddleware, getSystemHealth);
+router.get('/health', verifyToken, adminOnly, getSystemHealth);
+router.get('/system/health', verifyToken, adminOnly, getSystemHealth);
 
 // Bulk Operations routes
-router.patch('/applications/bulk-update', adminMiddleware, bulkUpdateApplications);
-router.delete('/applications/bulk-delete', adminMiddleware, bulkDeleteApplications);
+router.patch('/applications/bulk-update', verifyToken, adminOnly, bulkUpdateApplications);
+router.delete('/applications/bulk-delete', verifyToken, adminOnly, bulkDeleteApplications);
 
 // Payment Management routes
-router.get('/payments', adminMiddleware, getAllPayments);
-router.put('/payments/:id/status', adminMiddleware, updatePaymentStatus);
-router.get('/payments/stats', adminMiddleware, getPaymentStats);
+router.get('/payments', verifyToken, adminOnly, getAllPayments);
+router.put('/payments/:id/status', verifyToken, adminOnly, updatePaymentStatus);
+router.get('/payments/stats', verifyToken, adminOnly, getPaymentStats);
 
 module.exports = router;

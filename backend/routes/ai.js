@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const adminOnly = require('../middleware/admin');
 const { askAIInterview, scoreCV, autonomousRecruiter } = require('../controllers/interviewController');
 
 const router = express.Router();
@@ -12,6 +12,6 @@ router.post('/interview/ask', verifyToken, askAIInterview);
 router.post('/cv/score', verifyToken, scoreCV);
 
 // Autonomous Recruiter AI Agent (Admin only)
-router.post('/recruiter-agent', adminMiddleware, autonomousRecruiter);
+router.post('/recruiter-agent', verifyToken, adminOnly, autonomousRecruiter);
 
 module.exports = router;

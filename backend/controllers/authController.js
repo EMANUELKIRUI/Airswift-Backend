@@ -793,29 +793,8 @@ const refreshToken = async (req, res) => {
 };
 
 // ✅ GET ME
-const getMe = async (req, res) => {
-  try {
-    const user = await findUserById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Return user data without password
-    let userData;
-    if (isMongooseModel) {
-      userData = user.toObject();
-      delete userData.password;
-    } else if (isSequelizeModel) {
-      userData = user.toJSON();
-      delete userData.password;
-    }
-
-    res.json({ user: userData });
-  } catch (error) {
-    console.error("GET ME ERROR:", error);
-    res.status(500).json({ message: "Server error" });
-  }
+const getMe = (req, res) => {
+  res.json({ user: req.user });
 };
 
 // ✅ LOGOUT

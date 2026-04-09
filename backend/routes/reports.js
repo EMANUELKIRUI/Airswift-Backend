@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const adminOnly = require('../middleware/admin');
 const {
   createReport,
   getMyReports,
@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.post('/', verifyToken, createReport);
 router.get('/my-reports', verifyToken, getMyReports);
-router.get('/', adminMiddleware, getAllReports);
-router.put('/:id/status', adminMiddleware, updateReportStatus);
+router.get('/', verifyToken, adminOnly, getAllReports);
+router.put('/:id/status', verifyToken, adminOnly, updateReportStatus);
 
 module.exports = router;

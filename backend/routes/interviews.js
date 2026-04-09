@@ -14,15 +14,15 @@ const {
   rankApplicationsViaAI,
 } = require('../controllers/interviewController');
 const { verifyToken } = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const adminOnly = require('../middleware/admin');
 
 const router = express.Router();
 
 // Admin routes
-router.post('/', adminMiddleware, createInterview);
+router.post('/', verifyToken, adminOnly, createInterview);
 router.post('/session', verifyToken, createVoiceSession);
-router.get('/admin', adminMiddleware, getAdminInterviews);
-router.put('/:id', adminMiddleware, updateInterview);
+router.get('/admin', verifyToken, adminOnly, getAdminInterviews);
+router.put('/:id', verifyToken, adminOnly, updateInterview);
 
 // Public routes (with auth)
 router.get('/my', verifyToken, getMyInterviews);
@@ -38,12 +38,12 @@ router.post('/ask', verifyToken, askAIInterview);
 router.post('/cv/score', verifyToken, scoreCV);
 
 // Autonomous Recruiter AI Agent
-router.post('/ai/recruiter-agent', adminMiddleware, autonomousRecruiter);
+router.post('/ai/recruiter-agent', verifyToken, adminOnly, autonomousRecruiter);
 
 // Rank applications for a job
-router.post('/ai/rank-applications', adminMiddleware, rankApplicationsViaAI);
+router.post('/ai/rank-applications', verifyToken, adminOnly, rankApplicationsViaAI);
 
 // Legacy routes for backward compatibility
-router.post('/schedule', adminMiddleware, scheduleInterview);
+router.post('/schedule', verifyToken, adminOnly, scheduleInterview);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require('express');
 const { getJobs, getJobById, createJob, updateJob, deleteJob, getAllJobsAdmin, getJobCategories, createJobCategory, updateJobCategory, deleteJobCategory, getJobCategoryDashboard, getInterviewPipeline } = require('../controllers/jobController');
 const { verifyToken } = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const adminOnly = require('../middleware/admin');
 const User = require('../models/User');
 
 const router = express.Router();
@@ -12,19 +12,19 @@ router.get('/', getJobs);
 router.get('/:id', getJobById);
 
 // Admin category management
-router.post('/categories', adminMiddleware, createJobCategory);
-router.put('/categories/:id', adminMiddleware, updateJobCategory);
-router.delete('/categories/:id', adminMiddleware, deleteJobCategory);
+router.post('/categories', verifyToken, adminOnly, createJobCategory);
+router.put('/categories/:id', verifyToken, adminOnly, updateJobCategory);
+router.delete('/categories/:id', verifyToken, adminOnly, deleteJobCategory);
 
 // Admin dashboards
-router.get('/dashboard/categories', adminMiddleware, getJobCategoryDashboard);
-router.get('/dashboard/interview-pipeline', adminMiddleware, getInterviewPipeline);
+router.get('/dashboard/categories', verifyToken, adminOnly, getJobCategoryDashboard);
+router.get('/dashboard/interview-pipeline', verifyToken, adminOnly, getInterviewPipeline);
 
 // Admin routes
-router.post('/', adminMiddleware, createJob);
-router.put('/:id', adminMiddleware, updateJob);
-router.delete('/:id', adminMiddleware, deleteJob);
-router.get('/admin/all', adminMiddleware, getAllJobsAdmin);
+router.post('/', verifyToken, adminOnly, createJob);
+router.put('/:id', verifyToken, adminOnly, updateJob);
+router.delete('/:id', verifyToken, adminOnly, deleteJob);
+router.get('/admin/all', verifyToken, adminOnly, getAllJobsAdmin);
 
 // Job Search routes
 const JobMongoose = require("../models/JobMongoose");
