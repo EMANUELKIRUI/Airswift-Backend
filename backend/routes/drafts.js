@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDraft, saveDraft, clearDraft } = require('../controllers/draftController');
+const { getDraft, saveDraft, clearDraft, checkDraft } = require('../controllers/draftController');
 const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
