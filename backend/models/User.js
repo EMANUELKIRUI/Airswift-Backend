@@ -52,6 +52,7 @@ const userSchema = new mongoose.Schema(
     skills: [String],
     education: String,
     experience: String,
+    draft: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true }
 );
@@ -120,6 +121,7 @@ const UserSequelize = sequelize.define('User', {
   },
   education: DataTypes.TEXT,
   experience: DataTypes.TEXT,
+  draft: DataTypes.TEXT,
 }, {
   timestamps: true,
 });
