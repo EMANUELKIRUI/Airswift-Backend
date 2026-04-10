@@ -95,15 +95,13 @@ const checkDraft = async (req, res) => {
       ? JSON.parse(user.draft)
       : user.draft;
 
-    return res.json({
-      hasDraft: !!draft,
-      draft: draft || null,
-    });
+    // Return draft directly (as requested)
+    return res.json(draft);
   } catch (error) {
     console.error("Draft check error:", error);
     return res.status(500).json({
       message: "Server error",
-      error: error.message, // 👈 helps debugging
+      error: error.message,
     });
   }
 };
