@@ -169,7 +169,7 @@ const emitApplicationPipelineUpdate = (data) => {
 const notifyAdminDashboard = (event, data) => {
   if (io) {
     console.log('Notifying admin dashboard:', event);
-    io.emit(`admin:${event}`, {
+    io.to('admins').emit(`admin:${event}`, {
       ...data,
       timestamp: new Date()
     });
@@ -184,6 +184,18 @@ const emitAuditLog = (log) => {
 
   const payload = typeof log.get === 'function' ? log.get({ plain: true }) : log;
   io.to('admins').emit('new_audit_log', payload);
+};
+
+const emitUserAction = (actionData) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  io.to('admins').emit('user_action', {
+    ...actionData,
+    timestamp: new Date()
+  });
 };
 
 const emitNotification = (notificationData) => {
@@ -243,6 +255,7 @@ module.exports = {
   emitApplicationPipelineUpdate,
   notifyAdminDashboard,
   emitAuditLog,
+  emitUserAction,
   emitDirectMessage,
   emitNotification,
 };

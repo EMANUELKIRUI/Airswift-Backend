@@ -1,5 +1,5 @@
 const AuditLog = require('../models/AuditLogMongo');
-const { emitAuditLog } = require('./socketEmitter');
+const { emitAuditLog, emitUserAction } = require('./socketEmitter');
 
 let ioInstance = null;
 
@@ -58,6 +58,19 @@ const logAction = async ({
         location: log.location,
         status: log.status,
         created_at: log.created_at
+      });
+
+      // Also emit as user_action for dashboard display
+      ioInstance.to('admins').emit('user_action', {
+        user_id: log.user_id,
+        action: log.action,
+        description: log.description,
+        ip_address: log.ip_address,
+        device: log.device,
+        location: log.location,
+        status: log.status,
+        created_at: log.created_at,
+        timestamp: new Date()
       });
     }
 

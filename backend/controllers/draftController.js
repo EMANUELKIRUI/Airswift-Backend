@@ -1,23 +1,14 @@
-const User = require('../models/User');
-
-const isMongooseModel = User.prototype && typeof User.prototype.save === 'function';
-const isSequelizeModel = User.prototype && typeof User.prototype.update === 'function';
+const Draft = require('../models/Draft');
 
 const getDraft = async (req, res) => {
   try {
-    let user;
-
-    if (isMongooseModel) {
-      user = await User.findById(req.user.id).select('draft');
-    } else if (isSequelizeModel) {
-      user = await User.findByPk(req.user.id, { attributes: ['draft'] });
-    } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const draft = await Draft.findOne({ userId: req.user.id });
 
-    res.json({ form_data: user.draft || null });
+    res.json({ form_data: draft ? draft.formData : null });
   } catch (error) {
     console.error('GET DRAFT ERROR:', error);
     res.status(500).json({ message: 'Server error' });
@@ -26,42 +17,34 @@ const getDraft = async (req, res) => {
 
 const saveDraft = async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const form_data = req.body?.form_data ?? req.body;
 
     if (form_data === undefined || Object.keys(form_data).length === 0) {
       return res.status(400).json({ message: 'form_data is required' });
     }
 
-    let updatedUser;
-
-    if (isMongooseModel) {
-      updatedUser = await User.findByIdAndUpdate(
-        req.user.id,
-        { draft: form_data },
-        { new: true, select: 'draft' }
-      );
-    } else if (isSequelizeModel) {
-      const [affectedRows] = await User.update(
-        { draft: JSON.stringify(form_data) },
-        { where: { id: req.user.id } }
-      );
-
-      if (affectedRows === 0) {
-        return res.status(404).json({ message: 'User not found' });
+    // Upsert draft - create if doesn't exist, update if exists
+    const draft = await Draft.findOneAndUpdate(
+      { userId: req.user.id },
+      {
+        formData: form_data,
+        lastUpdated: new Date()
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
       }
+    );
 
-      updatedUser = await User.findByPk(req.user.id, { attributes: ['draft'] });
-    } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
-    }
-
-    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
-
-    const draftValue = isSequelizeModel && typeof updatedUser.draft === 'string'
-      ? JSON.parse(updatedUser.draft)
-      : updatedUser.draft;
-
-    res.json({ message: 'Draft saved', form_data: draftValue || null });
+    res.json({
+      message: 'Draft saved',
+      form_data: draft.formData
+    });
   } catch (error) {
     console.error('SAVE DRAFT ERROR:', error);
     res.status(500).json({ message: 'Server error' });
@@ -70,68 +53,27 @@ const saveDraft = async (req, res) => {
 
 const checkDraft = async (req, res) => {
   try {
-    // ✅ SAFE CHECK
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Not authenticated" });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    console.log("👉 REQ.USER:", req.user);
+    const draft = await Draft.findOne({ userId: req.user.id });
 
-    const userId = req.user.id;
-
-    let user;
-
-    if (isMongooseModel) {
-      user = await User.findById(userId).select('draft');
-    } else if (isSequelizeModel) {
-      user = await User.findByPk(userId, { attributes: ['draft'] });
-    } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
-    }
-
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const draft = isSequelizeModel && typeof user.draft === 'string'
-      ? JSON.parse(user.draft)
-      : user.draft;
-
-    // Return draft directly (as requested)
-    return res.json(draft);
+    // Return draft directly as requested
+    res.json(draft ? draft.formData : {});
   } catch (error) {
     console.error("Draft check error:", error);
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 const clearDraft = async (req, res) => {
   try {
-    let updatedUser;
-
-    if (isMongooseModel) {
-      updatedUser = await User.findByIdAndUpdate(
-        req.user.id,
-        { draft: null },
-        { new: true, select: 'draft' }
-      );
-    } else if (isSequelizeModel) {
-      const [affectedRows] = await User.update(
-        { draft: null },
-        { where: { id: req.user.id } }
-      );
-
-      if (affectedRows === 0) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      updatedUser = await User.findByPk(req.user.id, { attributes: ['draft'] });
-    } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
+    await Draft.findOneAndDelete({ userId: req.user.id });
 
     res.json({ message: 'Draft cleared', form_data: null });
   } catch (error) {

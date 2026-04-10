@@ -1,6 +1,6 @@
 const UserActivityAudit = require('../models/UserActivityAudit');
 const AuditLogMongo = require('../models/AuditLogMongo');
-const { emitAuditLog } = require('./socketEmitter');
+const { emitAuditLog, emitUserAction } = require('./socketEmitter');
 
 /**
  * Central audit logging function
@@ -11,7 +11,32 @@ const { emitAuditLog } = require('./socketEmitter');
  */
 const logUserActivity = async (userId, action, request, details = {}) => {
   try {
-    await UserActivityAudit.logActivity(userId, action, request, details);
+    const auditLog = await UserActivityAudit.logActivity(userId, action, request, details);
+
+    if (auditLog) {
+      emitAuditLog({
+        user_id: userId,
+        action: action.toUpperCase(),
+        description: details.description || `${action.replace(/_/g, ' ').toLowerCase()}`,
+        ip_address: request?.ip || request?.connection?.remoteAddress || 'unknown',
+        device: request?.headers?.['user-agent'] || 'unknown',
+        location: 'Kenya',
+        status: 'success',
+        created_at: auditLog.created_at
+      });
+
+      // Also emit as user_action for dashboard display
+      emitUserAction({
+        user_id: userId,
+        action: action.toUpperCase(),
+        description: details.description || `${action.replace(/_/g, ' ').toLowerCase()}`,
+        ip_address: request?.ip || request?.connection?.remoteAddress || 'unknown',
+        device: request?.headers?.['user-agent'] || 'unknown',
+        location: 'Kenya',
+        status: 'success',
+        created_at: auditLog.created_at
+      });
+    }
   } catch (error) {
     console.error('Failed to log user activity:', error);
     // Don't throw error to avoid breaking main functionality

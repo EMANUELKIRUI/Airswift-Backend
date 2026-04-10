@@ -48,8 +48,12 @@ const getJobs = async (req, res) => {
     }
 
     const order = [];
-    if (sort?.toLowerCase() === 'az') order.push(['title', 'ASC']);
-    else if (sort?.toLowerCase() === 'za') order.push(['title', 'DESC']);
+    if (sort?.toLowerCase() === 'za') {
+      order.push(['title', 'DESC']);
+    } else {
+      // Default ordering for application form dropdown: A to Z
+      order.push(['title', 'ASC']);
+    }
 
     const jobs = await Job.findAll({
       where,
