@@ -12,15 +12,11 @@ const { findUserByEmail, findUserById, createUser } = require("../utils/userHelp
 const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 
 const buildCookieOptions = (req) => {
-  const isProduction = process.env.NODE_ENV === "production";
-  const domain = isProduction ? "talex-backend-fjt3.onrender.com" : undefined;
-
   return {
     httpOnly: true,
     secure: true,
     sameSite: "none",
     path: "/",
-    domain,
   };
 };
 
