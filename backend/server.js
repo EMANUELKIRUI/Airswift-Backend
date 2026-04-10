@@ -513,7 +513,12 @@ app.use(maintenanceMode);
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.status(200).send('Server is healthy');
+});
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
 });
 
 // API test route

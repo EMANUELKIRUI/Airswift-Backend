@@ -75,7 +75,7 @@ const checkDraft = async (req, res) => {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    console.log("REQ.USER:", req.user);
+    console.log("👉 REQ.USER:", req.user);
 
     const userId = req.user.id;
 

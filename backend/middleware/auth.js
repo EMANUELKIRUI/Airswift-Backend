@@ -1,14 +1,18 @@
 const jwt = require('jsonwebtoken');
 
-const verifyToken = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
   try {
     const token = req.cookies.accessToken;
+
+    console.log("👉 TOKEN:", token); // debug
 
     if (!token) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log("👉 DECODED:", decoded); // debug
 
     req.user = decoded; // ✅ THIS IS IMPORTANT
 
@@ -19,6 +23,8 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+const verifyToken = authMiddleware;
+
 const verifyRole = (role) => {
   return (req, res, next) => {
     if (req.user.role !== role) {
@@ -28,4 +34,4 @@ const verifyRole = (role) => {
   };
 };
 
-module.exports = { verifyToken, verifyRole };
+module.exports = { authMiddleware, verifyToken, verifyRole };
