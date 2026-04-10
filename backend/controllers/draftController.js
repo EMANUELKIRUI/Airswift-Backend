@@ -70,32 +70,41 @@ const saveDraft = async (req, res) => {
 
 const checkDraft = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Not authenticated' });
+    // ✅ SAFE CHECK
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
+
+    console.log("REQ.USER:", req.user);
+
+    const userId = req.user.id;
 
     let user;
 
     if (isMongooseModel) {
-      user = await User.findById(req.user.id).select('draft updatedAt');
+      user = await User.findById(userId).select('draft');
     } else if (isSequelizeModel) {
-      user = await User.findByPk(req.user.id, { attributes: ['draft', 'updatedAt'] });
+      user = await User.findByPk(userId, { attributes: ['draft'] });
     } else {
       return res.status(500).json({ message: 'User model not properly configured' });
     }
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const hasDraft = Boolean(user.draft);
     const draft = isSequelizeModel && typeof user.draft === 'string'
       ? JSON.parse(user.draft)
       : user.draft;
-    const updated_at = hasDraft && user.updatedAt ? new Date(user.updatedAt).toISOString() : null;
 
-    return res.json({ hasDraft, draft, updated_at });
+    return res.json({
+      hasDraft: !!draft,
+      draft: draft || null,
+    });
   } catch (error) {
-    console.error('CHECK DRAFT ERROR:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Draft check error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message, // 👈 helps debugging
+    });
   }
 };
 
