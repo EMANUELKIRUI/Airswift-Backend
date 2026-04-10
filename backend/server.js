@@ -556,6 +556,7 @@ app.use("/api/applications/mongo", require("./routes/applicationMongoose"));
 app.use("/api/payment", require("./routes/payment"));
 app.use("/api/profile", require("./routes/profile"));
 app.use("/api/drafts", require("./routes/drafts"));
+app.use("/drafts", require("./routes/drafts"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/about", require("./routes/about"));
 app.use("/api/auth-status", require("./routes/authStatus"));
