@@ -24,6 +24,17 @@ const buildCookieOptions = (req) => {
   };
 };
 
+const isDatabaseError = (error) => {
+  if (!error) return false;
+  const message = String(error.message || "").toLowerCase();
+  return (
+    error instanceof mongoose.Error ||
+    error.name === 'MongoNetworkError' ||
+    error.name === 'MongooseServerSelectionError' ||
+    /failed to connect|connection refused|network error|timed out|timeout|database temporarily unavailable|mongo.*error|econnrefused|etimedout|esocket/i.test(message)
+  );
+};
+
 // Check if User is a Mongoose model or Sequelize model
 const isMongooseModel = User.prototype && User.prototype.save;
 const isSequelizeModel = User.prototype && User.prototype.update;
@@ -331,11 +342,24 @@ const loginUser = async (req, res) => {
     }
 
     console.log("LOGIN - Looking up user:", email);
-    const user = await findUserByEmail(email);
+    let user;
+    try {
+      user = await findUserByEmail(email);
+    } catch (error) {
+      console.error("LOGIN USER DB LOOKUP ERROR:", error);
+      return res.status(503).json({
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
+
     if (!user) {
       console.log("LOGIN FAILED - User not found:", email);
-      // Log failed login attempt
-      await logFailedLogin(req, email);
+      try {
+        await logFailedLogin(req, email);
+      } catch (error) {
+        console.error("LOGIN FAILED - logFailedLogin error:", error);
+      }
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -343,8 +367,11 @@ const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("LOGIN FAILED - Password mismatch for user:", user._id);
-      // Log failed login attempt
-      await logFailedLogin(req, email);
+      try {
+        await logFailedLogin(req, email);
+      } catch (error) {
+        console.error("LOGIN FAILED - logFailedLogin error:", error);
+      }
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -358,7 +385,15 @@ const loginUser = async (req, res) => {
       // Update user with new OTP
       user.otp = otp;
       user.otpExpires = otpExpires;
-      await user.save();
+      try {
+        await user.save();
+      } catch (error) {
+        console.error("LOGIN USER DB SAVE ERROR (OTP):", error);
+        return res.status(503).json({
+          message: "Database temporarily unavailable. Please try again in a few moments.",
+          error: "DATABASE_UNAVAILABLE"
+        });
+      }
 
       // Send OTP email
       let emailSent = false;
@@ -388,7 +423,15 @@ const loginUser = async (req, res) => {
 
     // Store refresh token in database
     user.refreshToken = refreshToken;
-    await user.save();
+    try {
+      await user.save();
+    } catch (error) {
+      console.error("LOGIN USER DB SAVE ERROR (refresh token):", error);
+      return res.status(503).json({
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
 
     const cookieOptions = buildCookieOptions(req);
 
@@ -398,7 +441,11 @@ const loginUser = async (req, res) => {
     console.log("LOGIN SUCCESS - User logged in:", user._id);
 
     // Log successful login
-    await logLogin(user._id, req);
+    try {
+      await logLogin(user._id, req);
+    } catch (error) {
+      console.error("LOGIN SUCCESS - logLogin error:", error);
+    }
 
     res.status(200).json({
       success: true,
@@ -416,6 +463,12 @@ const loginUser = async (req, res) => {
     });
   } catch (err) {
     console.error("LOGIN USER ERROR:", err);
+    if (isDatabaseError(err)) {
+      return res.status(503).json({
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
     return res.status(500).json({ message: "Server error", error: err.message });
   }
 };
