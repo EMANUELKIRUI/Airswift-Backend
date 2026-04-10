@@ -1530,6 +1530,134 @@ const getPaymentStats = async (req, res) => {
   }
 };
 
+// AUDIT LOG FUNCTIONS
+
+// Get audit logs with filtering
+const getAuditLogs = async (req, res) => {
+  try {
+    const { action, user, status, page = 1, limit = 50 } = req.query;
+    const AuditLog = require('../models/AuditLogMongo');
+
+    let filter = {};
+
+    if (action) filter.action = action;
+    if (user) filter.user_id = user;
+    if (status) filter.status = status;
+
+    const skip = (page - 1) * limit;
+
+    const logs = await AuditLog.find(filter)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('user_id', 'name email');
+
+    const total = await AuditLog.countDocuments(filter);
+
+    res.json({
+      logs,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('getAuditLogs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Export audit logs as CSV
+const exportAuditLogs = async (req, res) => {
+  try {
+    const { action, user, status, startDate, endDate } = req.query;
+    const AuditLog = require('../models/AuditLogMongo');
+
+    let filter = {};
+
+    if (action) filter.action = action;
+    if (user) filter.user_id = user;
+    if (status) filter.status = status;
+    if (startDate || endDate) {
+      filter.created_at = {};
+      if (startDate) filter.created_at.$gte = new Date(startDate);
+      if (endDate) filter.created_at.$lte = new Date(endDate);
+    }
+
+    const logs = await AuditLog.find(filter)
+      .sort({ created_at: -1 })
+      .populate('user_id', 'name email');
+
+    // Convert to CSV format
+    const { Parser } = require('json2csv');
+    const fields = [
+      'user_id',
+      'action',
+      'description',
+      'ip_address',
+      'device',
+      'location',
+      'status',
+      'created_at'
+    ];
+
+    const opts = { fields };
+    const parser = new Parser(opts);
+    const csv = parser.parse(logs.map(log => ({
+      user_id: log.user_id?._id || log.user_id,
+      action: log.action,
+      description: log.description,
+      ip_address: log.ip_address,
+      device: log.device,
+      location: log.location,
+      status: log.status,
+      created_at: log.created_at
+    })));
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('audit-logs.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error('exportAuditLogs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get audit log statistics
+const getAuditStats = async (req, res) => {
+  try {
+    const AuditLog = require('../models/AuditLogMongo');
+
+    const totalLogs = await AuditLog.countDocuments();
+
+    const actionStats = await AuditLog.aggregate([
+      { $group: { _id: '$action', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    const statusStats = await AuditLog.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const recentActivity = await AuditLog.countDocuments({
+      created_at: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+    });
+
+    res.json({
+      totalLogs,
+      actionStats,
+      statusStats,
+      recentActivity
+    });
+  } catch (error) {
+    console.error('getAuditStats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllSettings,
   getSettingByKey,
@@ -1567,5 +1695,8 @@ module.exports = {
   bulkDeleteApplications,
   getAllPayments,
   updatePaymentStatus,
-  getPaymentStats
+  getPaymentStats,
+  getAuditLogs,
+  exportAuditLogs,
+  getAuditStats
 };

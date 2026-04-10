@@ -176,6 +176,16 @@ const notifyAdminDashboard = (event, data) => {
   }
 };
 
+const emitAuditLog = (log) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  const payload = typeof log.get === 'function' ? log.get({ plain: true }) : log;
+  io.to('admins').emit('new_audit_log', payload);
+};
+
 const emitNotification = (notificationData) => {
   if (!io) {
     console.warn('Socket.io not initialized');
@@ -232,6 +242,7 @@ module.exports = {
   emitInterviewRescheduled,
   emitApplicationPipelineUpdate,
   notifyAdminDashboard,
+  emitAuditLog,
   emitDirectMessage,
   emitNotification,
 };

@@ -1,4 +1,5 @@
 const UserActivityAudit = require('../models/UserActivityAudit');
+const { emitAuditLog } = require('./socketEmitter');
 
 /**
  * Central audit logging function
@@ -80,22 +81,52 @@ const logPasswordReset = async (userId, request) => {
 // Legacy function for backward compatibility
 const logAuditEvent = async (userId, action, resource, resourceId = null, details = {}, req = null) => {
   try {
+    // Build description from resource and action
+    let description = `${action.replace(/_/g, ' ').toLowerCase()}`;
+    if (resource) {
+      description += ` on ${resource}`;
+    }
+    if (resourceId) {
+      description += ` (ID: ${resourceId})`;
+    }
+    if (details && Object.keys(details).length > 0) {
+      description += ` - ${JSON.stringify(details)}`;
+    }
+
+    // Parse device from user agent
+    let device = 'Unknown';
+    if (req && req.headers['user-agent']) {
+      const ua = req.headers['user-agent'].toLowerCase();
+      if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+        device = 'Mobile';
+      } else if (ua.includes('tablet') || ua.includes('ipad')) {
+        device = 'Tablet';
+      } else {
+        device = 'Desktop';
+      }
+      // Add browser info
+      if (ua.includes('chrome') && !ua.includes('edg')) device += ' on Chrome';
+      else if (ua.includes('firefox')) device += ' on Firefox';
+      else if (ua.includes('safari') && !ua.includes('chrome')) device += ' on Safari';
+      else if (ua.includes('edg')) device += ' on Edge';
+      else device += ' on Unknown Browser';
+    }
+
     const auditData = {
       user_id: userId,
-      action,
-      resource,
-      resource_id: resourceId,
-      details,
+      action: action.toUpperCase(),
+      description,
+      ip_address: req?.ip || req?.connection?.remoteAddress || 'unknown',
+      device,
+      location: 'Kenya',
+      status: 'success'
     };
-
-    if (req) {
-      auditData.ip_address = req.ip || req.connection.remoteAddress;
-      auditData.user_agent = req.get('User-Agent');
-    }
 
     // Use the old AuditLog model for legacy compatibility
     const { AuditLog } = require('../models');
-    await AuditLog.create(auditData);
+    const log = await AuditLog.create(auditData);
+
+    emitAuditLog(log);
   } catch (error) {
     console.error('Legacy audit logging error:', error);
   }

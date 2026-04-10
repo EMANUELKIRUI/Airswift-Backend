@@ -10,6 +10,7 @@ const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
 const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
+const { logAction } = require("../utils/logger");
 
 const buildCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -102,7 +103,12 @@ const registerUser = async (req, res) => {
     });
 
     // Log user registration
-    await logUserActivity(user._id, 'REGISTER', req);
+    await logAction({
+      userId: user._id,
+      action: "SIGNUP",
+      description: "User registered successfully",
+      req
+    });
 
     let emailSent = false;
     try {
@@ -356,21 +362,30 @@ const loginUser = async (req, res) => {
     if (!user) {
       console.log("LOGIN FAILED - User not found:", email);
       try {
-        await logFailedLogin(req, email);
+        await logAction({
+          action: "LOGIN_FAILED",
+          description: "Invalid login attempt - user not found",
+          req,
+          status: "error"
+        });
       } catch (error) {
-        console.error("LOGIN FAILED - logFailedLogin error:", error);
+        console.error("LOGIN FAILED - logAction error:", error);
       }
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    console.log("LOGIN - Checking password for user:", user._id);
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("LOGIN FAILED - Password mismatch for user:", user._id);
       try {
-        await logFailedLogin(req, email);
+        await logAction({
+          action: "LOGIN_FAILED",
+          description: "Invalid login attempt - wrong password",
+          req,
+          status: "error"
+        });
       } catch (error) {
-        console.error("LOGIN FAILED - logFailedLogin error:", error);
+        console.error("LOGIN FAILED - logAction error:", error);
       }
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -442,9 +457,14 @@ const loginUser = async (req, res) => {
 
     // Log successful login
     try {
-      await logLogin(user._id, req);
+      await logAction({
+        userId: user._id,
+        action: "LOGIN_SUCCESS",
+        description: "User logged in successfully",
+        req
+      });
     } catch (error) {
-      console.error("LOGIN SUCCESS - logLogin error:", error);
+      console.error("LOGIN SUCCESS - logAction error:", error);
     }
 
     res.status(200).json({
@@ -866,7 +886,12 @@ const logout = async (req, res) => {
 
     // Log logout activity
     if (userId) {
-      await logUserActivity(userId, 'LOGOUT', req);
+      await logAction({
+        userId,
+        action: "LOGOUT",
+        description: "User logged out",
+        req
+      });
     }
 
     // Clear refresh token from database

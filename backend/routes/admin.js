@@ -36,6 +36,9 @@ const {
   bulkUpdateUserStatus,
   bulkChangeUserRoles,
   impersonateUser,
+  getAuditLogs,
+  exportAuditLogs,
+  getAuditStats,
 } = require('../controllers/adminController');
 const {
   getAllSettings,
@@ -174,5 +177,10 @@ router.delete('/applications/bulk-delete', verifyToken, adminOnly, bulkDeleteApp
 router.get('/payments', verifyToken, adminOnly, getAllPayments);
 router.put('/payments/:id/status', verifyToken, adminOnly, updatePaymentStatus);
 router.get('/payments/stats', verifyToken, adminOnly, getPaymentStats);
+
+// Audit Log routes
+router.get('/audit/logs', verifyToken, adminOnly, getAuditLogs);
+router.get('/audit/logs/export', verifyToken, adminOnly, exportAuditLogs);
+router.get('/audit/stats', verifyToken, adminOnly, getAuditStats);
 
 module.exports = router;

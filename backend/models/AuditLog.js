@@ -8,36 +8,34 @@ const AuditLog = sequelize.define('AuditLog', {
     autoIncrement: true,
   },
   user_id: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.STRING, // Changed to STRING to support both SQL IDs and MongoDB ObjectIds
     allowNull: true,
-    references: {
-      model: 'Users',
-      key: 'id',
-    },
   },
   action: {
     type: DataTypes.STRING,
-    allowNull: false, // login, cv_download, offer_sign, admin_action, etc.
+    allowNull: false,
   },
-  resource: {
-    type: DataTypes.STRING,
-    allowNull: false, // application, job, user, etc.
-  },
-  resource_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-  },
-  details: {
-    type: DataTypes.JSON,
-    allowNull: true, // Additional context
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: false,
   },
   ip_address: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  user_agent: {
+  device: {
     type: DataTypes.STRING,
     allowNull: true,
+  },
+  location: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'Kenya',
+  },
+  status: {
+    type: DataTypes.ENUM('success', 'error', 'warning'),
+    allowNull: false,
+    defaultValue: 'success',
   },
   created_at: {
     type: DataTypes.DATE,

@@ -16,6 +16,7 @@ const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { sendOTPEmail } = require("./services/emailService");
 const { initializeSocket } = require("./utils/socketEmitter");
+const { setSocketInstance } = require("./utils/logger");
 const maintenanceMode = require('./middleware/maintenanceMode');
 
 // Connect to MongoDB
@@ -38,6 +39,7 @@ const io = socketIo(server, {
 
 // Initialize Socket.io emitter utility
 initializeSocket(io);
+setSocketInstance(io);
 
 // Initialize System Health Monitor
 const healthMonitor = require('./services/systemHealthMonitor');
@@ -65,6 +67,11 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+
+  if (socket.user?.role === 'admin') {
+    socket.join('admins');
+    console.log(`Admin socket ${socket.id} joined admins room`);
+  }
 
   // 👨‍💼 ADMIN APPLICANT TRACKING EVENTS
   
