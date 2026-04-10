@@ -17,7 +17,7 @@ const buildCookieOptions = (req) => {
 
   return {
     httpOnly: true,
-    secure: req.secure || isProduction || req.headers["x-forwarded-proto"] === "https",
+    secure: true,
     sameSite: "none",
     path: "/",
     domain,

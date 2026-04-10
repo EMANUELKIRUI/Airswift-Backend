@@ -474,21 +474,11 @@ io.on("connection", (socket) => {
   }
 })();
 
-const allowedOrigins = [
-  "https://airswift-frontend.vercel.app",
-  "https://talex-frontend.vercel.app",
-  "http://localhost:3000",
-];
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://airswift-frontend.vercel.app";
 
 app.use(
   cors({
-    origin: function(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"), false);
-      }
-    },
+    origin: FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -496,13 +486,7 @@ app.use(
   })
 );
 app.options("*", cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"), false);
-    }
-  },
+  origin: FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
