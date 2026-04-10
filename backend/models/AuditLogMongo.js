@@ -41,4 +41,4 @@ auditLogSchema.index({ action: 1 });
 auditLogSchema.index({ created_at: -1 });
 auditLogSchema.index({ status: 1 });
 
-module.exports = mongoose.model("AuditLog", auditLogSchema);
+module.exports = mongoose.models.AuditLog || mongoose.model("AuditLog", auditLogSchema);

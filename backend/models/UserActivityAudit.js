@@ -165,4 +165,4 @@ function parseUserAgent(userAgent) {
   return { browser, device, os };
 }
 
-module.exports = mongoose.model('AuditLog', auditLogSchema);
+module.exports = mongoose.model('UserActivityAudit', auditLogSchema);

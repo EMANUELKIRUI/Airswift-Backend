@@ -1,4 +1,5 @@
 const UserActivityAudit = require('../models/UserActivityAudit');
+const AuditLogMongo = require('../models/AuditLogMongo');
 const { emitAuditLog } = require('./socketEmitter');
 
 /**
@@ -122,9 +123,8 @@ const logAuditEvent = async (userId, action, resource, resourceId = null, detail
       status: 'success'
     };
 
-    // Use the old AuditLog model for legacy compatibility
-    const { AuditLog } = require('../models');
-    const log = await AuditLog.create(auditData);
+    // Use the MongoDB AuditLog model
+    const log = await AuditLogMongo.create(auditData);
 
     emitAuditLog(log);
   } catch (error) {

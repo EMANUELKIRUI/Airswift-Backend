@@ -2,6 +2,7 @@ const Joi = require('joi');
 const { Settings } = require('../models');
 const Notification = require('../models/Notification');
 const Message = require('../models/Message');
+const AuditLogMongo = require('../models/AuditLogMongo');
 const { createNotification } = require('./notificationController');
 
 // Validation schemas
@@ -1536,7 +1537,6 @@ const getPaymentStats = async (req, res) => {
 const getAuditLogs = async (req, res) => {
   try {
     const { action, user, status, page = 1, limit = 50 } = req.query;
-    const AuditLog = require('../models/AuditLogMongo');
 
     let filter = {};
 
@@ -1546,13 +1546,13 @@ const getAuditLogs = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const logs = await AuditLog.find(filter)
+    const logs = await AuditLogMongo.find(filter)
       .sort({ created_at: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .populate('user_id', 'name email');
 
-    const total = await AuditLog.countDocuments(filter);
+    const total = await AuditLogMongo.countDocuments(filter);
 
     res.json({
       logs,
@@ -1573,7 +1573,6 @@ const getAuditLogs = async (req, res) => {
 const exportAuditLogs = async (req, res) => {
   try {
     const { action, user, status, startDate, endDate } = req.query;
-    const AuditLog = require('../models/AuditLogMongo');
 
     let filter = {};
 
@@ -1586,7 +1585,7 @@ const exportAuditLogs = async (req, res) => {
       if (endDate) filter.created_at.$lte = new Date(endDate);
     }
 
-    const logs = await AuditLog.find(filter)
+    const logs = await AuditLogMongo.find(filter)
       .sort({ created_at: -1 })
       .populate('user_id', 'name email');
 
@@ -1628,21 +1627,19 @@ const exportAuditLogs = async (req, res) => {
 // Get audit log statistics
 const getAuditStats = async (req, res) => {
   try {
-    const AuditLog = require('../models/AuditLogMongo');
+    const totalLogs = await AuditLogMongo.countDocuments();
 
-    const totalLogs = await AuditLog.countDocuments();
-
-    const actionStats = await AuditLog.aggregate([
+    const actionStats = await AuditLogMongo.aggregate([
       { $group: { _id: '$action', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 10 }
     ]);
 
-    const statusStats = await AuditLog.aggregate([
+    const statusStats = await AuditLogMongo.aggregate([
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
-    const recentActivity = await AuditLog.countDocuments({
+    const recentActivity = await AuditLogMongo.countDocuments({
       created_at: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     });
 
