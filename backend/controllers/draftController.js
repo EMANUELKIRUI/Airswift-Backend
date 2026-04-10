@@ -70,6 +70,10 @@ const saveDraft = async (req, res) => {
 
 const checkDraft = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
     let user;
 
     if (isMongooseModel) {
@@ -83,9 +87,12 @@ const checkDraft = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const hasDraft = Boolean(user.draft);
+    const draft = isSequelizeModel && typeof user.draft === 'string'
+      ? JSON.parse(user.draft)
+      : user.draft;
     const updated_at = hasDraft && user.updatedAt ? new Date(user.updatedAt).toISOString() : null;
 
-    return res.json({ hasDraft, updated_at });
+    return res.json({ hasDraft, draft, updated_at });
   } catch (error) {
     console.error('CHECK DRAFT ERROR:', error);
     res.status(500).json({ message: 'Server error' });
