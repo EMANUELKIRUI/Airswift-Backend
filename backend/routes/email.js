@@ -11,6 +11,14 @@ const router = express.Router();
 
 // Test email route (no auth required)
 router.get('/test-email', async (req, res) => {
+  if (!process.env.BREVO_API_KEY) {
+    return res.json({
+      success: false,
+      error: 'Brevo API key missing',
+      message: 'Email not configured (Brevo API key missing)'
+    });
+  }
+
   const success = await sendEmail(
     'your@email.com',
     'Test Email',

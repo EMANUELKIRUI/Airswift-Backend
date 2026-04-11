@@ -15,7 +15,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { findUserByEmail, createUser } = require("./utils/userHelpers");
-const { sendOTPEmail } = require("./services/emailService");
+const { sendEmail, sendOTPEmail } = require("./services/emailService");
 const { initializeSocket } = require("./utils/socketEmitter");
 const { setSocketInstance } = require("./utils/logger");
 const maintenanceMode = require('./middleware/maintenanceMode');
@@ -407,11 +407,10 @@ io.on("connection", (socket) => {
       console.warn("⚠️  Continuing without SQL database - some features may be limited");
     }
 
-    // Email service is ready (Nodemailer)
-    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      console.log("✅ Email service is ready");
+    if (!process.env.BREVO_API_KEY) {
+      console.log("❌ Email not configured (Brevo API key missing)");
     } else {
-      console.warn("⚠️  Email service not configured - email features disabled");
+      console.log("✅ Email service ready (Brevo)");
     }
 
     // Create default admin user if MongoDB is available
@@ -585,6 +584,29 @@ app.post("/api/test-otp", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to send OTP" });
+  }
+});
+
+// Simple Brevo test route alias
+app.get('/test-email', async (req, res) => {
+  try {
+    if (!process.env.BREVO_API_KEY) {
+      return res.json({
+        success: false,
+        error: 'Brevo API key missing',
+        message: 'Email not configured (Brevo API key missing)'
+      });
+    }
+
+    const success = await sendEmail(
+      'your@email.com',
+      'Test Email',
+      '<h1>Brevo is working ✅</h1>'
+    );
+    res.json({ success });
+  } catch (error) {
+    console.error('Test email failed:', error);
+    res.status(500).json({ error: 'Test email failed', details: error.message });
   }
 });
 
