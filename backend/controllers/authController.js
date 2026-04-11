@@ -338,25 +338,19 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      console.log("LOGIN FAILED - MongoDB not connected");
-      return res.status(503).json({
-        message: "Database temporarily unavailable. Please try again in a few moments.",
-        error: "DATABASE_UNAVAILABLE"
-      });
-    }
-
     console.log("LOGIN - Looking up user:", email);
     let user;
     try {
       user = await findUserByEmail(email);
     } catch (error) {
       console.error("LOGIN USER DB LOOKUP ERROR:", error);
-      return res.status(503).json({
-        message: "Database temporarily unavailable. Please try again in a few moments.",
-        error: "DATABASE_UNAVAILABLE"
-      });
+      if (isDatabaseError(error)) {
+        return res.status(503).json({
+          message: "Database temporarily unavailable. Please try again in a few moments.",
+          error: "DATABASE_UNAVAILABLE"
+        });
+      }
+      return res.status(500).json({ message: "Server error during login" });
     }
 
     if (!user) {
@@ -404,10 +398,13 @@ const loginUser = async (req, res) => {
         await user.save();
       } catch (error) {
         console.error("LOGIN USER DB SAVE ERROR (OTP):", error);
-        return res.status(503).json({
-          message: "Database temporarily unavailable. Please try again in a few moments.",
-          error: "DATABASE_UNAVAILABLE"
-        });
+        if (isDatabaseError(error)) {
+          return res.status(503).json({
+            message: "Database temporarily unavailable. Please try again in a few moments.",
+            error: "DATABASE_UNAVAILABLE"
+          });
+        }
+        return res.status(500).json({ message: "Server error during OTP generation" });
       }
 
       // Send OTP email
@@ -442,10 +439,13 @@ const loginUser = async (req, res) => {
       await user.save();
     } catch (error) {
       console.error("LOGIN USER DB SAVE ERROR (refresh token):", error);
-      return res.status(503).json({
-        message: "Database temporarily unavailable. Please try again in a few moments.",
-        error: "DATABASE_UNAVAILABLE"
-      });
+      if (isDatabaseError(error)) {
+        return res.status(503).json({
+          message: "Database temporarily unavailable. Please try again in a few moments.",
+          error: "DATABASE_UNAVAILABLE"
+        });
+      }
+      return res.status(500).json({ message: "Server error during token storage" });
     }
 
     const cookieOptions = buildCookieOptions(req);

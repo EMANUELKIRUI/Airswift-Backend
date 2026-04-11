@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Application Submission Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            color: #333;
+        }
+
+        .config-input {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .config-input label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .config-input input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #efefef;
+            border-color: #667eea;
+        }
+
+        .file-selected {
+            display: block;
+            margin-top: 6px;
+            color: #4caf50;
+            font-weight: 500;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .log-line {
+            margin-bottom: 4px;
+        }
+
+        .log-error {
+            color: #ff6b6b;
+        }
+
+        .log-warning {
+            color: #ffa500;
+        }
+
+        .log-success {
+            color: #4caf50;
+        }
+
+        .log-info {
+            color: #87ceeb;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+
+        .status-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .status-warning {
+            background: #fff3e0;
+            color: #e65100;
+            border-left: 4px solid #e65100;
+        }
+
+        .status-info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+
+        .progress {
+            display: none;
+            margin-bottom: 15px;
+        }
+
+        .progress.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #66bb6a);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .debug-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .debug-table th,
+        .debug-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .debug-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .debug-table td {
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Application Submission Tester</h1>
+            <p>Debug application submission issues step by step</p>
+        </div>
+
+        <div class="content">
+            <!-- Configuration -->
+            <div class="section">
+                <div class="section-title">⚙️ Configuration</div>
+
+                <div class="config-input">
+                    <label for="api-url">API Base URL:</label>
+                    <input 
+                        type="text" 
+                        id="api-url" 
+                        value="http://localhost:5000/api"
+                    />
+                </div>
+
+                <div class="config-input">
+                    <label for="auth-token">Auth Token:</label>
+                    <input 
+                        type="password" 
+                        id="auth-token" 
+                        placeholder="Your JWT token from login"
+                    />
+                </div>
+            </div>
+
+            <!-- Pre-checks -->
+            <div class="section">
+                <div class="section-title">✅ Pre-Flight Checks</div>
+                
+                <div class="button-group">
+                    <button class="btn-primary" onclick="checkBackendConnection()">
+                        🔗 Check Backend Connection
+                    </button>
+                    <button class="btn-primary" onclick="checkAuthToken()">
+                        🔐 Validate Auth Token
+                    </button>
+                    <button class="btn-primary" onclick="checkJobsEndpoint()">
+                        📋 Check Jobs Endpoint
+                    </button>
+                </div>
+
+                <div id="precheck-status"></div>
+            </div>
+
+            <!-- Form -->
+            <div class="section">
+                <div class="section-title">📝 Application Form</div>
+
+                <div class="form-group">
+                    <label for="job-id">Job ID *</label>
+                    <input type="number" id="job-id" placeholder="e.g., 1" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="job-title">Job Title (optional)</label>
+                    <input type="text" id="job-title" placeholder="If no job ID, enter title" />
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number *</label>
+                    <input type="tel" id="phone" placeholder="+1 (555) 000-0000" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="national-id">National ID *</label>
+                    <input type="text" id="national-id" placeholder="Your national ID" required />
+                </div>
+
+                <div class="form-group">
+                    <label for="cover-letter">Cover Letter (optional)</label>
+                    <textarea id="cover-letter" placeholder="Why are you interested in this position?" rows="3"></textarea>
+                </div>
+
+                <!-- File Uploads -->
+                <div class="form-group">
+                    <label>CV (PDF, max 5MB) *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="cv-file" accept=".pdf,application/pdf" onchange="handleFileSelect('cv-file')" />
+                        <label class="file-input-label" onclick="document.getElementById('cv-file').click()">
+                            📄 Choose CV PDF or drag here
+                            <div id="cv-file-name" class="file-selected"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>National ID Document (PDF, max 5MB) *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="nationalid-file" accept=".pdf,application/pdf" onchange="handleFileSelect('nationalid-file')" />
+                        <label class="file-input-label" onclick="document.getElementById('nationalid-file').click()">
+                            🆔 Choose National ID PDF or drag here
+                            <div id="nationalid-file-name" class="file-selected"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Passport (PDF, max 5MB) *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="passport-file" accept=".pdf,application/pdf" onchange="handleFileSelect('passport-file')" />
+                        <label class="file-input-label" onclick="document.getElementById('passport-file').click()">
+                            🛂 Choose Passport PDF or drag here
+                            <div id="passport-file-name" class="file-selected"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submission -->
+            <div class="section">
+                <div class="section-title">🚀 Submit Application</div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="submitApplication()">
+                        📤 Submit Application
+                    </button>
+                    <button class="btn-secondary" onclick="clearForm()">
+                        🔄 Clear Form
+                    </button>
+                </div>
+
+                <div id="submit-status"></div>
+                <div class="progress" id="progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <p id="progress-text"></p>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="section">
+                <div class="section-title">
+                    📜 Debug Logs
+                    <button class="btn-secondary" style="float: right;" onclick="clearLogs()">Clear</button>
+                </div>
+                <div class="log-container" id="log-container"></div>
+            </div>
+
+            <!-- Response -->
+            <div class="section">
+                <div class="section-title">📊 Response Data</div>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">
+                    <pre id="response-data" style="margin: 0; font-size: 12px; font-family: monospace;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Logging utility
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(line);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Also log to console
+            console[type === 'error' ? 'error' : type === 'warning' ? 'warn' : 'log'](message);
+        }
+
+        function setStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('submit-status');
+            statusDiv.className = `status status-${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function updateResponseData(data) {
+            document.getElementById('response-data').textContent = JSON.stringify(data, null, 2);
+        }
+
+        function handleFileSelect(inputId) {
+            const input = document.getElementById(inputId);
+            const file = input.files?.[0];
+            const nameDisplay = document.getElementById(`${inputId}-name`);
+
+            if (file) {
+                const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
+                nameDisplay.textContent = `✅ ${file.name} (${sizeInMB}MB)`;
+                
+                // Validate
+                if (file.type !== 'application/pdf') {
+                    setStatus(`❌ ${inputId}: Not a PDF file`, 'error');
+                    log(`File ${file.name} is not a PDF`, 'error');
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    setStatus(`❌ ${inputId}: File too large`, 'error');
+                    log(`File ${file.name} exceeds 5MB limit`, 'error');
+                }
+            } else {
+                nameDisplay.textContent = 'No file selected';
+            }
+        }
+
+        async function checkBackendConnection() {
+            try {
+                log('🔗 Checking backend connection...', 'info');
+                const apiUrl = document.getElementById('api-url').value;
+                
+                const response = await fetch(`${apiUrl.replace('/api', '')}/health`);
+                if (response.ok) {
+                    setStatus('✅ Backend is running and accessible', 'success');
+                    log('Backend connection successful', 'success');
+                } else {
+                    setStatus(`❌ Backend returned status ${response.status}`, 'error');
+                    log(`Backend error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                setStatus(`❌ Cannot connect to backend: ${error.message}`, 'error');
+                log(`Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkAuthToken() {
+            try {
+                log('🔐 Validating auth token...', 'info');
+                const token = document.getElementById('auth-token').value;
+                
+                if (!token) {
+                    setStatus('❌ No auth token provided', 'warning');
+                    log('Auth token is empty', 'warning');
+                    return;
+                }
+
+                // Decode JWT (basic check)
+                const parts = token.split('.');
+                if (parts.length !== 3) {
+                    setStatus('❌ Invalid JWT format', 'error');
+                    log('Token does not appear to be a valid JWT', 'error');
+                    return;
+                }
+
+                try {
+                    const payload = JSON.parse(atob(parts[1]));
+                    log(`Auth token valid. User ID: ${payload.id}, Role: ${payload.role}`, 'success');
+                    setStatus('✅ Auth token is valid', 'success');
+                    updateResponseData(payload);
+                } catch (e) {
+                    setStatus('❌ Could not decode token', 'error');
+                    log('Token decode error: ' + e.message, 'error');
+                }
+            } catch (error) {
+                setStatus(`❌ Error: ${error.message}`, 'error');
+                log(`Token validation error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkJobsEndpoint() {
+            try {
+                log('🔍 Checking jobs endpoint...', 'info');
+                const apiUrl = document.getElementById('api-url').value;
+                
+                const response = await fetch(`${apiUrl}/applications/job-options`);
+                const data = await response.json();
+                
+                if (Array.isArray(data)) {
+                    setStatus(`✅ Found ${data.length} available jobs`, 'success');
+                    log(`Jobs endpoint working. Available jobs: ${data.length}`, 'success');
+                    updateResponseData(data);
+                } else {
+                    setStatus('⚠️ Jobs endpoint returned unexpected format', 'warning');
+                    log('Unexpected jobs data format', 'warning');
+                    updateResponseData(data);
+                }
+            } catch (error) {
+                setStatus(`❌ Error fetching jobs: ${error.message}`, 'error');
+                log(`Jobs fetch error: ${error.message}`, 'error');
+            }
+        }
+
+        async function submitApplication() {
+            try {
+                log('📤 Starting application submission...', 'info');
+                
+                // Validate inputs
+                const jobId = document.getElementById('job-id').value;
+                const phone = document.getElementById('phone').value;
+                const nationalId = document.getElementById('national-id').value;
+                const cvFile = document.getElementById('cv-file').files[0];
+                const nationalIdFile = document.getElementById('nationalid-file').files[0];
+                const passportFile = document.getElementById('passport-file').files[0];
+                const token = document.getElementById('auth-token').value;
+                const apiUrl = document.getElementById('api-url').value;
+
+                if (!token) {
+                    setStatus('❌ Auth token required', 'error');
+                    log('Auth token is missing', 'error');
+                    return;
+                }
+
+                if (!jobId && !document.getElementById('job-title').value) {
+                    setStatus('❌ Job ID or Job Title required', 'error');
+                    log('No job selected', 'error');
+                    return;
+                }
+
+                if (!phone) {
+                    setStatus('❌ Phone is required', 'error');
+                    log('Phone is missing', 'error');
+                    return;
+                }
+
+                if (!nationalId) {
+                    setStatus('❌ National ID is required', 'error');
+                    log('National ID is missing', 'error');
+                    return;
+                }
+
+                if (!cvFile || !nationalIdFile || !passportFile) {
+                    setStatus('❌ All three files required', 'error');
+                    log('Missing one or more files', 'error');
+                    return;
+                }
+
+                log('✅ All validations passed', 'success');
+
+                // Prepare FormData
+                const formData = new FormData();
+                formData.append('cv', cvFile);
+                formData.append('nationalId', nationalIdFile);
+                formData.append('passport', passportFile);
+                formData.append('job_id', jobId);
+                formData.append('job_title', document.getElementById('job-title').value);
+                formData.append('phone', phone);
+                formData.append('national_id', nationalId);
+                if (document.getElementById('cover-letter').value) {
+                    formData.append('cover_letter', document.getElementById('cover-letter').value);
+                }
+
+                log('📋 FormData prepared', 'info');
+                log(`  - CV: ${cvFile.name}`, 'info');
+                log(`  - National ID: ${nationalIdFile.name}`, 'info');
+                log(`  - Passport: ${passportFile.name}`, 'info');
+                log(`  - Job ID: ${jobId}`, 'info');
+                log(`  - Phone: ${phone}`, 'info');
+
+                // Show progress
+                document.getElementById('progress').classList.add('active');
+
+                // Send request
+                log(`📤 Sending to ${apiUrl}/applications/apply`, 'info');
+
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        document.getElementById('progress-fill').style.width = percentComplete + '%';
+                        document.getElementById('progress-text').textContent = `Uploading: ${Math.round(percentComplete)}%`;
+                        log(`Upload progress: ${Math.round(percentComplete)}%`, 'info');
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    document.getElementById('progress').classList.remove('active');
+
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        
+                        if (xhr.status === 201) {
+                            setStatus('✅ Application submitted successfully!', 'success');
+                            log('Application submission successful', 'success');
+                            log(`Application ID: ${response.id}`, 'success');
+                            updateResponseData(response);
+                        } else {
+                            setStatus(`❌ Error: ${response.message}`, 'error');
+                            log(`Server error: ${response.message}`, 'error');
+                            updateResponseData(response);
+                        }
+                    } catch (e) {
+                        setStatus(`❌ Error parsing response: ${e.message}`, 'error');
+                        log(`Parse error: ${e.message}`, 'error');
+                        log(`Response text: ${xhr.responseText}`, 'error');
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    document.getElementById('progress').classList.remove('active');
+                    setStatus(`❌ Network error`, 'error');
+                    log('Network request failed', 'error');
+                });
+
+                xhr.open('POST', `${apiUrl}/applications/apply`);
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.send(formData);
+
+            } catch (error) {
+                document.getElementById('progress').classList.remove('active');
+                setStatus(`❌ Error: ${error.message}`, 'error');
+                log(`Submission error: ${error.message}`, 'error');
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('job-id').value = '';
+            document.getElementById('job-title').value = '';
+            document.getElementById('phone').value = '';
+            document.getElementById('national-id').value = '';
+            document.getElementById('cover-letter').value = '';
+            ['cv-file', 'nationalid-file', 'passport-file'].forEach(id => {
+                document.getElementById(id).value = '';
+                document.getElementById(`${id}-name`).textContent = '';
+            });
+            setStatus('', '');
+            log('Form cleared', 'info');
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        // Initial log
+        window.addEventListener('load', () => {
+            log('🧪 Application Submission Tester Loaded', 'success');
+            log('1. Configure API URL and Auth Token', 'info');
+            log('2. Run pre-flight checks', 'info');
+            log('3. Fill in the form', 'info');
+            log('4. Click Submit Application', 'info');
+        });
+    </script>
+</body>
+</html>

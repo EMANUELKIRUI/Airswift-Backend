@@ -12,7 +12,7 @@ ADMIN_EMAIL="admin@talex.com"
 ADMIN_PASSWORD="admin123"
 
 echo "🔐 Logging in as admin..."
-LOGIN_RESPONSE=$(curl -s -X POST "$BACKEND_URL/auth/login" \
+LOGIN_RESPONSE=$(curl -s -X POST "$BACKEND_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -d "{
     \"email\": \"$ADMIN_EMAIL\",
@@ -41,7 +41,7 @@ echo ""
 # ============================================================================
 
 echo "🌱 Seeding test jobs..."
-SEED_RESPONSE=$(curl -s -X POST "$BACKEND_URL/admin/seed-jobs" \
+SEED_RESPONSE=$(curl -s -X POST "$BACKEND_URL/api/admin/seed-jobs" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json")
 

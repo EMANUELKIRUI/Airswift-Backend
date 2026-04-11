@@ -129,10 +129,10 @@ const UserSequelize = sequelize.define('User', {
 // Export both models - use Mongoose if available, fallback to Sequelize
 let UserModel;
 
-try {
-  // Try to use Mongoose model
+if (mongoose.connection.readyState === 1) {
+  // MongoDB is connected, use Mongoose model
   UserModel = mongoose.model('User', userSchema);
-} catch (error) {
+} else {
   console.warn('MongoDB not available, using Sequelize fallback for User model');
   UserModel = UserSequelize;
 }

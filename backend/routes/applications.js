@@ -38,14 +38,52 @@ const cloudUpload = multer({
 
     cb(null, true);
   },
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
 });
+
+// Middleware to handle multer errors
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ 
+        message: 'File too large. Maximum file size is 5MB.' 
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        message: 'File upload error: too many files.' 
+      });
+    }
+    // Handle other multer errors
+    return res.status(400).json({ 
+      message: 'File upload error: ' + err.message 
+    });
+  } else if (err) {
+    console.error('Upload middleware error:', err);
+    return res.status(400).json({ 
+      message: err.message || 'File upload failed' 
+    });
+  }
+  next();
+};
 
 const router = express.Router();
 
 // User routes
 router.get('/', authMiddleware, getUserApplications);
 router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
-router.post('/', authMiddleware, upload.fields([
+
+// ✅ Main application submission route (Cloudinary upload)
+router.post('/', verifyToken, cloudUpload.fields([
+  { name: 'cv', maxCount: 1 },
+  { name: 'nationalId', maxCount: 1 },
+  { name: 'passport', maxCount: 1 },
+]), handleMulterError, applyForJob);
+
+// Legacy route (local upload) - keep for backward compatibility
+router.post('/create', authMiddleware, upload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
 ]), createApplication);
@@ -53,14 +91,14 @@ router.post('/apply', verifyToken, cloudUpload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
-]), applyForJob);
+]), handleMulterError, applyForJob);
 router.get('/my', verifyToken, getMyApplications);
 router.post('/upload-documents', verifyToken, cloudUpload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
   { name: 'certificate', maxCount: 5 },
-]), uploadApplicantDocs);
+]), handleMulterError, uploadApplicantDocs);
 router.post('/:id/attend-interview', verifyToken, markInterviewAttended);
 
 // Admin routes

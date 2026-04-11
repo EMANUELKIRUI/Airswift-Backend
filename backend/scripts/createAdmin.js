@@ -2,13 +2,17 @@ const bcrypt = require("bcryptjs");
 const { loadEnv } = require("../config/env");
 loadEnv();
 const connectDB = require("../config/db");
+const sequelize = require("../config/database");
 const User = require("../models/User");
 
 const createAdmin = async () => {
   try {
-    // Connect to MongoDB
+    // Connect to database (MongoDB if available, otherwise proceed)
     await connectDB();
-    console.log("🔄 Connected to MongoDB...");
+
+    // Sync Sequelize database
+    await sequelize.sync();
+    console.log("🔄 Database synced...");
 
     // Admin credentials
     const adminEmail = "admin@talex.com";
@@ -18,7 +22,7 @@ const createAdmin = async () => {
     console.log("🔐 Creating Admin Account...\n");
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: adminEmail });
+    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
 
     if (existingAdmin) {
       console.log("⚠️  Admin account with this email already exists!");

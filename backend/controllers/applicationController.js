@@ -78,6 +78,31 @@ const applyForJob = async (req, res) => {
     });
     if (error) return res.status(400).json({ message: error.details[0].message });
 
+    // Validate files first with detailed error messages
+    if (!req.files) {
+      return res.status(400).json({ 
+        message: 'No files uploaded. Please provide CV, National ID, and Passport documents.' 
+      });
+    }
+
+    if (!req.files?.cv?.[0]) {
+      return res.status(400).json({ 
+        message: 'CV file is required (PDF format, maximum 5MB)' 
+      });
+    }
+    
+    if (!req.files?.nationalId?.[0]) {
+      return res.status(400).json({ 
+        message: 'National ID file is required (PDF format, maximum 5MB)' 
+      });
+    }
+    
+    if (!req.files?.passport?.[0]) {
+      return res.status(400).json({ 
+        message: 'Passport file is required (PDF format, maximum 5MB)' 
+      });
+    }
+
     const { jobId, job: resolvedJob, error: jobResolveError } = await resolveJobFromRequest(req.body);
     if (jobResolveError) return res.status(400).json({ message: jobResolveError });
 
@@ -87,10 +112,6 @@ const applyForJob = async (req, res) => {
     // Check if the user already applied to this job
     const existingApplication = await Application.findOne({ where: { job_id: job.id, user_id: req.user.id } });
     if (existingApplication) return res.status(400).json({ message: 'Already applied for this job' });
-
-    if (!req.files?.cv?.[0] || !req.files?.nationalId?.[0] || !req.files?.passport?.[0]) {
-      return res.status(400).json({ message: 'CV, National ID, and Passport files are required' });
-    }
 
     const cvFile = req.files.cv[0];
     const nationalIdFile = req.files.nationalId[0];
@@ -215,8 +236,27 @@ const applyForJob = async (req, res) => {
 
     res.status(201).json(application);
   } catch (error) {
-    console.error('applyForJob error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('applyForJob error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      user: req.user?.id,
+      timestamp: new Date()
+    });
+
+    // Provide detailed error messages to help with debugging
+    if (error.message.includes('encryption')) {
+      return res.status(500).json({ message: 'Failed to encrypt files. Please try again.' });
+    }
+    
+    if (error.message.includes('file') || error.message.includes('File')) {
+      return res.status(400).json({ message: 'File processing error: ' + error.message });
+    }
+
+    res.status(500).json({ 
+      message: 'Error submitting application. Please try again.',
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
+    });
   }
 };
 

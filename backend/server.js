@@ -556,6 +556,7 @@ app.use("/drafts", require("./routes/drafts"));
 app.use("/api/reports", require("./routes/reports"));
 app.use("/api/about", require("./routes/about"));
 app.use("/api/auth-status", require("./routes/authStatus"));
+app.use("/api/users", require("./routes/users"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
