@@ -32,7 +32,7 @@ JWT_EXPIRE=7d
 
 # Email (Gmail SMTP)
 EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=465
+EMAIL_PORT=587
 EMAIL_USER=your.email@gmail.com
 EMAIL_PASS=your_app_password_not_regular_password
 

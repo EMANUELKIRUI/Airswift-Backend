@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force IPv4
+dns.setDefaultResultOrder("ipv4first");
 
 // Initialize transporter only if email credentials are available
 let transporter = null;
@@ -6,13 +10,13 @@ let transporter = null;
 if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
   transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    family: 4, // Force IPv4
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    family: 4, // Force IPv4
   });
 } else {
   console.warn("Email credentials not configured - email features will be disabled");

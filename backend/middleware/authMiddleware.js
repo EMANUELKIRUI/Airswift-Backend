@@ -1,21 +1,34 @@
 const jwt = require("jsonwebtoken");
 
-// ✅ FIX 4: Extract token from cookies or Authorization header
+// ✅ FIX 4: Extract token from cookies, headers, body, or query string
 const extractToken = (req) => {
-  // Try cookies first (preferred)
-  let token = req.cookies?.accessToken || null;
-  
-  // Fallback to Authorization header (Bearer token)
-  if (!token) {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-      console.log("👉 TOKEN from Authorization header:", token ? "EXISTS" : "MISSING");
-    }
+  if (!req) return null;
+
+  const cookieToken = req.cookies?.accessToken || req.cookies?.token || req.cookies?.authToken || null;
+  const authHeader = req.headers?.authorization || req.headers?.Authorization || null;
+  const headerToken = authHeader && typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.split(' ')[1]
+    : null;
+  const fallbackHeader = req.headers?.['x-access-token'] || req.headers?.['x-auth-token'] || null;
+  const bodyToken = req.body?.accessToken || req.body?.token || req.body?.authToken || null;
+  const queryToken = req.query?.accessToken || req.query?.token || req.query?.authToken || null;
+
+  const token = cookieToken || headerToken || fallbackHeader || bodyToken || queryToken;
+
+  if (cookieToken) {
+    console.log("👉 TOKEN from cookies: EXISTS");
+  } else if (headerToken) {
+    console.log("👉 TOKEN from Authorization header: EXISTS");
+  } else if (fallbackHeader) {
+    console.log("👉 TOKEN from x-access-token/x-auth-token: EXISTS");
+  } else if (bodyToken) {
+    console.log("👉 TOKEN from request body: EXISTS");
+  } else if (queryToken) {
+    console.log("👉 TOKEN from query string: EXISTS");
   } else {
-    console.log("👉 TOKEN from cookies:", token ? "EXISTS" : "MISSING");
+    console.log("👉 TOKEN not found in request");
   }
-  
+
   return token;
 };
 

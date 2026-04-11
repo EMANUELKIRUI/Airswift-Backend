@@ -54,7 +54,7 @@ REFRESH_TOKEN_SECRET=$JWT_SECRET
 # Email Service (Gmail SMTP)
 # Get Gmail app password from: https://myaccount.google.com/apppasswords
 EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=465
+EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password_here
 

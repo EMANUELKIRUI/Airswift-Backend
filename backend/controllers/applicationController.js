@@ -5,7 +5,7 @@ const { sendEmail, sendStageEmail } = require('../utils/notifications');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
 const { logAuditEvent } = require('../utils/auditLogger');
-const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate } = require('../utils/socketEmitter');
+const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard } = require('../utils/socketEmitter');
 const fs = require('fs').promises;
 
 const isMongooseModel = User.prototype && typeof User.prototype.save === 'function';
@@ -654,6 +654,14 @@ const uploadApplicantDocs = async (req, res) => {
       national_id_url: nationalIdUrl,
       cv_url: cvUrl,
       certificate_urls: certificateUrls,
+    });
+
+    notifyAdminDashboard('documents_uploaded', {
+      applicationId: application.id,
+      applicantName: req.user?.name || 'Applicant',
+      jobTitle: application.job_title || application.jobTitle || '',
+      email: req.user?.email || '',
+      message: 'Applicant uploaded documents for review',
     });
 
     res.json({ message: 'Documents uploaded successfully', application });
