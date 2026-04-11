@@ -33,8 +33,26 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 2 * 1024 * 1024, // 2MB limit
   },
 });
 
-module.exports = { upload };
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        message: 'File too large. Maximum file size is 5MB.',
+      });
+    }
+    return res.status(400).json({ message: err.message });
+  }
+
+  if (err) {
+    console.error('Upload middleware error:', err);
+    return res.status(400).json({ message: err.message || 'File upload failed' });
+  }
+
+  next();
+};
+
+module.exports = { upload, handleMulterError };

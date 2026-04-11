@@ -503,6 +503,11 @@ app.options("*", cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+app.set('io', io);
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 app.use(maintenanceMode);
 
 // Root route

@@ -1,7 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
 const {
   createApplication,
   getUserApplications,
@@ -11,6 +9,8 @@ const {
   getAllApplicationsAdmin,
   downloadCV,
   updateApplicationStatus,
+  updateApplicationNotes,
+  getAdminStats,
   sendMessageToApplicants,
   scheduleInterview,
   markInterviewAttended,
@@ -19,29 +19,9 @@ const {
 const { verifyToken } = require('../middleware/auth');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { upload } = require('../middleware/upload');
+const { cloudUpload } = require('../middleware/cloudinaryUpload');
 const adminOnly = require('../middleware/admin');
-
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'talex_uploads',
-    resource_type: 'auto',
-  },
-});
-
-const cloudUpload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype !== 'application/pdf') {
-      return cb(new Error('Only PDF allowed'), false);
-    }
-
-    cb(null, true);
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-});
+const isAdmin = adminOnly;
 
 // Middleware to handle multer errors
 const handleMulterError = (err, req, res, next) => {
@@ -87,6 +67,11 @@ router.post('/create', authMiddleware, upload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
 ]), createApplication);
+router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
+router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
+router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
+router.get('/admin/stats', verifyToken, isAdmin, getAdminStats);
+router.get('/user/applications', verifyToken, getMyApplications);
 router.post('/apply', verifyToken, cloudUpload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },

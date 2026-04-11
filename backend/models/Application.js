@@ -23,9 +23,18 @@ const Application = sequelize.define('Application', {
       key: 'id',
     },
   },
+  name: {
+    type: DataTypes.STRING,
+  },
+  email: {
+    type: DataTypes.STRING,
+  },
   status: {
-    type: DataTypes.ENUM('pending', 'shortlisted', 'interview', 'rejected', 'hired'),
+    type: DataTypes.STRING,
     defaultValue: 'pending',
+  },
+  notes: {
+    type: DataTypes.TEXT,
   },
   phone: {
     type: DataTypes.STRING,
@@ -47,6 +56,15 @@ const Application = sequelize.define('Application', {
   },
   cv_url: {
     type: DataTypes.STRING,
+  },
+  cvUrl: {
+    type: DataTypes.VIRTUAL,
+    get() {
+      return this.getDataValue('cv_url');
+    },
+    set(value) {
+      this.setDataValue('cv_url', value);
+    },
   },
   cv: {
     type: DataTypes.STRING,

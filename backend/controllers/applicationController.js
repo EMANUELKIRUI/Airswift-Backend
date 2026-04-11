@@ -2,6 +2,7 @@ const Joi = require('joi');
 const { Op } = require('sequelize');
 const { Application, Job, Profile, Payment, User, Notification } = require('../models');
 const { sendEmail, sendStageEmail } = require('../utils/notifications');
+const { sendStatusEmail } = require('../services/emailTemplates');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
 const { logAuditEvent } = require('../utils/auditLogger');
@@ -148,9 +149,12 @@ const applyForJob = async (req, res) => {
     const application = await Application.create({
       job_id: job.id,
       user_id: req.user.id,
+      name: req.user?.name || req.body.name || null,
+      email: req.user?.email || req.body.email || null,
       phone: phoneValue,
       national_id: nationalIdValue,
       cover_letter: cover_letter || coverLetter,
+      cvUrl,
       cv_url: cvUrl,
       cv_path: cvUrl,
       national_id_url: nationalIdUrl,
@@ -288,10 +292,13 @@ const createApplication = async (req, res) => {
     const application = await Application.create({
       user_id: req.user.id,
       job_id: resolvedJobId,
+      name: req.user?.name || req.body.name || null,
+      email: req.user?.email || req.body.email || null,
       national_id: nationalId,
       phone,
       passport_path: req.files.passport[0].path,
       cv_path: req.files.cv[0].path,
+      cv_url: req.files.cv[0].path,
       status: 'pending',
     });
 
@@ -468,63 +475,57 @@ const getAllApplicationsAdmin = async (req, res) => {
 const updateApplicationStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ['pending', 'shortlisted', 'interview', 'rejected', 'hired'];
+    const validStatuses = ['pending', 'shortlisted', 'accepted', 'rejected'];
     if (!validStatuses.includes(status)) return res.status(400).json({ message: 'Invalid status' });
 
-    // Get the current application to find old status
-    const currentApp = await Application.findByPk(req.params.id);
-    const oldStatus = currentApp?.status || 'pending';
-
-    const [updated] = await Application.update({ status }, { where: { id: req.params.id } });
-    if (!updated) return res.status(404).json({ message: 'Application not found' });
-
     const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
-    const user = application.user_id ? await User.findById(application.user_id) : null;
+    if (!application) return res.status(404).json({ message: 'Application not found' });
 
-    // If hired, create visa fee payment
-    if (status === 'hired') {
-      const profile = await Profile.findOne({ where: { user_id: application.user_id } });
-      if (profile && profile.phone_number) {
-        await Payment.create({
-          user_id: application.user_id,
-          phone_number: profile.phone_number,
-          amount: 30000,
-          service_type: 'visa_fee',
-        });
+    const oldStatus = application.status;
+    application.status = status;
+    await application.save();
+
+    if (req.io && typeof req.io.emit === 'function') {
+      req.io.emit('applicationUpdated', application.toJSON());
+    }
+
+    const user = application.user_id
+      ? isMongooseModel
+        ? await User.findById(application.user_id)
+        : await User.findByPk(application.user_id)
+      : null;
+    const applicantEmail = application.email || user?.email;
+
+    if (['accepted', 'rejected', 'shortlisted'].includes(status) && applicantEmail) {
+      try {
+        await sendStatusEmail({ ...application.toJSON(), email: applicantEmail });
+      } catch (emailError) {
+        console.error('sendStatusEmail error:', emailError);
       }
     }
 
-    // Notify user with template
-    if (user) {
-      const stageKey = status === 'rejected' ? 'application_rejected' : status === 'hired' ? 'visa_payment_received' : status === 'interview' ? 'interview_scheduled' : status === 'shortlisted' ? 'shortlisted' : 'application_submitted';
-      await sendStageEmail(stageKey, user.email, {
-        name: user.name,
-        jobTitle: application.Job.title,
-        scheduledDate: application.zoom_meet_url ? 'as scheduled' : undefined,
-        meetingLink: application.zoom_meet_url,
-      });
-    }
-
-    // Emit real-time Socket.io events
     emitApplicationStatusUpdate({
       applicationId: application.id,
       applicantName: user?.name || 'Applicant',
       jobTitle: application.Job?.title || 'Position',
-      status: status,
+      status,
       updatedBy: req.user.id,
-      email: user?.email
+      email: applicantEmail,
     });
 
-    // Emit pipeline update for drag & drop UI
     emitApplicationPipelineUpdate({
       applicationId: application.id,
-      oldStatus: oldStatus,
+      oldStatus,
       newStatus: status,
       applicantName: user?.name || 'Applicant'
     });
 
-    res.json({ ...application.toJSON(), applicant: user });
+    res.json({
+      message: `Application ${status}`,
+      application,
+    });
   } catch (error) {
+    console.error('updateApplicationStatus error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -583,6 +584,43 @@ const sendMessageToApplicants = async (req, res) => {
   } catch (error) {
     console.error('Error sending messages:', error);
     res.status(500).json({ message: 'Could not send messages to applicants' });
+  }
+};
+
+const updateApplicationNotes = async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const application = await Application.findByPk(req.params.id);
+    if (!application) return res.status(404).json({ message: 'Application not found' });
+
+    application.notes = notes;
+    await application.save();
+
+    res.json({ application });
+  } catch (error) {
+    console.error('updateApplicationNotes error:', error);
+    res.status(500).json({ message: 'Failed to update notes' });
+  }
+};
+
+const getAdminStats = async (req, res) => {
+  try {
+    const total = await Application.count();
+    const pending = await Application.count({ where: { status: 'pending' } });
+    const shortlisted = await Application.count({ where: { status: 'shortlisted' } });
+    const accepted = await Application.count({ where: { status: 'accepted' } });
+    const rejected = await Application.count({ where: { status: 'rejected' } });
+
+    res.json({
+      total,
+      pending,
+      shortlisted,
+      accepted,
+      rejected,
+    });
+  } catch (error) {
+    console.error('getAdminStats error:', error);
+    res.status(500).json({ message: 'Stats error' });
   }
 };
 
@@ -680,6 +718,8 @@ module.exports = {
   getAllApplicationsAdmin,
   downloadCV,
   updateApplicationStatus,
+  updateApplicationNotes,
+  getAdminStats,
   sendMessageToApplicants,
   scheduleInterview,
   markInterviewAttended,
