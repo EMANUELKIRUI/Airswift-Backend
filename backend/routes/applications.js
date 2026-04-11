@@ -7,6 +7,7 @@ const {
   getUserApplications,
   applyForJob,
   getMyApplications,
+  getApplicationJobs,
   getAllApplicationsAdmin,
   downloadCV,
   updateApplicationStatus,
