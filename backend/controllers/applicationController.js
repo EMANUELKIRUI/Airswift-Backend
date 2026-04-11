@@ -18,11 +18,12 @@ const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
 const applySchema = Joi.object({
   job_id: Joi.number().integer(),
   job_title: Joi.string().trim(),
+  jobTitle: Joi.string().trim(),
   job: Joi.string().trim(),
   cover_letter: Joi.string().allow(''),
   phone: Joi.string().required(),
   national_id: Joi.string().required(),
-}).or('job_id', 'job_title', 'job');
+}).or('job_id', 'job_title', 'jobTitle', 'job');
 
 const resolveJobFromRequest = async (body) => {
   const requestedJobId = body.job_id || body.jobId;
@@ -394,18 +395,32 @@ const downloadCV = async (req, res) => {
 
 const getAllApplicationsAdmin = async (req, res) => {
   try {
-    const applications = await Application.findAll({ include: [{ model: Job }] });
+    const applications = await Application.findAll({ 
+      include: [{ model: Job }],
+      order: [['created_at', 'DESC']],
+    });
     const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
-    const users = await User.find({ _id: { $in: userIds } }).lean();
-    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+    
+    let userMap = {};
+    if (userIds.length > 0) {
+      let users = [];
+      if (isMongooseModel) {
+        users = await User.find({ _id: { $in: userIds } }).lean();
+        userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
+      } else if (isSequelizeModel) {
+        users = await User.findAll({ where: { id: userIds } });
+        userMap = users.reduce((acc, user) => ({ ...acc, [user.id.toString()]: user }), {});
+      }
+    }
 
     const formatted = applications.map((app) => ({
       ...app.toJSON(),
-      applicant: userMap[app.user_id] || null,
+      applicant: userMap[app.user_id] || userMap[app.user_id.toString()] || null,
     }));
 
     res.json(formatted);
   } catch (error) {
+    console.error('getAllApplicationsAdmin error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
