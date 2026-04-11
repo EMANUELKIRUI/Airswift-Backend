@@ -62,8 +62,9 @@ const registerUser = async (req, res) => {
       }
 
       const otp = generateOTP().toString();
+      const hashedOtp = await bcrypt.hash(otp, 10);
 
-      existing.otp = otp;
+      existing.otp = hashedOtp;
       existing.otpExpires = Date.now() + 10 * 60 * 1000;
       existing.verificationToken = null;
       existing.verificationTokenExpires = null;
@@ -93,6 +94,7 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const otp = generateOTP().toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     const user = await User.create({
@@ -100,7 +102,7 @@ const registerUser = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role: "user", // Explicitly set role to user - no admin accounts allowed
-      otp,
+      otp: hashedOtp,
       otpExpires,
       isVerified: false,
       verificationToken: null,
@@ -165,7 +167,7 @@ const verifyRegistrationOTP = async (req, res) => {
       return res.status(400).json({ message: "Account is already verified" });
     }
 
-    if (!user.otp || user.otp !== otp) {
+    if (!user.otp || !(await bcrypt.compare(otp, user.otp))) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
@@ -230,9 +232,10 @@ const resendVerificationEmail = async (req, res) => {
     }
 
     const otp = generateOTP().toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
     user.verificationToken = null;
     user.verificationTokenExpires = null;
-    user.otp = otp;
+    user.otp = hashedOtp;
     user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
@@ -326,9 +329,10 @@ const loginUser = async (req, res) => {
       console.log("LOGIN ATTEMPT - User not verified, sending verification link:", user._id);
 
       const otp = generateOTP().toString();
+      const hashedOtp = await bcrypt.hash(otp, 10);
       user.verificationToken = null;
       user.verificationTokenExpires = null;
-      user.otp = otp;
+      user.otp = hashedOtp;
       user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
       try {
@@ -499,10 +503,10 @@ const sendLoginOTP = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      const otp = generateOTP();
+      const otp = generateOTP().toString();
       console.log("SEND LOGIN OTP VERIFICATION:", otp); // For testing
 
-      user.otp = otp;
+      user.otp = await bcrypt.hash(otp, 10);
       user.otpExpires = Date.now() + 10 * 60 * 1000;
       await user.save();
 
@@ -518,9 +522,8 @@ const sendLoginOTP = async (req, res) => {
       });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    user.resetToken = otp;
+    const otp = generateOTP().toString();
+    user.resetToken = await bcrypt.hash(otp, 10);
     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
@@ -562,15 +565,15 @@ const verifyLoginOTP = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      const otp = generateOTP();
-      console.log("VERIFY LOGIN OTP VERIFICATION:", otp); // For testing
+      const generatedOtp = generateOTP().toString();
+      console.log("VERIFY LOGIN OTP VERIFICATION:", generatedOtp); // For testing
 
-      user.otp = otp;
+      user.otp = await bcrypt.hash(generatedOtp, 10);
       user.otpExpires = Date.now() + 10 * 60 * 1000;
       await user.save();
 
       try {
-        await sendOTPEmail(user.email, otp);
+        await sendOTPEmail(user.email, generatedOtp);
       } catch (emailError) {
         console.error(`VERIFY LOGIN OTP VERIFICATION EMAIL ERROR for ${email}:`, emailError.message);
       }
@@ -581,7 +584,7 @@ const verifyLoginOTP = async (req, res) => {
       });
     }
 
-    if (user.resetToken != otp) {
+    if (!user.resetToken || !(await bcrypt.compare(otp, user.resetToken))) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
@@ -652,7 +655,7 @@ const forgotPassword = async (req, res) => {
       const otp = generateOTP();
       console.log("OTP:", otp); // 👉 For testing since email might fail
 
-      user.otp = otp;
+      user.otp = await bcrypt.hash(otp, 10);
       user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
       await user.save();
 

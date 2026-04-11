@@ -1,3 +1,4 @@
+const nodemailer = require('nodemailer');
 let nodeFetch;
 const fetch = async (...args) => {
   if (!nodeFetch) {
@@ -14,8 +15,33 @@ const renderTemplate = (template, variables = {}) => {
 };
 
 const sendEmail = async (to, subject, htmlContent) => {
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: `"TALEX" <${process.env.EMAIL_USER}>`,
+        to,
+        subject,
+        html: htmlContent,
+      });
+
+      console.log('✅ Gmail email sent:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Gmail email send error:', error.message);
+      // fallback to Brevo below
+    }
+  }
+
   if (!process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL) {
-    console.log('❌ Email disabled - missing Brevo API credentials');
+    console.log('❌ Email disabled - missing Brevo or Gmail credentials');
     return false;
   }
 
