@@ -160,6 +160,7 @@ const registerUser = async (req, res) => {
 
     res.status(emailSent ? 200 : 201).json({
       message: responseMessage,
+      otpSent: emailSent,
       redirect: "/verify-otp",
       email: user.email,
       user: {

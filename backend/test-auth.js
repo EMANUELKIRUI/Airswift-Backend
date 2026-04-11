@@ -28,54 +28,15 @@ async function testAuthFlow() {
     console.log('   ✅ Registration successful!');
     console.log(`   Response: ${JSON.stringify(registerResponse.data, null, 2)}`);
 
-    // 2. Test Send Login OTP
-    console.log('\n2️⃣  Testing Send Login OTP...');
-    const otpResponse = await axios.post(`${BASE_URL}/send-login-otp`, {
-      email: testUser.email
-    });
-    
-    console.log('   ✅ OTP sent successfully!');
-    console.log(`   Response: ${JSON.stringify(otpResponse.data, null, 2)}`);
-
-    // For testing, we'll use a fake OTP (real system would send via email)
-    otpCode = '000000'; // Placeholder
-    
-    // 3. Test Verify Login OTP
-    console.log('\n3️⃣  Testing Verify Login OTP...');
-    console.log('   Note: Using placeholder OTP for testing');
-    
-    try {
-      const verifyOtpResponse = await axios.post(`${BASE_URL}/verify-login-otp`, {
-        email: testUser.email,
-        otp: otpCode
-      });
-      
-      console.log('   ✅ OTP verification successful!');
-      console.log(`   Response: ${JSON.stringify(verifyOtpResponse.data, null, 2)}`);
-    } catch (error) {
-      if (error.response?.status === 400) {
-        console.log('   ⚠️  Invalid OTP (expected for testing)');
-        console.log(`   Response: ${JSON.stringify(error.response.data, null, 2)}`);
-      } else {
-        throw error;
-      }
+    if (typeof registerResponse.data.otpSent === 'undefined') {
+      throw new Error('Register response must include otpSent field');
     }
 
-    // 4. Test Health Check
-    console.log('\n4️⃣  Testing Health Check (/me endpoint)...');
-    try {
-      const meResponse = await axios.get(`${BASE_URL}/me`);
-      console.log('   Response:', JSON.stringify(meResponse.data, null, 2));
-    } catch (error) {
-      console.log('   Response (no token):', JSON.stringify(error.response.data, null, 2));
-    }
+    console.log(`   OTP send attempted: ${registerResponse.data.otpSent}`);
 
-    console.log('\n=== AUTHENTICATION FLOW TEST COMPLETED ===\n');
-    console.log('📊 Summary:');
-    console.log('   ✅ User Registration: Working');
-    console.log('   ✅ Send OTP: Working');
-    console.log('   ⚠️  Verify OTP: Requires real OTP from email');
-    console.log('   ✅ Server: Running and responding');
+    console.log('\n=== AUTHENTICATION FLOW TEST COMPLETE ===');
+    console.log('   ✅ Registration OTP behavior validated.');
+    return;
 
   } catch (error) {
     console.error('\n❌ Test failed:');

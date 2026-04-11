@@ -1,4 +1,10 @@
-const fetch = require('node-fetch');
+let nodeFetch;
+const fetch = async (...args) => {
+  if (!nodeFetch) {
+    ({ default: nodeFetch } = await import('node-fetch'));
+  }
+  return nodeFetch(...args);
+};
 
 const renderTemplate = (template, variables = {}) => {
   return template.replace(/{{\s*([^}]+)\s*}}/g, (_, key) => {
@@ -8,6 +14,11 @@ const renderTemplate = (template, variables = {}) => {
 };
 
 const sendEmail = async (to, subject, htmlContent) => {
+  if (!process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL) {
+    console.log('❌ Email disabled - missing Brevo API credentials');
+    return false;
+  }
+
   try {
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',

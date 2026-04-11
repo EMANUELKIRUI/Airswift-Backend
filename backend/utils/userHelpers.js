@@ -2,8 +2,14 @@
 const User = require("../models/User");
 
 // Check if User is a Mongoose model or Sequelize model
-const isMongooseModel = User.prototype && User.prototype.save;
-const isSequelizeModel = User.prototype && User.prototype.update;
+const isMongooseModel =
+  typeof User.findById === 'function' &&
+  typeof User.findOne === 'function' &&
+  User.schema;
+const isSequelizeModel =
+  typeof User.findByPk === 'function' &&
+  typeof User.findOne === 'function' &&
+  User.sequelize;
 
 const findUserByEmail = async (email) => {
   if (!email || typeof email !== 'string') return null;
@@ -13,10 +19,10 @@ const findUserByEmail = async (email) => {
     return await User.findOne({ email: normalizedEmail });
   } else if (isSequelizeModel) {
     return await User.findOne({ where: { email: normalizedEmail } });
-  } else {
-    console.error('User model not properly configured');
-    return null;
   }
+
+  console.error('User model not properly configured');
+  return null;
 };
 
 const findUserById = async (id) => {
