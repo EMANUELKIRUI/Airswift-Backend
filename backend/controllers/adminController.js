@@ -1539,13 +1539,29 @@ const getPaymentStats = async (req, res) => {
 // Get audit logs with filtering
 const getAuditLogs = async (req, res) => {
   try {
-    const { action, user, status, page = 1, limit = 50 } = req.query;
+    const {
+      action,
+      entity,
+      user,
+      status,
+      page = 1,
+      limit = 20,
+      startDate,
+      endDate,
+    } = req.query;
 
     let filter = {};
 
     if (action) filter.action = action;
+    if (entity) filter.entity = entity;
     if (user) filter.user_id = user;
     if (status) filter.status = status;
+
+    if (startDate || endDate) {
+      filter.created_at = {};
+      if (startDate) filter.created_at.$gte = new Date(startDate);
+      if (endDate) filter.created_at.$lte = new Date(endDate);
+    }
 
     const skip = (page - 1) * limit;
 
@@ -1559,12 +1575,9 @@ const getAuditLogs = async (req, res) => {
 
     res.json({
       logs,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / limit)
     });
   } catch (error) {
     console.error('getAuditLogs error:', error);

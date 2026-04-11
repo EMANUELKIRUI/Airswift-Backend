@@ -183,7 +183,22 @@ const emitAuditLog = (log) => {
   }
 
   const payload = typeof log.get === 'function' ? log.get({ plain: true }) : log;
+  io.emit('audit:new', payload);
   io.to('admins').emit('new_audit_log', payload);
+};
+
+const emitSecurityAlert = (alertData) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  const payload = {
+    ...alertData,
+    time: new Date(),
+  };
+
+  io.to('admins').emit('security:alert', payload);
 };
 
 const emitUserAction = (actionData) => {
@@ -255,6 +270,7 @@ module.exports = {
   emitApplicationPipelineUpdate,
   notifyAdminDashboard,
   emitAuditLog,
+  emitSecurityAlert,
   emitUserAction,
   emitDirectMessage,
   emitNotification,

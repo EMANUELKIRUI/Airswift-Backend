@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     refreshToken: String,
+    lastIP: String,
     authProvider: {
       type: String,
       default: "local",
@@ -100,6 +101,7 @@ const UserSequelize = sequelize.define('User', {
   resetPasswordToken: DataTypes.STRING,
   resetPasswordExpire: DataTypes.DATE,
   refreshToken: DataTypes.STRING,
+  lastIP: DataTypes.STRING,
   authProvider: {
     type: DataTypes.STRING,
     defaultValue: 'local',

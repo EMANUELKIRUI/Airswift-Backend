@@ -1,0 +1,10 @@
+module.exports = {
+  ACTIONS: {
+    LOGIN: "LOGIN",
+    LOGOUT: "LOGOUT",
+    VERIFY_OTP: "VERIFY_OTP",
+    UPDATE_STATUS: "UPDATE_STATUS",
+    LOGIN_FAILED: "LOGIN_FAILED",
+    SIGNUP: "SIGNUP",
+  }
+};

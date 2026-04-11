@@ -38,6 +38,9 @@ const io = socketIo(server, {
   },
 });
 
+// Expose socket.io globally for legacy emitters and services
+global.io = io;
+
 // Initialize Socket.io emitter utility
 initializeSocket(io);
 setSocketInstance(io);

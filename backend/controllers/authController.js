@@ -11,6 +11,7 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHel
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
 const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 const { logAction } = require("../utils/logger");
+const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = require("../services/securityService");
 
 const buildCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -113,7 +114,10 @@ const registerUser = async (req, res) => {
     await logAction({
       userId: user._id,
       action: "SIGNUP",
+      entity: "User",
+      entityId: user._id,
       description: "User registered successfully",
+      details: { email: user.email },
       req
     });
 
@@ -231,6 +235,7 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
+    trackOTPRequests(email);
     const otp = generateOTP().toString();
     const hashedOtp = await bcrypt.hash(otp, 10);
     user.verificationToken = null;
@@ -292,9 +297,12 @@ const loginUser = async (req, res) => {
     if (!user) {
       console.log("LOGIN FAILED - User not found:", normalizedEmail);
       try {
+        await checkLoginSecurity(normalizedEmail, req);
         await logAction({
           action: "LOGIN_FAILED",
+          entity: "User",
           description: "Invalid login attempt - user not found",
+          details: { email: normalizedEmail },
           req,
           status: "error"
         });
@@ -313,9 +321,14 @@ const loginUser = async (req, res) => {
     if (!isMatch) {
       console.log("LOGIN FAILED - Password mismatch for user:", user._id || normalizedEmail);
       try {
+        await checkLoginSecurity(normalizedEmail, req);
         await logAction({
+          userId: user._id,
           action: "LOGIN_FAILED",
+          entity: "User",
+          entityId: user._id,
           description: "Invalid login attempt - wrong password",
+          details: { email: user.email },
           req,
           status: "error"
         });
@@ -400,9 +413,13 @@ const loginUser = async (req, res) => {
       await logAction({
         userId: user._id,
         action: "LOGIN_SUCCESS",
+        entity: "User",
+        entityId: user._id,
+        details: { email: user.email },
         description: "User logged in successfully",
         req
       });
+      await detectNewIP(user, req);
     } catch (error) {
       console.error("LOGIN SUCCESS - logAction error:", error);
     }
@@ -502,6 +519,7 @@ const sendLoginOTP = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
+    trackOTPRequests(email);
     if (!user.isVerified) {
       const otp = generateOTP().toString();
       console.log("SEND LOGIN OTP VERIFICATION:", otp); // For testing
@@ -563,8 +581,7 @@ const verifyLoginOTP = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
-
-    if (!user.isVerified) {
+    trackOTPRequests(email);    if (!user.isVerified) {
       const generatedOtp = generateOTP().toString();
       console.log("VERIFY LOGIN OTP VERIFICATION:", generatedOtp); // For testing
 
@@ -650,6 +667,8 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    trackOTPRequests(email);
+
     // 🔴 CHECK IF VERIFIED FIRST
     if (!user.isVerified) {
       const otp = generateOTP();
@@ -672,6 +691,7 @@ const forgotPassword = async (req, res) => {
       });
     }
 
+    trackOTPRequests(email);
     // ✅ VERIFIED USER - Send reset email
     const resetToken = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto
@@ -822,6 +842,8 @@ const logout = async (req, res) => {
       await logAction({
         userId,
         action: "LOGOUT",
+        entity: "User",
+        entityId: userId,
         description: "User logged out",
         req
       });
