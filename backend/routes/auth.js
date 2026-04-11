@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const {
   registerUser,
-  verifyEmailToken,
   verifyRegistrationOTP,
   resendVerificationEmail,
   loginUser,
@@ -29,7 +28,6 @@ const loginLimiter = rateLimit({
 
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
-router.get("/verify", verifyEmailToken);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
