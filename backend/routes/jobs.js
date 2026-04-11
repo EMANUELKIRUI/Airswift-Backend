@@ -148,6 +148,15 @@ router.get("/smart-search", async (req, res) => {
 // AI Job Ranking - Personalized recommendations
 router.get("/recommendations", verifyToken, async (req, res) => {
   try {
+    // ✅ FIX 5: Validate req.user exists before accessing properties
+    if (!req.user || !req.user.id) {
+      console.error("❌ RECOMMENDATIONS FAILED: req.user is missing or has no id");
+      return res.status(401).json({ 
+        error: "Unauthorized",
+        message: "User authentication required"
+      });
+    }
+
     const userId = req.user.id;
     const { limit = 10 } = req.query;
 
