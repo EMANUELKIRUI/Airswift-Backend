@@ -15,17 +15,6 @@ const sendEmail = async (to, subject, htmlContent) => {
         'api-key': process.env.BREVO_API_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({  });
-};
-
-const sendEmail = async (to, subject, htmlContent) => {
-  try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         sender: {
           email: process.env.SENDER_EMAIL,
