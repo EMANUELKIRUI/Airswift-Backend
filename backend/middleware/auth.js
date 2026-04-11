@@ -1,19 +1,47 @@
 const jwt = require('jsonwebtoken');
 
+const normalizeToken = (token) => {
+  if (!token || typeof token !== 'string') return null;
+  let normalized = token.trim();
+
+  if (/^Bearer\s+/i.test(normalized)) {
+    normalized = normalized.replace(/^Bearer\s+/i, '').trim();
+  }
+
+  if ((normalized.startsWith('"') && normalized.endsWith('"')) || (normalized.startsWith("'") && normalized.endsWith("'"))) {
+    normalized = normalized.slice(1, -1).trim();
+  }
+
+  return normalized || null;
+};
+
+const parseCookieHeader = (cookieHeader) => {
+  if (!cookieHeader || typeof cookieHeader !== 'string') return null;
+  const cookies = cookieHeader.split(';').map((part) => part.trim());
+  const parsed = {};
+
+  cookies.forEach((cookie) => {
+    const [name, ...valueParts] = cookie.split('=');
+    if (!name || !valueParts.length) return;
+    parsed[name] = valueParts.join('=').trim();
+  });
+
+  return parsed.accessToken || parsed.token || parsed.authToken || null;
+};
+
 // ✅ FIX 4: Extract token from cookies, headers, body, or query string
 const extractToken = (req) => {
   if (!req) return null;
 
-  const cookieToken = req.cookies?.accessToken || req.cookies?.token || req.cookies?.authToken || null;
+  const cookieToken = normalizeToken(req.cookies?.accessToken || req.cookies?.token || req.cookies?.authToken || null);
   const authHeader = req.headers?.authorization || req.headers?.Authorization || null;
-  const headerToken = authHeader && typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
-    ? authHeader.split(' ')[1]
-    : null;
-  const fallbackHeader = req.headers?.['x-access-token'] || req.headers?.['x-auth-token'] || null;
-  const bodyToken = req.body?.accessToken || req.body?.token || req.body?.authToken || null;
-  const queryToken = req.query?.accessToken || req.query?.token || req.query?.authToken || null;
+  const headerToken = normalizeToken(authHeader);
+  const fallbackHeader = normalizeToken(req.headers?.['x-access-token'] || req.headers?.['x-auth-token'] || null);
+  const bodyToken = normalizeToken(req.body?.accessToken || req.body?.token || req.body?.authToken || null);
+  const queryToken = normalizeToken(req.query?.accessToken || req.query?.token || req.query?.authToken || null);
+  const rawCookieToken = normalizeToken(parseCookieHeader(req.headers?.cookie));
 
-  const token = cookieToken || headerToken || fallbackHeader || bodyToken || queryToken;
+  const token = cookieToken || headerToken || fallbackHeader || bodyToken || queryToken || rawCookieToken;
 
   if (cookieToken) {
     console.log("👉 TOKEN from cookies: EXISTS");
@@ -25,6 +53,8 @@ const extractToken = (req) => {
     console.log("👉 TOKEN from request body: EXISTS");
   } else if (queryToken) {
     console.log("👉 TOKEN from query string: EXISTS");
+  } else if (rawCookieToken) {
+    console.log("👉 TOKEN from raw Cookie header: EXISTS");
   } else {
     console.log("👉 TOKEN not found in request");
   }

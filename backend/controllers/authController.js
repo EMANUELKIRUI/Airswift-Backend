@@ -18,7 +18,7 @@ const buildCookieOptions = (req) => {
 
   return {
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "none",
     path: "/",
     domain,
