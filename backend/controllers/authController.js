@@ -44,16 +44,17 @@ const isSequelizeModel = User.prototype && User.prototype.update;
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
     console.log("REGISTER BODY:", req.body);
 
-    if (!name || !email || !password) {
+    if (!name || !normalizedEmail || !password) {
       return res.status(400).json({
         message: "Name, email and password are required",
       });
     }
 
-    const existing = await findUserByEmail(email);
+    const existing = await findUserByEmail(normalizedEmail);
 
     if (existing) {
       if (existing.isVerified) {
@@ -93,7 +94,7 @@ const registerUser = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       otp,
       otpExpires,
@@ -332,16 +333,17 @@ const loginUser = async (req, res) => {
   console.log("LOGIN HIT - Request body:", req.body);
   try {
     const { email, password } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       console.log("LOGIN FAILED - Missing email or password");
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    console.log("LOGIN - Looking up user:", email);
+    console.log("LOGIN - Looking up user:", normalizedEmail);
     let user;
     try {
-      user = await findUserByEmail(email);
+      user = await findUserByEmail(normalizedEmail);
     } catch (error) {
       console.error("LOGIN USER DB LOOKUP ERROR:", error);
       if (isDatabaseError(error)) {
@@ -354,7 +356,7 @@ const loginUser = async (req, res) => {
     }
 
     if (!user) {
-      console.log("LOGIN FAILED - User not found:", email);
+      console.log("LOGIN FAILED - User not found:", normalizedEmail);
       try {
         await logAction({
           action: "LOGIN_FAILED",
@@ -368,9 +370,14 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    if (!user.password) {
+      console.log("LOGIN FAILED - Missing stored password for user:", user._id || normalizedEmail);
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.log("LOGIN FAILED - Password mismatch for user:", user._id);
+      console.log("LOGIN FAILED - Password mismatch for user:", user._id || normalizedEmail);
       try {
         await logAction({
           action: "LOGIN_FAILED",

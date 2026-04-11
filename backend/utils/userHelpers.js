@@ -6,10 +6,13 @@ const isMongooseModel = User.prototype && User.prototype.save;
 const isSequelizeModel = User.prototype && User.prototype.update;
 
 const findUserByEmail = async (email) => {
+  if (!email || typeof email !== 'string') return null;
+  const normalizedEmail = email.trim().toLowerCase();
+
   if (isMongooseModel) {
-    return await User.findOne({ email: email.toLowerCase() });
+    return await User.findOne({ email: normalizedEmail });
   } else if (isSequelizeModel) {
-    return await User.findOne({ where: { email: email.toLowerCase() } });
+    return await User.findOne({ where: { email: normalizedEmail } });
   } else {
     console.error('User model not properly configured');
     return null;
