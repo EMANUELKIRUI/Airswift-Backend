@@ -18,14 +18,15 @@ const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
 const applySchema = Joi.object({
   job_id: Joi.number().integer(),
   job_title: Joi.string().trim(),
+  job: Joi.string().trim(),
   cover_letter: Joi.string().allow(''),
   phone: Joi.string().required(),
   national_id: Joi.string().required(),
-}).or('job_id', 'job_title');
+}).or('job_id', 'job_title', 'job');
 
 const resolveJobFromRequest = async (body) => {
   const requestedJobId = body.job_id || body.jobId;
-  const requestedJobTitle = (body.job_title || body.jobTitle || '').trim();
+  const requestedJobTitle = (body.job || body.job_title || body.jobTitle || '').trim();
 
   if (requestedJobId) {
     return { jobId: requestedJobId };
@@ -61,7 +62,7 @@ const resolveJobFromRequest = async (body) => {
 
 const applyForJob = async (req, res) => {
   try {
-    const jobTitle = (req.body.job_title || req.body.jobTitle || '').trim();
+    const jobTitle = (req.body.job || req.body.job_title || req.body.jobTitle || '').trim();
     const job_id = req.body.job_id || req.body.jobId;
     const { cover_letter, coverLetter, phone, national_id, nationalId } = req.body;
     const phoneValue = phone || req.body.phone;
@@ -213,6 +214,7 @@ const applyForJob = async (req, res) => {
 
     res.status(201).json(application);
   } catch (error) {
+    console.error('applyForJob error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -220,7 +222,7 @@ const applyForJob = async (req, res) => {
 const createApplication = async (req, res) => {
   try {
     const jobId = req.body.jobId || req.body.job_id;
-    const jobTitle = (req.body.job_title || req.body.jobTitle || '').trim();
+    const jobTitle = (req.body.job || req.body.job_title || req.body.jobTitle || '').trim();
     const nationalId = req.body.nationalId || req.body.national_id;
     const phone = req.body.phone;
 
