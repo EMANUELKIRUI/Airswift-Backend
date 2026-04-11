@@ -70,9 +70,10 @@ const countRecordsBetween = async (Model, whereClause) => {
 const getApplicationsInRange = async (start, end) => {
   return Application.count({
     where: {
-      created_at: {
-        [Op.between]: [start, end]
-      }
+      [Op.or]: [
+        { created_at: { [Op.between]: [start, end] } },
+        { createdAt: { [Op.between]: [start, end] } }
+      ]
     }
   });
 };
@@ -80,9 +81,10 @@ const getApplicationsInRange = async (start, end) => {
 const getJobsInRange = async (start, end) => {
   return Job.count({
     where: {
-      created_at: {
-        [Op.between]: [start, end]
-      }
+      [Op.or]: [
+        { created_at: { [Op.between]: [start, end] } },
+        { createdAt: { [Op.between]: [start, end] } }
+      ]
     }
   });
 };
@@ -90,18 +92,20 @@ const getJobsInRange = async (start, end) => {
 const calculateConversionRate = async (start, end) => {
   const total = await Application.count({
     where: {
-      created_at: {
-        [Op.between]: [start, end]
-      }
+      [Op.or]: [
+        { created_at: { [Op.between]: [start, end] } },
+        { createdAt: { [Op.between]: [start, end] } }
+      ]
     }
   });
 
   const hired = await Application.count({
     where: {
       status: 'hired',
-      created_at: {
-        [Op.between]: [start, end]
-      }
+      [Op.or]: [
+        { created_at: { [Op.between]: [start, end] } },
+        { createdAt: { [Op.between]: [start, end] } }
+      ]
     }
   });
 
@@ -111,14 +115,15 @@ const calculateConversionRate = async (start, end) => {
 const calculateAverageTimeToHire = async (start, end) => {
   const where = { status: 'hired' };
   if (start && end) {
-    where.created_at = {
-      [Op.between]: [start, end]
-    };
+    where[Op.or] = [
+      { created_at: { [Op.between]: [start, end] } },
+      { createdAt: { [Op.between]: [start, end] } }
+    ];
   }
 
   const hiredApplications = await Application.findAll({
     where,
-    attributes: ['created_at', 'updated_at'],
+    attributes: ['created_at', 'updated_at', 'createdAt', 'updatedAt'],
     raw: true
   });
 
@@ -127,8 +132,10 @@ const calculateAverageTimeToHire = async (start, end) => {
   }
 
   const totalDays = hiredApplications.reduce((sum, app) => {
-    const daysToHire = Math.round((new Date(app.updated_at) - new Date(app.created_at)) / (1000 * 60 * 60 * 24));
-    return sum + daysToHire;
+    const createdAtValue = app.created_at || app.createdAt;
+    const updatedAtValue = app.updated_at || app.updatedAt;
+    const daysToHire = Math.round((new Date(updatedAtValue) - new Date(createdAtValue)) / (1000 * 60 * 60 * 24));
+    return sum + (Number.isNaN(daysToHire) ? 0 : daysToHire);
   }, 0);
 
   return Math.round(totalDays / hiredApplications.length);
@@ -179,11 +186,12 @@ const getApplicationsOverTime = async (req, res) => {
 
     const applications = await Application.findAll({
       where: {
-        created_at: {
-          [Op.gte]: startDate
-        }
+        [Op.or]: [
+          { created_at: { [Op.gte]: startDate } },
+          { createdAt: { [Op.gte]: startDate } }
+        ]
       },
-      attributes: ['created_at'],
+      attributes: ['created_at', 'createdAt'],
       raw: true
     });
 

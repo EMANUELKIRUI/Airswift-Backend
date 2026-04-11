@@ -1405,23 +1405,26 @@ const getAllPayments = async (req, res) => {
     if (service_type) whereClause.service_type = service_type;
 
     if (start_date || end_date) {
-      whereClause.created_at = {};
-      if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
-      if (end_date) whereClause.created_at[Op.lte] = new Date(end_date);
+      whereClause[Op.or] = [
+        { created_at: {} },
+        { createdAt: {} }
+      ];
+
+      if (start_date) {
+        whereClause[Op.or][0].created_at[Op.gte] = new Date(start_date);
+        whereClause[Op.or][1].createdAt[Op.gte] = new Date(start_date);
+      }
+      if (end_date) {
+        whereClause[Op.or][0].created_at[Op.lte] = new Date(end_date);
+        whereClause[Op.or][1].createdAt[Op.lte] = new Date(end_date);
+      }
     }
 
     const { count, rows: payments } = await Payment.findAndCountAll({
       where: whereClause,
-      order: [['created_at', 'DESC']],
+      order: [['createdAt', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset),
-      include: [
-        {
-          model: Application,
-          attributes: ['id', 'status'],
-          include: [{ model: require('../models').Job, attributes: ['title'] }]
-        }
-      ]
+      offset: parseInt(offset)
     });
 
     // Get user details

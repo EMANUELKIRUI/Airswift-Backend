@@ -16,30 +16,74 @@ const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
 
 
 const applySchema = Joi.object({
-  job_id: Joi.number().integer().required(),
-  cover_letter: Joi.string(),
+  job_id: Joi.number().integer(),
+  job_title: Joi.string().trim(),
+  cover_letter: Joi.string().allow(''),
   phone: Joi.string().required(),
   national_id: Joi.string().required(),
-});
+}).or('job_id', 'job_title');
+
+const resolveJobFromRequest = async (body) => {
+  const requestedJobId = body.job_id || body.jobId;
+  const requestedJobTitle = (body.job_title || body.jobTitle || '').trim();
+
+  if (requestedJobId) {
+    return { jobId: requestedJobId };
+  }
+
+  if (!requestedJobTitle) {
+    return { error: 'Please select or type the job you want' };
+  }
+
+  const normalizedTitle = requestedJobTitle.trim();
+  const titleMatch = Job.sequelize.where(
+    Job.sequelize.fn('lower', Job.sequelize.col('title')),
+    normalizedTitle.toLowerCase()
+  );
+
+  let job = await Job.findOne({
+    where: {
+      [Op.and]: [titleMatch, { status: 'active' }],
+    },
+  });
+
+  if (!job) {
+    job = await Job.create({
+      title: normalizedTitle,
+      description: `User-entered job request: ${normalizedTitle}`,
+      created_by: 0,
+      status: 'active',
+    });
+  }
+
+  return { jobId: job.id, job };
+};
 
 const applyForJob = async (req, res) => {
   try {
+    const jobTitle = (req.body.job_title || req.body.jobTitle || '').trim();
     const job_id = req.body.job_id || req.body.jobId;
-    const { cover_letter, phone, national_id } = req.body;
+    const { cover_letter, coverLetter, phone, national_id, nationalId } = req.body;
+    const phoneValue = phone || req.body.phone;
+    const nationalIdValue = national_id || nationalId;
 
-    if (!job_id) {
-      return res.status(400).json({ message: 'Please select a job' });
-    }
-
-    const { error } = applySchema.validate({ job_id, cover_letter });
+    const { error } = applySchema.validate({
+      job_id,
+      job_title: jobTitle,
+      cover_letter: cover_letter || coverLetter,
+      phone: phoneValue,
+      national_id: nationalIdValue,
+    });
     if (error) return res.status(400).json({ message: error.details[0].message });
 
-    // Check if job exists and is active
-    const job = await Job.findByPk(job_id);
+    const { jobId, job: resolvedJob, error: jobResolveError } = await resolveJobFromRequest(req.body);
+    if (jobResolveError) return res.status(400).json({ message: jobResolveError });
+
+    const job = resolvedJob || await Job.findByPk(jobId);
     if (!job || job.status !== 'active') return res.status(404).json({ message: 'Job not found or inactive' });
 
     // Check if the user already applied to this job
-    const existingApplication = await Application.findOne({ where: { job_id, user_id: req.user.id } });
+    const existingApplication = await Application.findOne({ where: { job_id: job.id, user_id: req.user.id } });
     if (existingApplication) return res.status(400).json({ message: 'Already applied for this job' });
 
     if (!req.files?.cv?.[0] || !req.files?.nationalId?.[0] || !req.files?.passport?.[0]) {
@@ -79,11 +123,11 @@ const applyForJob = async (req, res) => {
     }
 
     const application = await Application.create({
-      job_id,
+      job_id: job.id,
       user_id: req.user.id,
-      phone,
-      national_id,
-      cover_letter,
+      phone: phoneValue,
+      national_id: nationalIdValue,
+      cover_letter: cover_letter || coverLetter,
       cv_url: cvUrl,
       cv_path: cvUrl,
       national_id_url: nationalIdUrl,
@@ -154,7 +198,7 @@ const applyForJob = async (req, res) => {
 
     // Log audit event
     await logAuditEvent(req.user.id, 'application_submitted', 'application', application.id, {
-      job_id,
+      job_id: job.id,
       job_title: job.title
     }, req);
 
@@ -176,10 +220,16 @@ const applyForJob = async (req, res) => {
 const createApplication = async (req, res) => {
   try {
     const jobId = req.body.jobId || req.body.job_id;
+    const jobTitle = (req.body.job_title || req.body.jobTitle || '').trim();
     const nationalId = req.body.nationalId || req.body.national_id;
     const phone = req.body.phone;
 
-    if (!jobId || !nationalId || !phone) {
+    const { jobId: resolvedJobId, job: resolvedJob, error: jobResolveError } = await resolveJobFromRequest(req.body);
+    if (jobResolveError) {
+      return res.status(400).json({ message: jobResolveError });
+    }
+
+    if (!resolvedJobId || !nationalId || !phone) {
       return res.status(400).json({ message: 'All fields required' });
     }
 
@@ -187,14 +237,14 @@ const createApplication = async (req, res) => {
       return res.status(400).json({ message: 'Passport & CV required' });
     }
 
-    const existing = await Application.findOne({ where: { user_id: req.user.id, job_id: jobId } });
+    const existing = await Application.findOne({ where: { user_id: req.user.id, job_id: resolvedJobId } });
     if (existing) {
       return res.status(400).json({ message: 'Already applied' });
     }
 
     const application = await Application.create({
       user_id: req.user.id,
-      job_id: jobId,
+      job_id: resolvedJobId,
       national_id: nationalId,
       phone,
       passport_path: req.files.passport[0].path,
