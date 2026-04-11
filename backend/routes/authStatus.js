@@ -8,9 +8,8 @@ router.get('/status', (req, res) => {
       database: process.env.DB_HOST ? '✓ Configured' : '✗ Missing DB_HOST',
       jwt: process.env.JWT_SECRET ? '✓ Configured' : '✗ Missing JWT_SECRET',
       email_service: {
-        email_host: process.env.EMAIL_HOST ? '✓ Configured' : '✗ Missing EMAIL_HOST',
-        email_user: process.env.EMAIL_USER ? '✓ Configured' : '✗ Missing EMAIL_USER',
-        email_pass: process.env.EMAIL_PASS ? '✓ Configured' : '✗ Missing EMAIL_PASS',
+        brevo_api_key: process.env.BREVO_API_KEY ? '✓ Configured' : '✗ Missing BREVO_API_KEY',
+        sender_email: process.env.SENDER_EMAIL ? '✓ Configured' : '✗ Missing SENDER_EMAIL',
       },
     },
     auth_methods: {

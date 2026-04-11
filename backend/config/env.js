@@ -17,10 +17,8 @@ function loadEnv() {
 
   const requiredVars = [
     "JWT_SECRET",
-    "EMAIL_HOST",
-    "EMAIL_PORT",
-    "EMAIL_USER",
-    "EMAIL_PASS",
+    "BREVO_API_KEY",
+    "SENDER_EMAIL",
   ];
 
   const missing = requiredVars.filter((key) => !process.env[key]);

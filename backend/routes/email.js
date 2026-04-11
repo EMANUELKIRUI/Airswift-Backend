@@ -4,20 +4,20 @@ const {
   sendEmailToApplicant,
   sendBulkEmails,
   sendOfferLetter
-} = require('../utils/emailService');
+} = require('../services/emailService');
 const { sendEmail } = require('../services/emailService');
 
 const router = express.Router();
 
 // Test email route (no auth required)
 router.get('/test-email', async (req, res) => {
-  try {
-    await sendEmail("emanuelkirui973@gmail.com", "Test OTP", "Your code is 123456");
-    res.send("Email sent ✅");
-  } catch (err) {
-    console.error(err);
-    res.send("Error ❌");
-  }
+  const success = await sendEmail(
+    'your@email.com',
+    'Test Email',
+    '<h1>Brevo is working ✅</h1>'
+  );
+
+  res.json({ success });
 });
 
 // All email routes require admin authentication

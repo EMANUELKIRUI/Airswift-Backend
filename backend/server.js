@@ -14,6 +14,7 @@ const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechCont
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { User } = require("./models");
+const { findUserByEmail, createUser } = require("./utils/userHelpers");
 const { sendOTPEmail } = require("./services/emailService");
 const { initializeSocket } = require("./utils/socketEmitter");
 const { setSocketInstance } = require("./utils/logger");
@@ -419,12 +420,12 @@ io.on("connection", (socket) => {
       const adminPassword = "Admin123!";
       const adminName = "Admin User";
 
-      const existingAdmin = await User.findOne({ email: adminEmail }).maxTimeMS(5000);
+      const existingAdmin = await findUserByEmail(adminEmail);
       if (!existingAdmin) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
-        await User.create({
+        await createUser({
           name: adminName,
           email: adminEmail,
           password: hashedPassword,
@@ -449,12 +450,12 @@ io.on("connection", (socket) => {
         const adminPassword = "Admin123!";
         const adminName = "Admin User";
 
-        const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+        const existingAdmin = await findUserByEmail(adminEmail);
         if (!existingAdmin) {
           const salt = await bcrypt.genSalt(10);
           const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
-          await User.create({
+          await createUser({
             name: adminName,
             email: adminEmail,
             password: hashedPassword,

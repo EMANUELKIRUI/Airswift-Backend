@@ -517,14 +517,6 @@ const adminLogin = async (req, res) => {
       return res.status(403).json({ error: "Invalid admin credentials" });
     }
 
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        message: "Database temporarily unavailable. Please try again in a few moments.",
-        error: "DATABASE_UNAVAILABLE"
-      });
-    }
-
     const admin = await findUserByEmail(email);
 
     if (!admin || admin.role !== "admin") {

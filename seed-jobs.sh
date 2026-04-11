@@ -9,7 +9,7 @@
 
 BACKEND_URL="http://localhost:5000"
 ADMIN_EMAIL="admin@talex.com"
-ADMIN_PASSWORD="admin123"
+ADMIN_PASSWORD="Admin123!"
 
 echo "🔐 Logging in as admin..."
 LOGIN_RESPONSE=$(curl -s -X POST "$BACKEND_URL/api/auth/login" \

@@ -6,7 +6,7 @@ const User = require('../models/User');
 const Application = require('../models/Application');
 const EmailTemplate = require('../models/EmailTemplate');
 const { createNotification } = require('./notificationController');
-const { sendEmail, renderTemplate } = require('../utils/emailService');
+const { sendEmail, renderTemplate } = require('../services/emailService');
 const { emitDirectMessage } = require('../utils/socketEmitter');
 
 const sendInterviewMessage = async (req, res) => {
