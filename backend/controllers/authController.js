@@ -542,7 +542,7 @@ const adminLogin = async (req, res) => {
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
     res.json({
-      accessToken,
+      token: accessToken,  // ✅ FIX: Use 'token' instead of 'accessToken'
       refreshToken,
       user: {
         id: admin._id,
@@ -693,7 +693,7 @@ const verifyLoginOTP = async (req, res) => {
         role: user.role,
         isVerified: user.isVerified
       },
-      accessToken,
+      token: accessToken,  // ✅ FIX: Use 'token' instead of 'accessToken'
     });
   } catch (err) {
     console.error("VERIFY LOGIN OTP ERROR:", err);

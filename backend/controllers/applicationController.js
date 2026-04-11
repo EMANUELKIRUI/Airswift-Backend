@@ -175,7 +175,9 @@ const applyForJob = async (req, res) => {
 
 const createApplication = async (req, res) => {
   try {
-    const { jobId, nationalId, phone } = req.body;
+    const jobId = req.body.jobId || req.body.job_id;
+    const nationalId = req.body.nationalId || req.body.national_id;
+    const phone = req.body.phone;
 
     if (!jobId || !nationalId || !phone) {
       return res.status(400).json({ message: 'All fields required' });
@@ -249,6 +251,27 @@ const getMyApplications = async (req, res) => {
     });
     res.json(applications);
   } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getApplicationJobs = async (req, res) => {
+  try {
+    const jobs = await Job.findAll({
+      where: { status: 'active' },
+      order: [['title', 'ASC']],
+      attributes: ['id', 'title', 'location'],
+    });
+
+    const formattedJobs = jobs.map((job) => ({
+      _id: job.id.toString(),
+      title: job.title,
+      location: job.location,
+    }));
+
+    res.json({ jobs: formattedJobs });
+  } catch (error) {
+    console.error('getApplicationJobs error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -538,6 +561,7 @@ module.exports = {
   getUserApplications,
   applyForJob,
   getMyApplications,
+  getApplicationJobs,
   getAllApplicationsAdmin,
   downloadCV,
   updateApplicationStatus,

@@ -43,6 +43,7 @@ const router = express.Router();
 
 // User routes
 router.get('/', authMiddleware, getUserApplications);
+router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
 router.post('/', authMiddleware, upload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
