@@ -62,18 +62,37 @@ const registerUser = async (req, res) => {
       }
 
       const otp = generateOTP().toString();
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const hashedVerificationToken = crypto
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
+
       existing.otp = otp;
       existing.otpExpires = Date.now() + 10 * 60 * 1000;
+      existing.verificationToken = hashedVerificationToken;
+      existing.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
       existing.name = name;
       existing.password = await bcrypt.hash(password, 10);
       await existing.save();
 
       let emailSent = false;
       try {
-        await sendOTPEmail(existing.email, otp);
+        const verifyLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+        await sendEmail(
+          existing.email,
+          "Verify Your Account",
+          `
+            <h2>Verify Your Email</h2>
+            <p>Click the button below to verify your account:</p>
+            <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #1f8efa; color: #fff; text-decoration: none; border-radius: 6px;">Verify Email</a>
+            <p>If the button does not work, copy and paste the link below into your browser:</p>
+            <p>${verifyLink}</p>
+          `
+        );
         emailSent = true;
       } catch (error) {
-        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+        console.error(`REGISTER VERIFICATION EMAIL ERROR for ${email}:`, error.message);
       }
 
       return res.status(409).json({
@@ -91,6 +110,11 @@ const registerUser = async (req, res) => {
 
     const otp = generateOTP().toString();
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedVerificationToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
 
     const user = await User.create({
       name,
@@ -99,8 +123,8 @@ const registerUser = async (req, res) => {
       otp,
       otpExpires,
       isVerified: false,
-      verificationToken: null,
-      verificationTokenExpires: null,
+      verificationToken: hashedVerificationToken,
+      verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000,
     });
 
     // Log user registration
@@ -113,10 +137,21 @@ const registerUser = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
+      const verifyLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+      await sendEmail(
+        user.email,
+        "Verify Your Account",
+        `
+          <h2>Verify Your Email</h2>
+          <p>Click the button below to verify your account:</p>
+          <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #1f8efa; color: #fff; text-decoration: none; border-radius: 6px;">Verify Email</a>
+          <p>If the button does not work, copy and paste the link below into your browser:</p>
+          <p>${verifyLink}</p>
+        `
+      );
       emailSent = true;
     } catch (error) {
-      console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+      console.error(`REGISTER VERIFICATION EMAIL ERROR for ${email}:`, error.message);
     }
 
     const responseMessage = emailSent
@@ -298,25 +333,41 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
-    const otp = generateOTP().toString();
-    user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedVerificationToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+    user.verificationToken = hashedVerificationToken;
+    user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    user.otp = null;
+    user.otpExpires = null;
 
     await user.save();
 
     let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
+      const verifyLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+      await sendEmail(
+        user.email,
+        "Verify Your Account",
+        `
+          <h2>Verify Your Email</h2>
+          <p>Click the button below to verify your account:</p>
+          <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #1f8efa; color: #fff; text-decoration: none; border-radius: 6px;">Verify Email</a>
+          <p>If the button does not work, paste this into your browser:</p>
+          <p>${verifyLink}</p>
+        `
+      );
       emailSent = true;
     } catch (error) {
-      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.message);
+      console.error(`RESEND VERIFICATION EMAIL ERROR for ${email}:`, error.message);
     }
 
     const responseMessage = emailSent
-      ? "Verification OTP resent successfully"
-      : "Verification OTP generated, but delivery failed";
+      ? "Verification email resent successfully"
+      : "Verification link generated, but delivery failed";
 
     res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
@@ -392,41 +443,55 @@ const loginUser = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      console.log("LOGIN ATTEMPT - User not verified, sending OTP:", user._id);
+      console.log("LOGIN ATTEMPT - User not verified, sending verification link:", user._id);
 
-      // Generate new OTP for verification
-      const otp = generateOTP().toString();
-      const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const hashedVerificationToken = crypto
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
 
-      // Update user with new OTP
-      user.otp = otp;
-      user.otpExpires = otpExpires;
+      user.verificationToken = hashedVerificationToken;
+      user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      user.otp = null;
+      user.otpExpires = null;
+
       try {
         await user.save();
       } catch (error) {
-        console.error("LOGIN USER DB SAVE ERROR (OTP):", error);
+        console.error("LOGIN USER DB SAVE ERROR (verification token):", error);
         if (isDatabaseError(error)) {
           return res.status(503).json({
             message: "Database temporarily unavailable. Please try again in a few moments.",
             error: "DATABASE_UNAVAILABLE"
           });
         }
-        return res.status(500).json({ message: "Server error during OTP generation" });
+        return res.status(500).json({ message: "Server error during verification token generation" });
       }
 
-      // Send OTP email
       let emailSent = false;
       try {
-        await sendOTPEmail(user.email, otp);
+        const verifyLink = `${process.env.FRONTEND_URL}/verify?token=${verificationToken}`;
+        await sendEmail(
+          user.email,
+          "Verify Your Account",
+          `
+            <h2>Verify Your Email</h2>
+            <p>Click the button below to verify your account:</p>
+            <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #1f8efa; color: #fff; text-decoration: none; border-radius: 6px;">Verify Email</a>
+            <p>If the button does not work, copy and paste this link into your browser:</p>
+            <p>${verifyLink}</p>
+          `
+        );
         emailSent = true;
-        console.log("LOGIN OTP SENT - OTP sent to:", user.email);
+        console.log("LOGIN VERIFICATION EMAIL SENT - sent to:", user.email);
       } catch (error) {
-        console.error(`LOGIN OTP EMAIL ERROR for ${user.email}:`, error.message);
+        console.error(`LOGIN VERIFICATION EMAIL ERROR for ${user.email}:`, error.message);
       }
 
       const responseMessage = emailSent
-        ? "Verification OTP sent to your email. Please verify your account to login."
-        : "Please verify your email first. Check your inbox for the verification OTP.";
+        ? "Verification link sent to your email. Please verify your account to login."
+        : "Please verify your email first. Check your inbox for the verification link.";
 
       return res.status(403).json({
         message: responseMessage,
@@ -751,16 +816,18 @@ const forgotPassword = async (req, res) => {
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
     await user.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
     try {
       await sendEmail(
         user.email,
-        "Reset Password",
+        "Reset Your Password",
         `
           <h2>Password Reset</h2>
-          <p>Click below to reset your password:</p>
-          <a href="${resetUrl}">${resetUrl}</a>
+          <p>Click the button below to reset your password:</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background: #e63946; color: #fff; text-decoration: none; border-radius: 6px;">Reset Password</a>
+          <p>If the button does not work, copy and paste this link into your browser:</p>
+          <p>${resetUrl}</p>
           <p>This link expires in 15 minutes.</p>
         `
       );
