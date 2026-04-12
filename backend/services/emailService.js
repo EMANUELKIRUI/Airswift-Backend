@@ -1,13 +1,5 @@
 const nodemailer = require('nodemailer');
-const Brevo = require('@getbrevo/brevo');
-
-const client = new Brevo.TransactionalEmailsApi();
-if (process.env.BREVO_API_KEY) {
-  client.setApiKey(
-    Brevo.TransactionalEmailsApiApiKeys.apiKey,
-    process.env.BREVO_API_KEY
-  );
-}
+const axios = require('axios');
 
 let nodeFetch;
 const fetch = async (...args) => {
@@ -78,9 +70,18 @@ const sendBrevoEmail = async (to, subject, htmlContent) => {
     htmlContent,
   };
 
-    const response = await client.sendTransacEmail(emailPayload);
+  const response = await axios.post(
+    'https://api.brevo.com/v3/smtp/email',
+    emailPayload,
+    {
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
-  console.log('✅ Brevo email sent:', response?.messageId || response?.message || 'success');
+  console.log('✅ Brevo email sent:', response.data);
   return true;
 };
 

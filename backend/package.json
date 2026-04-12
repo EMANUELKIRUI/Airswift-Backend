@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@emailjs/nodejs": "^5.0.2",
-    "@getbrevo/brevo": "^5.0.3",
     "africastalking": "^0.6.1",
+    "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",
