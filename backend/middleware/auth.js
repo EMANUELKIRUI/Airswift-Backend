@@ -64,23 +64,18 @@ const extractToken = (req) => {
 
 const authMiddleware = (req, res, next) => {
   try {
-    // ✅ FIX 4: Extract token from cookies or Authorization header
-    const token =
-      req.cookies?.token ||
-      req.headers.authorization?.split(" ")[1];
+    const token = extractToken(req);
 
     console.log("👉 AUTH MIDDLEWARE TOKEN:", token ? "✓ EXISTS" : "✗ MISSING");
 
-    // ✅ FIX 5: Graceful error handling - never crash server
     if (!token) {
-      console.warn("⚠️ UNAUTHORIZED: No token found (cookies or Authorization header)");
+      console.warn("⚠️ UNAUTHORIZED: No token found in request");
       return res.status(401).json({ 
         message: "Not authenticated",
         error: "NO_TOKEN"
       });
     }
 
-    // Verify token
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -92,9 +87,15 @@ const authMiddleware = (req, res, next) => {
       });
     }
 
-    console.log("👉 DECODED USER:", decoded.id ? `✓ ID: ${decoded.id}` : "✗ MISSING ID");
+    console.log("👉 DECODED USER:", decoded?.id ? `✓ ID: ${decoded.id}` : "✗ MISSING ID");
 
-    // ✅ FIX 5: Set user on request object (CRITICAL)
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({
+        message: "Invalid token payload",
+        error: "INVALID_TOKEN_PAYLOAD"
+      });
+    }
+
     req.user = decoded;
 
     next();

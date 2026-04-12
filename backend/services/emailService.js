@@ -1,4 +1,13 @@
 const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('@getbrevo/brevo');
+
+const brevoClient = SibApiV3Sdk.ApiClient.instance;
+if (process.env.BREVO_API_KEY) {
+  brevoClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+}
+
+const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
+
 let nodeFetch;
 const fetch = async (...args) => {
   if (!nodeFetch) {
@@ -46,36 +55,37 @@ const sendEmail = async (to, subject, htmlContent) => {
   }
 
   try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          email: process.env.SENDER_EMAIL,
-          name: 'Talex',
-        },
-        to: [{ email: to }],
-        subject,
-        htmlContent,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Brevo error:', data);
-      throw new Error('Email failed');
-    }
-
-    console.log('✅ Email sent:', data);
-    return true;
+    return await sendBrevoEmail(to, subject, htmlContent);
   } catch (error) {
     console.error('❌ Email send error:', error.message);
     return false;
   }
+};
+
+const sendBrevoEmail = async (to, subject, htmlContent) => {
+  if (!process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL) {
+    throw new Error('Brevo configuration missing');
+  }
+
+  const emailPayload = {
+    sender: {
+      email: process.env.SENDER_EMAIL,
+      name: 'Airswift',
+    },
+    to: [{ email: to }],
+    subject,
+    htmlContent,
+  };
+
+  const response = await emailApi.sendTransacEmail(emailPayload);
+
+  if (response && response.messageId) {
+    console.log('✅ Brevo email sent:', response.messageId);
+    return true;
+  }
+
+  console.warn('⚠️ Brevo response missing messageId:', response);
+  return true;
 };
 
 const dispatchEmail = async (to, subject, htmlContent) => {

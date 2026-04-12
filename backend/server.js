@@ -487,6 +487,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 // app.use("/api/auth/google", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
+app.use("/api/admin/audit-logs", require("./routes/audit"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/jobs", require("./routes/jobs"));
