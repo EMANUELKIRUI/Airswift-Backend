@@ -65,16 +65,22 @@ const buildUserFilters = ({ role, isVerified, search }) => {
 };
 
 const getUsers = async ({ page = 1, limit = 50, role, isVerified, search }) => {
-  const offset = (page - 1) * limit;
+  const parsedLimit = parseInt(limit, 10);
+  const parsedPage = Math.max(parseInt(page, 10), 1);
+  const offset = (parsedPage - 1) * parsedLimit;
   const filters = buildUserFilters({ role, isVerified, search });
 
   if (isMongoose) {
-    const users = await UserModel.find(filters)
+    const query = UserModel.find(filters)
       .select('-password -resetToken -resetTokenExpiry -resetPasswordToken -resetPasswordExpire -verificationToken -verificationTokenExpires -otp -otpExpires -refreshToken')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit, 10))
-      .skip(offset)
-      .lean();
+      .sort({ createdAt: -1 });
+
+    let users;
+    if (parsedLimit === 0) {
+      users = await query.lean();
+    } else {
+      users = await query.limit(parsedLimit).skip(offset).lean();
+    }
 
     const total = await UserModel.countDocuments(filters);
 
@@ -82,9 +88,28 @@ const getUsers = async ({ page = 1, limit = 50, role, isVerified, search }) => {
       users,
       pagination: {
         total,
-        page: parseInt(page, 10),
-        pages: Math.ceil(total / limit),
-        limit: parseInt(limit, 10),
+        page: parsedLimit === 0 ? 1 : parsedPage,
+        pages: parsedLimit === 0 ? 1 : Math.ceil(total / parsedLimit),
+        limit: parsedLimit === 0 ? total : parsedLimit,
+      },
+    };
+  }
+
+  if (parsedLimit === 0) {
+    const rows = await UserModel.findAll({
+      where: filters,
+      order: [['createdAt', 'DESC']],
+      attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] },
+      raw: true,
+    });
+
+    return {
+      users: rows,
+      pagination: {
+        total: rows.length,
+        page: 1,
+        pages: 1,
+        limit: rows.length,
       },
     };
   }
@@ -92,8 +117,8 @@ const getUsers = async ({ page = 1, limit = 50, role, isVerified, search }) => {
   const { count, rows } = await UserModel.findAndCountAll({
     where: filters,
     order: [['createdAt', 'DESC']],
-    limit: parseInt(limit, 10),
-    offset: parseInt(offset, 10),
+    limit: parsedLimit,
+    offset,
     attributes: { exclude: ['password', 'resetToken', 'resetTokenExpiry', 'resetPasswordToken', 'resetPasswordExpire', 'verificationToken', 'verificationTokenExpires', 'otp', 'otpExpires', 'refreshToken'] },
   });
 
@@ -101,9 +126,9 @@ const getUsers = async ({ page = 1, limit = 50, role, isVerified, search }) => {
     users: rows.map((user) => user.toJSON()),
     pagination: {
       total: count,
-      page: parseInt(page, 10),
-      pages: Math.ceil(count / limit),
-      limit: parseInt(limit, 10),
+      page: parsedPage,
+      pages: Math.ceil(count / parsedLimit),
+      limit: parsedLimit,
     },
   };
 };
