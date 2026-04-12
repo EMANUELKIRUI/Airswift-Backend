@@ -364,43 +364,27 @@ const loginUser = async (req, res) => {
     }
 
     try {
-      const accessToken = generateAccessToken(user);
-      const refreshToken = generateRefreshToken(user);
-
-      user.refreshToken = refreshToken;
-      await user.save();
-
-      const cookieOptions = buildCookieOptions(req);
-      res.cookie("accessToken", accessToken, cookieOptions);
-      res.cookie("refreshToken", refreshToken, cookieOptions);
+      const token = jwt.sign(
+        { id: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
 
       await auditLog({
         action: "USER_LOGIN",
         userId: user._id,
         entity: "Auth",
         entityId: user._id,
-        details: {
-          email: user.email,
-        },
-        req
+        details: { email: user.email }
       });
 
-      return res.status(200).json({
+      return res.json({
         success: true,
-        token: accessToken,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isVerified: user.isVerified,
-          has_submitted: user.has_submitted || false,
-        },
-        has_submitted: user.has_submitted || false,
-        redirect_to: (user.has_submitted || false) ? '/dashboard' : '/application-form'
+        token,
+        user
       });
     } catch (err) {
-      console.error("LOGIN ERROR:", err);
+      console.error("AUTH ERROR:", err);
       return res.status(500).json({ message: err.message });
     }
   } catch (err) {

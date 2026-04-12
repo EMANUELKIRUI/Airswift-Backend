@@ -98,7 +98,7 @@ const deleteSetting = async (req, res) => {
   }
 };
 
-const { Application, Job, User, Interview, AuditLog } = require('../models');
+const { Application, Job, User, Interview, AuditLog, Payment } = require('../models');
 
 // Check if User is a Mongoose model
 const isMongooseModel = Boolean(User.schema);
