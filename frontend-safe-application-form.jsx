@@ -226,11 +226,14 @@ const SafeApplicationForm = () => {
     } catch (err) {
       console.error('❌ Application submission error:', err);
 
+      const backendData = err.response?.data || {};
+      const backendMessage = backendData.message || backendData.error;
+
       // ✅ FIX 6: Handle different error types
       let errorMessage = 'Failed to submit application. Please try again.';
 
       if (err.response?.status === 400) {
-        errorMessage = `❌ ${err.response?.data?.message || 'Invalid form data'}`;
+        errorMessage = `❌ ${backendMessage || 'Invalid form data'}`;
       } else if (err.response?.status === 401) {
         errorMessage = '❌ Your session has expired. Please log in again.';
         setTimeout(() => window.location.href = '/login', 2000);
@@ -240,8 +243,8 @@ const SafeApplicationForm = () => {
         errorMessage = '❌ Server error. Please try again later.';
       } else if (err.message === 'Network Error') {
         errorMessage = '❌ Network error. Check your connection.';
-      } else if (err.response?.data?.message) {
-        errorMessage = `❌ ${err.response.data.message}`;
+      } else if (backendMessage) {
+        errorMessage = `❌ ${backendMessage}`;
       }
 
       setError(errorMessage);

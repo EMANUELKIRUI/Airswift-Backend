@@ -1,6 +1,7 @@
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 const dns = require('dns');
+const sendEmailViaBrevo = require('./sendEmail');
 
 // Force IPv4
 dns.setDefaultResultOrder("ipv4first");
@@ -38,7 +39,18 @@ console.log(
  * @param {string} html - Email HTML content
  * @returns {Promise} - Nodemailer response
  */
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (to, subject, html, options = {}) => {
+  if (process.env.BREVO_API_KEY) {
+    return sendEmailViaBrevo({
+      to,
+      subject,
+      html,
+      type: options.type || 'other',
+      sentBy: options.sentBy || null,
+      req: options.req || null,
+    });
+  }
+
   try {
     const result = await transporter.sendMail({
       from: `"TALEX" <${process.env.EMAIL_USER}>`,

@@ -82,6 +82,22 @@ const authMiddleware = (req, res, next) => {
         return res.status(401).json({ message: "User not found" });
       }
 
+      // 🚫 Block banned users
+      if (user.status === "banned") {
+        return res.status(403).json({ 
+          message: "Account banned",
+          error: "ACCOUNT_BANNED"
+        });
+      }
+
+      // 🚫 Block suspended users
+      if (user.status === "suspended") {
+        return res.status(403).json({ 
+          message: "Account suspended",
+          error: "ACCOUNT_SUSPENDED"
+        });
+      }
+
       req.user = user;
 
       next();

@@ -15,6 +15,8 @@ const {
   scheduleInterview,
   markInterviewAttended,
   uploadApplicantDocs,
+  verifyApplicationDocuments,
+  shortlistApplication,
 } = require('../controllers/applicationController');
 const { verifyToken } = require('../middleware/auth');
 const { authMiddleware } = require('../middleware/authMiddleware');
@@ -90,6 +92,8 @@ router.post('/:id/attend-interview', verifyToken, markInterviewAttended);
 router.get('/admin/all', verifyToken, adminOnly, getAllApplicationsAdmin);
 router.get('/:id/download', verifyToken, adminOnly, downloadCV);
 router.put('/:id/status', verifyToken, adminOnly, updateApplicationStatus);
+router.patch('/admin/:id/verify-documents', verifyToken, adminOnly, verifyApplicationDocuments);
+router.patch('/admin/:id/shortlist', verifyToken, adminOnly, shortlistApplication);
 router.post('/admin/message-applicants', verifyToken, adminOnly, sendMessageToApplicants);
 router.post('/admin/:id/schedule-interview', verifyToken, adminOnly, scheduleInterview);
 

@@ -1,5 +1,7 @@
 const { AuditLog, User } = require('../models');
 const { Op } = require('sequelize');
+const { Parser } = require('json2csv');
+const PDFDocument = require('pdfkit');
 
 // Get audit logs with filtering
 const getAuditLogs = async (req, res) => {
@@ -10,6 +12,9 @@ const getAuditLogs = async (req, res) => {
       action,
       resource,
       user_id,
+      adminId,
+      from,
+      to,
       start_date,
       end_date,
     } = req.query;
@@ -20,9 +25,12 @@ const getAuditLogs = async (req, res) => {
     if (action) whereClause.action = action;
     if (resource) whereClause.resource = resource;
     if (user_id) whereClause.user_id = user_id;
+    if (adminId) whereClause.user_id = adminId;
 
-    if (start_date || end_date) {
+    if (from || to || start_date || end_date) {
       whereClause.created_at = {};
+      if (from) whereClause.created_at[Op.gte] = new Date(from);
+      if (to) whereClause.created_at[Op.lte] = new Date(to);
       if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
       if (end_date) whereClause.created_at[Op.lte] = new Date(end_date);
     }
@@ -105,7 +113,99 @@ const getAuditStats = async (req, res) => {
   }
 };
 
+const buildAuditFilter = (query) => {
+  const {
+    action,
+    resource,
+    user_id,
+    adminId,
+    from,
+    to,
+    start_date,
+    end_date,
+  } = query;
+
+  const whereClause = {};
+  if (action) whereClause.action = action;
+  if (resource) whereClause.resource = resource;
+  if (user_id) whereClause.user_id = user_id;
+  if (adminId) whereClause.user_id = adminId;
+
+  if (from || to || start_date || end_date) {
+    whereClause.created_at = {};
+    if (from) whereClause.created_at[Op.gte] = new Date(from);
+    if (to) whereClause.created_at[Op.lte] = new Date(to);
+    if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+    if (end_date) whereClause.created_at[Op.lte] = new Date(end_date);
+  }
+
+  return whereClause;
+};
+
+const exportAuditCsv = async (req, res) => {
+  try {
+    const whereClause = buildAuditFilter(req.query);
+    const logs = await AuditLog.findAll({ where: whereClause, order: [['created_at', 'DESC']] });
+    const parser = new Parser({
+      fields: [
+        'id',
+        'user_id',
+        'action',
+        'resource',
+        'details',
+        'description',
+        'ip_address',
+        'device',
+        'location',
+        'status',
+        'created_at',
+      ],
+    });
+    const csv = parser.parse(logs.map((log) => log.toJSON()));
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('audit-logs.csv');
+    res.send(csv);
+  } catch (error) {
+    console.error('exportAuditCsv error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const exportAuditPdf = async (req, res) => {
+  try {
+    const whereClause = buildAuditFilter(req.query);
+    const logs = await AuditLog.findAll({ where: whereClause, order: [['created_at', 'DESC']] });
+
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="audit-logs.pdf"');
+
+    doc.pipe(res);
+    doc.fontSize(18).text('Audit Logs', { align: 'center' });
+    doc.moveDown();
+
+    logs.forEach((log) => {
+      const item = log.toJSON();
+      doc.fontSize(10).text(`Date: ${new Date(item.created_at).toISOString()}`);
+      doc.text(`Action: ${item.action}`);
+      doc.text(`Admin/User: ${item.user_id || 'N/A'}`);
+      doc.text(`Resource: ${item.resource || 'N/A'}`);
+      doc.text(`Status: ${item.status}`);
+      doc.text(`Description: ${item.description || 'N/A'}`);
+      doc.moveDown();
+    });
+
+    doc.end();
+  } catch (error) {
+    console.error('exportAuditPdf error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAuditLogs,
   getAuditStats,
+  exportAuditCsv,
+  exportAuditPdf,
 };

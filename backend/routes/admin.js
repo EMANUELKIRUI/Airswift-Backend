@@ -26,6 +26,9 @@ const {
   updateUser,
   deactivateUser,
   activateUser,
+  banUser,
+  suspendUser,
+  reactivateUser,
   changeUserRole,
   deleteUser,
   getSystemHealth,
@@ -38,6 +41,7 @@ const {
   bulkChangeUserRoles,
   impersonateUser,
   getAuditLogs,
+  getEmailLogs,
   exportAuditLogs,
   getAuditStats,
 } = require('../controllers/adminController');
@@ -165,6 +169,9 @@ router.get('/users/:id', verifyToken, adminOnly, getUserById);
 router.put('/users/:id', verifyToken, adminOnly, updateUser);
 router.patch('/users/:id/deactivate', verifyToken, adminOnly, deactivateUser);
 router.patch('/users/:id/activate', verifyToken, adminOnly, activateUser);
+router.patch('/users/:id/ban', verifyToken, adminOnly, banUser);
+router.patch('/users/:id/suspend', verifyToken, adminOnly, suspendUser);
+router.patch('/users/:id/reactivate', verifyToken, adminOnly, reactivateUser);
 router.patch('/users/:id/role', verifyToken, adminOnly, changeUserRole);
 router.post('/users/:id/impersonate', verifyToken, adminOnly, impersonateUser);
 router.patch('/users/bulk-status', verifyToken, adminOnly, bulkUpdateUserStatus);
@@ -186,6 +193,7 @@ router.get('/payments/stats', verifyToken, adminOnly, getPaymentStats);
 
 // Audit Log routes
 router.get('/audit/logs', verifyToken, adminOnly, getAuditLogs);
+router.get('/audit/email-logs', verifyToken, adminOnly, getEmailLogs);
 router.get('/audit/logs/export', verifyToken, adminOnly, exportAuditLogs);
 router.get('/audit/stats', verifyToken, adminOnly, getAuditStats);
 

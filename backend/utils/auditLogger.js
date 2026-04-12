@@ -1,4 +1,4 @@
-const { logAction } = require('../services/auditService');
+const { logAction: logActionService } = require('../services/auditService');
 
 /**
  * Central audit logging function
@@ -133,9 +133,26 @@ const logAuditEvent = async (userId, action, resource, resourceId = null, detail
       status: 'success'
     };
 
-    await logAction(logData);
+    await logActionService(logData);
   } catch (error) {
     console.error('Legacy audit logging error:', error);
+  }
+};
+
+const logAction = async ({ action, performedBy, targetUser, metadata = {}, req }) => {
+  try {
+    await logActionService({
+      userId: performedBy || null,
+      action,
+      entity: 'User',
+      entityId: targetUser || null,
+      details: metadata,
+      description: action,
+      req,
+      status: 'success'
+    });
+  } catch (error) {
+    console.error('Audit log helper failed:', error);
   }
 };
 
@@ -147,6 +164,7 @@ module.exports = {
   logFailedLogin,
   logEmailVerification,
   logPasswordReset,
+  logAction,
   // Legacy export for backward compatibility
   logAuditEvent,
 };

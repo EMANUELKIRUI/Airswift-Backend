@@ -201,6 +201,35 @@ const emitSecurityAlert = (alertData) => {
   io.to('admins').emit('security:alert', payload);
 };
 
+const emitAdminUserUpdate = (payload) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  io.to('admins').emit('user:updated', {
+    ...payload,
+    timestamp: new Date(),
+  });
+};
+
+const emitUserEvent = (userId, event, payload) => {
+  if (!io) {
+    console.warn('Socket.io not initialized');
+    return;
+  }
+
+  if (!userId) {
+    console.warn('emitUserEvent missing userId');
+    return;
+  }
+
+  io.to(`user_${userId}`).emit(event, {
+    ...payload,
+    timestamp: new Date(),
+  });
+};
+
 const emitUserAction = (actionData) => {
   if (!io) {
     console.warn('Socket.io not initialized');
@@ -271,6 +300,8 @@ module.exports = {
   notifyAdminDashboard,
   emitAuditLog,
   emitSecurityAlert,
+  emitAdminUserUpdate,
+  emitUserEvent,
   emitUserAction,
   emitDirectMessage,
   emitNotification,

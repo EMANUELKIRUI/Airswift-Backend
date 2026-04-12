@@ -3,7 +3,9 @@ const { Settings } = require('../models');
 const Notification = require('../models/Notification');
 const Message = require('../models/Message');
 const AuditLogMongo = require('../models/AuditLogMongo');
+const EmailLog = require('../models/EmailLog');
 const { createNotification } = require('./notificationController');
+const { emitAdminUserUpdate } = require('../utils/socketEmitter');
 
 // Validation schemas
 const settingsSchema = Joi.object({
@@ -1180,6 +1182,178 @@ const activateUser = async (req, res) => {
   }
 };
 
+// 🔴 BAN USER - Permanent status
+const banUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Find user
+    let user;
+    if (isMongooseModel) {
+      user = await User.findById(id);
+    } else {
+      user = await User.findByPk(id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent banning admins
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Cannot ban admin accounts" });
+    }
+
+    // Prevent self-ban
+    if (req.user.id === user._id?.toString()) {
+      return res.status(400).json({ message: "You cannot ban yourself" });
+    }
+
+    // Update user status
+    user.status = "banned";
+    await user.save();
+
+    emitAdminUserUpdate({
+      type: 'BAN_USER',
+      userId: user._id?.toString() || user.id,
+      adminId: req.user.id,
+      status: 'banned'
+    });
+
+    // Send ban notification email when possible
+    try {
+      const { sendEmail } = require('../utils/email');
+      await sendEmail(user.email, 'Account Banned - Talex Platform', `<h2>Your account has been banned</h2><p>${reason || 'Your account has been banned by an administrator.'}</p>`, {
+        type: 'ban',
+        sentBy: req.user.id,
+        req,
+      });
+    } catch (emailErr) {
+      console.error('Ban email error:', emailErr.message || emailErr);
+    }
+
+    // Log audit event
+    try {
+      await logAuditEvent(req.user.id, 'user_banned', 'user', id, { reason }, req);
+    } catch (auditErr) {
+      console.error('Audit log error:', auditErr);
+    }
+
+    res.json({ 
+      success: true, 
+      message: "User banned successfully",
+      user: { id: user._id, email: user.email, status: user.status }
+    });
+  } catch (error) {
+    console.error('banUser error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// 🟡 SUSPEND USER - Temporary status
+const suspendUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Find user
+    let user;
+    if (isMongooseModel) {
+      user = await User.findById(id);
+    } else {
+      user = await User.findByPk(id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Prevent suspending admins
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Cannot suspend admin accounts" });
+    }
+
+    // Prevent self-suspend
+    if (req.user.id === user._id?.toString()) {
+      return res.status(400).json({ message: "You cannot suspend yourself" });
+    }
+
+    // Update user status
+    user.status = "suspended";
+    await user.save();
+
+    emitAdminUserUpdate({
+      type: 'SUSPEND_USER',
+      userId: user._id?.toString() || user.id,
+      adminId: req.user.id,
+      status: 'suspended'
+    });
+
+    // Log audit event
+    try {
+      await logAuditEvent(req.user.id, 'user_suspended', 'user', id, { reason }, req);
+    } catch (auditErr) {
+      console.error('Audit log error:', auditErr);
+    }
+
+    res.json({ 
+      success: true, 
+      message: "User suspended successfully",
+      user: { id: user._id, email: user.email, status: user.status }
+    });
+  } catch (error) {
+    console.error('suspendUser error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// 🟢 REACTIVATE USER (status back to active)
+const reactivateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find user
+    let user;
+    if (isMongooseModel) {
+      user = await User.findById(id);
+    } else {
+      user = await User.findByPk(id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update user status
+    user.status = "active";
+    await user.save();
+
+    emitAdminUserUpdate({
+      type: 'REACTIVATE_USER',
+      userId: user._id?.toString() || user.id,
+      adminId: req.user.id,
+      status: 'active'
+    });
+
+    // Log audit event
+    try {
+      await logAuditEvent(req.user.id, 'user_reactivated', 'user', id, {}, req);
+    } catch (auditErr) {
+      console.error('Audit log error:', auditErr);
+    }
+
+    res.json({ 
+      success: true, 
+      message: "User reactivated successfully",
+      user: { id: user._id, email: user.email, status: user.status }
+    });
+  } catch (error) {
+    console.error('reactivateUser error:', error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const changeUserRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1233,8 +1407,53 @@ const bulkChangeUserRoles = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   try {
-    await userManagementService.softDeleteUser(req.params.id, req.body.reason || 'Admin action', req.user.id, req);
-    res.json({ message: 'User deleted successfully' });
+    const userId = req.params.id;
+    const adminId = req.user.id;
+    
+    // Get the user to delete
+    let user;
+    if (isMongooseModel) {
+      user = await User.findById(userId);
+    } else {
+      user = await User.findByPk(userId);
+    }
+
+    // 1. Check if user exists
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2. CRITICAL: Prevent admin from deleting themselves
+    const userIdString = user._id ? user._id.toString() : user.id.toString();
+    const adminIdString = adminId ? adminId.toString() : adminId;
+    
+    if (adminIdString === userIdString) {
+      return res.status(400).json({ 
+        message: "You cannot delete yourself. Contact another admin to delete your account." 
+      });
+    }
+
+    // 3. CRITICAL: Prevent deleting other admins
+    if (user.role === "admin") {
+      return res.status(403).json({ 
+        message: "Cannot delete another admin account. Contact system administrator." 
+      });
+    }
+
+    // 4. Perform soft delete
+    await userManagementService.softDeleteUser(userId, req.body.reason || 'Admin action', adminId, req);
+
+    emitAdminUserUpdate({
+      type: 'DELETE_USER',
+      userId: userId,
+      adminId: req.user.id,
+      reason: req.body.reason || 'Admin action'
+    });
+    
+    res.json({ 
+      success: true,
+      message: "User deleted successfully" 
+    });
   } catch (error) {
     console.error('deleteUser error:', error);
     if (error.message === 'User not found') {
@@ -1585,6 +1804,36 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
+const getEmailLogs = async (req, res) => {
+  try {
+    const { type, status, page = 1, limit = 100 } = req.query;
+    const query = {};
+
+    if (type) query.type = type;
+    if (status) query.status = status;
+
+    const logs = await EmailLog.find(query)
+      .populate('sentBy', 'email name')
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip((page - 1) * Number(limit));
+
+    const total = await EmailLog.countDocuments(query);
+
+    res.json({
+      success: true,
+      count: logs.length,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
+      logs,
+    });
+  } catch (error) {
+    console.error('getEmailLogs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Export audit logs as CSV
 const exportAuditLogs = async (req, res) => {
   try {
@@ -1698,6 +1947,9 @@ module.exports = {
   updateUser,
   deactivateUser,
   activateUser,
+  banUser,
+  suspendUser,
+  reactivateUser,
   changeUserRole,
   impersonateUser,
   bulkUpdateUserStatus,
@@ -1710,6 +1962,7 @@ module.exports = {
   updatePaymentStatus,
   getPaymentStats,
   getAuditLogs,
+  getEmailLogs,
   exportAuditLogs,
   getAuditStats
 };

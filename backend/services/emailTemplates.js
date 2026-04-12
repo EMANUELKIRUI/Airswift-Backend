@@ -68,6 +68,23 @@ const statusEmailTemplate = (application) => {
   return emailLayout(content, 'Application Update');
 };
 
+const sendShortlistEmail = async ({ email, name, interviewDate, jobTitle }) => {
+  if (!email) {
+    throw new Error('Applicant email is required for shortlist notification');
+  }
+
+  const formattedDate = interviewDate ? new Date(interviewDate).toDateString() : 'TBD';
+  const html = emailLayout(`
+    <p>Dear ${name || 'Applicant'},</p>
+    <p>We are pleased to inform you that you have been <strong>shortlisted</strong> for the next stage of the recruitment process.</p>
+    <p><strong>Interview Date:</strong> ${formattedDate}</p>
+    <p>Please ensure your documents are verified before the interview.</p>
+    <p>Best regards,<br/>Talent Team</p>
+  `, '🎉 Congratulations! You’ve been shortlisted');
+
+  await sendEmail(email, '🎉 Congratulations! You’ve been shortlisted', html);
+};
+
 const sendStatusEmail = async (application) => {
   const email = application.email;
   if (!email) {
@@ -78,4 +95,4 @@ const sendStatusEmail = async (application) => {
   await sendEmail(email, 'Application Update', html);
 };
 
-module.exports = { sendStatusEmail, otpEmailTemplate, statusEmailTemplate };
+module.exports = { sendStatusEmail, sendShortlistEmail, otpEmailTemplate, statusEmailTemplate };

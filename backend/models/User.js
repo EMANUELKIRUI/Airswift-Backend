@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema(
       default: "user",
       enum: ["user", "admin", "recruiter"],
     },
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "suspended", "banned"],
+    },
     has_submitted: {
       type: Boolean,
       default: false,

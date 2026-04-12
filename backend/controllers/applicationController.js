@@ -2,11 +2,12 @@ const Joi = require('joi');
 const { Op } = require('sequelize');
 const { Application, Job, Profile, Payment, User, Notification } = require('../models');
 const { sendEmail, sendStageEmail } = require('../utils/notifications');
-const { sendStatusEmail } = require('../services/emailTemplates');
+const { sendStatusEmail, sendShortlistEmail } = require('../services/emailTemplates');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
 const { logAuditEvent } = require('../utils/auditLogger');
-const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard } = require('../utils/socketEmitter');
+const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard, emitAdminUserUpdate, emitUserEvent } = require('../utils/socketEmitter');
+const Interview = require('../models/Interview');
 const fs = require('fs').promises;
 
 const AuditLog = require("../models/AuditLog");
@@ -496,6 +497,10 @@ const updateApplicationStatus = async (req, res) => {
     const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
     if (!application) return res.status(404).json({ message: 'Application not found' });
 
+    if (status === 'shortlisted' && !application.documentsVerified) {
+      return res.status(400).json({ message: 'Verify documents before shortlisting' });
+    }
+
     const oldStatus = application.status;
     application.status = status;
     await application.save();
@@ -622,6 +627,7 @@ const getAdminStats = async (req, res) => {
   try {
     const total = await Application.count();
     const pending = await Application.count({ where: { status: 'pending' } });
+    const underReview = await Application.count({ where: { status: 'under_review' } });
     const shortlisted = await Application.count({ where: { status: 'shortlisted' } });
     const accepted = await Application.count({ where: { status: 'accepted' } });
     const rejected = await Application.count({ where: { status: 'rejected' } });
@@ -629,6 +635,7 @@ const getAdminStats = async (req, res) => {
     res.json({
       total,
       pending,
+      underReview,
       shortlisted,
       accepted,
       rejected,
@@ -636,6 +643,128 @@ const getAdminStats = async (req, res) => {
   } catch (error) {
     console.error('getAdminStats error:', error);
     res.status(500).json({ message: 'Stats error' });
+  }
+};
+
+const verifyApplicationDocuments = async (req, res) => {
+  try {
+    const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (application.documentsVerified) {
+      return res.status(400).json({ message: 'Application documents already verified' });
+    }
+
+    await application.update({ documentsVerified: true });
+
+    notifyAdminDashboard('documents_verified', {
+      applicationId: application.id,
+      applicantName: application.name || 'Applicant',
+      jobTitle: application.Job?.title || '',
+      status: application.status,
+    });
+
+    await logAuditEvent(req.user.id, 'DOCUMENTS_VERIFIED', 'application', application.id, {
+      applicationId: application.id,
+      jobTitle: application.Job?.title,
+      applicantName: application.name,
+    }, req);
+
+    res.json({ message: 'Application documents verified', application });
+  } catch (error) {
+    console.error('verifyApplicationDocuments error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const shortlistApplication = async (req, res) => {
+  try {
+    const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    if (!application.documentsVerified) {
+      return res.status(400).json({ message: 'Verify documents before shortlisting' });
+    }
+
+    if (application.status === 'shortlisted') {
+      return res.status(400).json({ message: 'Application already shortlisted' });
+    }
+
+    const oldStatus = application.status;
+    const interviewDate = new Date();
+    interviewDate.setDate(interviewDate.getDate() + 2);
+
+    await application.update({ status: 'shortlisted' });
+
+    const interview = await Interview.create({
+      application_id: application.id,
+      interviewer_id: req.user.id,
+      room_id: `interview_${application.id}_${Date.now()}`,
+      scheduled_at: interviewDate,
+      status: 'scheduled',
+    });
+
+    const applicantEmail = application.email || (await User.findById(application.user_id))?.email;
+    const applicantName = application.name || (await User.findById(application.user_id))?.name || 'Applicant';
+
+    if (applicantEmail) {
+      try {
+        await sendShortlistEmail({
+          email: applicantEmail,
+          name: applicantName,
+          interviewDate,
+          jobTitle: application.Job?.title,
+        });
+      } catch (emailError) {
+        console.error('sendShortlistEmail error:', emailError);
+      }
+    }
+
+    emitAdminUserUpdate({
+      type: 'SHORTLIST_APPLICATION',
+      userId: application.user_id,
+      applicationId: application.id,
+      adminId: req.user.id,
+      status: 'shortlisted',
+    });
+
+    emitUserEvent(application.user_id, 'application:shortlisted', {
+      message: 'You have been shortlisted!',
+      interviewDate,
+      applicationId: application.id,
+      jobTitle: application.Job?.title,
+    });
+
+    emitApplicationStatusUpdate({
+      applicationId: application.id,
+      applicantName,
+      jobTitle: application.Job?.title,
+      status: 'shortlisted',
+      updatedBy: req.user.id,
+      email: applicantEmail,
+    });
+
+    emitApplicationPipelineUpdate({
+      applicationId: application.id,
+      oldStatus,
+      newStatus: 'shortlisted',
+      applicantName,
+    });
+
+    await logAuditEvent(req.user.id, 'SHORTLIST_APPLICATION', 'application', application.id, {
+      interviewId: interview.id,
+      interviewDate,
+      applicantEmail,
+    }, req);
+
+    res.json({ message: 'Application shortlisted successfully', application, interview });
+  } catch (error) {
+    console.error('shortlistApplication error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -735,6 +864,8 @@ module.exports = {
   updateApplicationStatus,
   updateApplicationNotes,
   getAdminStats,
+  verifyApplicationDocuments,
+  shortlistApplication,
   sendMessageToApplicants,
   scheduleInterview,
   markInterviewAttended,

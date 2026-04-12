@@ -39,6 +39,22 @@ const applicationSchema = new mongoose.Schema(
       ref: 'Job',
       required: true,
     },
+    nationalId: {
+      type: String,
+      required: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+    },
+    passport: {
+      type: String,
+      required: true,
+    },
+    cv: {
+      type: String,
+      required: true,
+    },
     coverLetter: {
       type: String,
     },

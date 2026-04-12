@@ -14,37 +14,80 @@ const STATUS_FLOW = {
 
 const applyJobSchema = Joi.object({
   jobId: Joi.string().required(),
+  nationalId: Joi.string().required(),
+  phone: Joi.string().required(),
+  passport: Joi.string().required(),
+  cv: Joi.string().required(),
   coverLetter: Joi.string().allow(''),
   resumeSnapshot: Joi.string().allow(''),
 });
 
 const applyJob = async (req, res) => {
   try {
-    const { jobId, coverLetter, resumeSnapshot } = req.body;
-    const { error } = applyJobSchema.validate({ jobId, coverLetter, resumeSnapshot });
-    if (error) return res.status(400).json({ error: error.details[0].message });
+    // 🔍 DEBUG: Log incoming request body
+    console.log('APPLICATION BODY:', req.body);
+    console.log('APPLICATION USER:', req.user);
+
+    const { jobId, nationalId, phone, passport, cv, coverLetter, resumeSnapshot } = req.body;
+    const { error } = applyJobSchema.validate({ jobId, nationalId, phone, passport, cv, coverLetter, resumeSnapshot });
+    
+    if (error) {
+      console.error('VALIDATION ERROR:', error.details[0].message);
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
+    // 🔴 VALIDATION: Check all required fields
+    if (!jobId || !nationalId || !phone || !passport || !cv) {
+      const missing = [];
+      if (!jobId) missing.push('jobId');
+      if (!nationalId) missing.push('nationalId');
+      if (!phone) missing.push('phone');
+      if (!passport) missing.push('passport');
+      if (!cv) missing.push('cv');
+      console.error('MISSING FIELDS:', missing);
+      return res.status(400).json({ message: `All fields are required: ${missing.join(', ')}` });
+    }
 
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
       return res.status(400).json({ error: 'Invalid job ID' });
     }
 
+    console.log('VALIDATING JOB:', jobId);
     const job = await Job.findById(jobId);
-    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job) {
+      console.error('JOB NOT FOUND:', jobId);
+      return res.status(404).json({ message: 'Job not found' });
+    }
 
+    console.log('CHECKING EXISTING APPLICATION:', { userId: req.user.id, jobId });
     const existingApplication = await Application.findOne({ userId: req.user.id, jobId });
     if (existingApplication) {
-      return res.status(400).json({ error: 'Already applied' });
+      console.warn('DUPLICATE APPLICATION:', { userId: req.user.id, jobId });
+      return res.status(400).json({ message: 'Already applied for this job' });
     }
 
     const aiScore = calculateAIScore(req.user, job);
 
+    console.log('CREATING APPLICATION:', {
+      userId: req.user.id,
+      jobId,
+      nationalId,
+      phone,
+      passport: passport.substring(0, 50) + '...',
+      cv: cv.substring(0, 50) + '...',
+    });
+
     const application = await Application.create({
       userId: req.user.id,
       jobId,
+      nationalId,
+      phone,
+      passport,
+      cv,
       coverLetter,
       status: 'Submitted',
       aiScore,
-      resumeSnapshot: resumeSnapshot || req.user.cv || '',
+      resumeSnapshot: resumeSnapshot || cv || req.user.cv || '',
       statusHistory: [
         {
           status: 'Submitted',
@@ -53,6 +96,8 @@ const applyJob = async (req, res) => {
         },
       ],
     });
+
+    console.log('APPLICATION CREATED SUCCESSFULLY:', application._id);
 
     emitNewApplication({
       id: application._id,
@@ -63,10 +108,13 @@ const applyJob = async (req, res) => {
       score: aiScore,
     });
 
-    res.status(201).json({ success: true, application });
+    res.status(201).json({
+      message: 'Application submitted successfully',
+      application
+    });
   } catch (err) {
     console.error('applyJob error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: 'Failed to submit application', error: err.message });
   }
 };
 

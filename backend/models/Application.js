@@ -31,7 +31,24 @@ const Application = sequelize.define('Application', {
   },
   status: {
     type: DataTypes.STRING,
+    allowNull: false,
     defaultValue: 'pending',
+    validate: {
+      isIn: [[
+        'pending',
+        'under_review',
+        'shortlisted',
+        'interview',
+        'accepted',
+        'rejected',
+        'hired'
+      ]]
+    }
+  },
+  documentsVerified: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
   },
   notes: {
     type: DataTypes.TEXT,
