@@ -153,7 +153,14 @@ const verifyRegistrationOTP = async (req, res) => {
       return res.status(400).json({ message: "Account is already verified" });
     }
 
-    if (!user.otp || !(await bcrypt.compare(otp, user.otp))) {
+    const isHashedOtp = typeof user.otp === "string" && /^\$2[aby]\$/.test(user.otp);
+    const otpMatches = user.otp
+      ? isHashedOtp
+        ? await bcrypt.compare(otp, user.otp)
+        : otp === user.otp
+      : false;
+
+    if (!user.otp || !otpMatches) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
