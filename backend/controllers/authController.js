@@ -177,71 +177,50 @@ const registerUser = async (req, res) => {
 
 // ✅ VERIFY REGISTRATION OTP
 const verifyRegistrationOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
+  const { email, otp } = req.body;
 
-    if (!email || !otp) {
+  try {
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : email;
+    const enteredOtp = typeof otp === 'string' ? otp.trim() : String(otp);
+
+    if (!normalizedEmail || !enteredOtp) {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(normalizedEmail);
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     if (user.isVerified) {
       return res.status(400).json({ message: "Account is already verified" });
     }
 
-    const isHashedOtp = typeof user.otp === "string" && /^\$2[aby]\$/.test(user.otp);
-    const otpMatches = user.otp
-      ? isHashedOtp
-        ? await bcrypt.compare(otp, user.otp)
-        : otp === user.otp
-      : false;
+    console.log("Entered OTP:", enteredOtp);
+    console.log("Stored OTP:", user.otp);
 
-    if (!user.otp || !otpMatches) {
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
-
-    if (Date.now() > user.otpExpires) {
+    if (!user.otpExpires || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: "OTP expired" });
     }
 
+    const isMatch = await bcrypt.compare(enteredOtp, user.otp);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
     user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
+    user.otp = undefined;
+    user.otpExpires = undefined;
 
-    const accessToken = generateAccessToken(user);
-    const refreshTokenValue = generateRefreshToken(user);
-
-    user.refreshToken = refreshTokenValue;
     await user.save();
 
-    const cookieOptions = buildCookieOptions(req);
-
-    res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("refreshToken", refreshTokenValue, cookieOptions);
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Account verified successfully",
-      accessToken,
-      refreshToken: refreshTokenValue,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
+      redirect: "login"
     });
   } catch (err) {
-    console.error("VERIFY REGISTRATION OTP ERROR:", err);
-    return res.status(500).json({
-      message: "Server error",
-      error: err.message
-    });
+    console.error("VERIFY OTP ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -688,7 +667,12 @@ const verifyLoginOTP = async (req, res) => {
       });
     }
 
-    if (!user.resetToken || !(await bcrypt.compare(otp, user.resetToken))) {
+    if (!user.resetToken) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.resetToken);
+    if (!isMatch) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
