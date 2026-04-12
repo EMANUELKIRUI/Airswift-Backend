@@ -11,6 +11,7 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHel
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
 const { logUserActivity, logRegistration, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 const { logAction } = require("../utils/logger");
+const auditLog = logAction;
 const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = require("../services/securityService");
 
 const buildCookieOptions = (req) => {
@@ -315,6 +316,10 @@ const loginUser = async (req, res) => {
         await logFailedLogin(req, normalizedEmail);
       } catch (error) {
         console.error("LOGIN FAILED - logFailedLogin error:", error);
+      }
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
     if (!user.isVerified) {
       console.log("LOGIN ATTEMPT - User not verified, sending verification link:", user._id);
 
@@ -358,56 +363,46 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const userId = user._id ? user._id.toString() : user.id;
-    console.log("LOGIN SUCCESS - User found:", userId);
-    // Generate access and refresh tokens
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    // Store refresh token in database
-    user.refreshToken = refreshToken;
     try {
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
+
+      user.refreshToken = refreshToken;
       await user.save();
-    } catch (error) {
-      console.error("LOGIN USER DB SAVE ERROR (refresh token):", error);
-      if (isDatabaseError(error)) {
-        return res.status(503).json({
-          message: "Database temporarily unavailable. Please try again in a few moments.",
-          error: "DATABASE_UNAVAILABLE"
-        });
-      }
-      return res.status(500).json({ message: "Server error during token storage" });
-    }
 
-    const cookieOptions = buildCookieOptions(req);
+      const cookieOptions = buildCookieOptions(req);
+      res.cookie("accessToken", accessToken, cookieOptions);
+      res.cookie("refreshToken", refreshToken, cookieOptions);
 
-    res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("refreshToken", refreshToken, cookieOptions);
+      await auditLog({
+        action: "USER_LOGIN",
+        userId: user._id,
+        entity: "Auth",
+        entityId: user._id,
+        details: {
+          email: user.email,
+        },
+        req
+      });
 
-    console.log("LOGIN SUCCESS - User logged in:", user._id);
-
-    // Log successful login
-    try {
-      await logLogin(user._id, req);
-      await detectNewIP(user, req);
-    } catch (error) {
-      console.error("LOGIN SUCCESS - logLogin error:", error);
-    }
-
-    res.status(200).json({
-      success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
+      return res.status(200).json({
+        success: true,
+        token: accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isVerified: user.isVerified,
+          has_submitted: user.has_submitted || false,
+        },
         has_submitted: user.has_submitted || false,
-      },
-      token: accessToken,
-      has_submitted: user.has_submitted || false,
-      redirect_to: (user.has_submitted || false) ? '/dashboard' : '/application-form'
-    });
+        redirect_to: (user.has_submitted || false) ? '/dashboard' : '/application-form'
+      });
+    } catch (err) {
+      console.error("LOGIN ERROR:", err);
+      return res.status(500).json({ message: err.message });
+    }
   } catch (err) {
     console.error("LOGIN USER ERROR:", err);
     if (isDatabaseError(err)) {
