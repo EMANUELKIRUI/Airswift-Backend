@@ -1,12 +1,13 @@
 const nodemailer = require('nodemailer');
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const Brevo = require('@getbrevo/brevo');
 
-const brevoClient = SibApiV3Sdk.ApiClient.instance;
+const client = new Brevo.TransactionalEmailsApi();
 if (process.env.BREVO_API_KEY) {
-  brevoClient.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+  client.setApiKey(
+    Brevo.TransactionalEmailsApiApiKeys.apiKey,
+    process.env.BREVO_API_KEY
+  );
 }
-
-const emailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 let nodeFetch;
 const fetch = async (...args) => {
@@ -77,14 +78,9 @@ const sendBrevoEmail = async (to, subject, htmlContent) => {
     htmlContent,
   };
 
-  const response = await emailApi.sendTransacEmail(emailPayload);
+    const response = await client.sendTransacEmail(emailPayload);
 
-  if (response && response.messageId) {
-    console.log('✅ Brevo email sent:', response.messageId);
-    return true;
-  }
-
-  console.warn('⚠️ Brevo response missing messageId:', response);
+  console.log('✅ Brevo email sent:', response?.messageId || response?.message || 'success');
   return true;
 };
 
