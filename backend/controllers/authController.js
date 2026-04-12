@@ -60,109 +60,30 @@ const isSequelizeModel = Boolean(User.sequelize);
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
     console.log("REGISTER BODY:", req.body);
 
-    if (!name || !normalizedEmail || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
-    }
-
-    const existing = await findUserByEmail(normalizedEmail);
-
-    if (existing) {
-      if (existing.isVerified) {
-        return res.status(400).json({ message: "User already exists" });
-      }
-
-      const otp = generateOTP().toString();
-      const hashedOtp = await bcrypt.hash(otp, 10);
-
-      existing.otp = hashedOtp;
-      existing.otpExpires = Date.now() + 10 * 60 * 1000;
-      existing.verificationToken = null;
-      existing.verificationTokenExpires = null;
-      existing.name = name;
-      existing.password = await bcrypt.hash(password, 10);
-      await existing.save();
-
-      let emailSent = false;
-      try {
-        await sendOTP(existing.email, otp);
-        emailSent = true;
-      } catch (error) {
-        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.response?.data || error.message);
-      }
-
-      return res.status(409).json({
-        message: "Email already exists - not verified",
-        error: "EMAIL_NOT_VERIFIED",
-        unverified: true,
-        redirect: "/verify-otp",
-        email: existing.email,
-        otpSent: emailSent,
-      });
-    }
-
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const otp = generateOTP().toString();
-    const hashedOtp = await bcrypt.hash(otp, 10);
-    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
     const user = await User.create({
       name,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: "user", // Explicitly set role to user - no admin accounts allowed
-      otp: hashedOtp,
-      otpExpires,
-      isVerified: false,
-      verificationToken: null,
-      verificationTokenExpires: null,
+      email,
+      password,
+      otp,
+      otpExpires: Date.now() + 10 * 60 * 1000,
     });
 
-    // Log user registration
-    await logEvent({
-      userId: user._id,
-      action: "REGISTER",
-      details: `User registered: ${user.email}`,
+    console.log("🚀 Calling sendOTP for:", email);
+
+    await sendOTP(email, otp); // ✅ THIS LINE IS CRITICAL
+
+    res.status(201).json({
+      message: "User registered. OTP sent to email",
+      email,
     });
-
-    console.log('🚀 Calling sendOTP for:', user.email);
-
-    let emailSent = false;
-    try {
-      await sendOTP(user.email, otp);
-      emailSent = true;
-    } catch (error) {
-      console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.response?.data || error.message);
-    }
-
-    const responseMessage = emailSent
-      ? "Verification OTP sent"
-      : "User registered, but verification OTP could not be delivered";
-
-    res.status(emailSent ? 200 : 201).json({
-      message: responseMessage,
-      otpSent: emailSent,
-      redirect: "/verify-otp",
-      email: user.email,
-      user: {
-        _id: user._id,
-        role: user.role || "user",
-        has_submitted: user.has_submitted || false,
-      },
-    });
-  } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    return res.status(500).json({
-      message: "Server error",
-      error: err.message
-    });
+  } catch (error) {
+    console.error("REGISTER ERROR:", error);
+    res.status(500).json({ message: "Registration failed" });
   }
 };
 
