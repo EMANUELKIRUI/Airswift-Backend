@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const User = require('../models/User');
 
 const normalizeToken = (token) => {
   if (!token || typeof token !== 'string') return null;
@@ -64,44 +65,30 @@ const extractToken = (req) => {
 
 // ✅ FIX 5: Enhanced middleware with proper error handling
 const authMiddleware = (req, res, next) => {
-  try {
-    // ✅ FIX 4: Try both cookies and Authorization header
-    const token = extractToken(req);
-
-    console.log("👉 AUTH TOKEN CHECK:", token ? "✓ EXISTS" : "✗ MISSING");
-
-    if (!token) {
-      console.warn("⚠️ UNAUTHORIZED: No token found");
-      return res.status(401).json({ 
-        error: "Unauthorized",
-        message: "No token provided"
-      });
-    }
-
-    // Verify token
-    let decoded;
+  (async () => {
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (tokenError) {
-      console.error("⚠️ TOKEN VERIFICATION FAILED:", tokenError.message);
-      return res.status(401).json({ 
-        error: "Invalid token",
-        message: tokenError.message
-      });
+      const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+
+      if (!token) {
+        return res.status(401).json({ message: "No token" });
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // 🔥 IMPORTANT: fetch full user
+      const user = await User.findById(decoded.id);
+
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      req.user = user;
+
+      next();
+    } catch (err) {
+      res.status(401).json({ message: "Invalid token" });
     }
-
-    // ✅ FIX 5: Set user on request object (CRITICAL - prevents crashes)
-    req.user = decoded;
-    console.log("✓ User authenticated:", decoded.id);
-
-    next();
-  } catch (error) {
-    console.error("❌ AUTH MIDDLEWARE ERROR:", error.message);
-    return res.status(401).json({ 
-      error: "Authentication failed",
-      message: error.message
-    });
-  }
+  })().catch(next);
 };
 
 // ✅ FIX 5: Verify user role with req.user validation

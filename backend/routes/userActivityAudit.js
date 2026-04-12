@@ -5,14 +5,15 @@ const {
   getSuspiciousActivities,
   cleanupAuditLogs,
 } = require('../controllers/userActivityAuditController');
-const adminMiddleware = require('../middleware/admin');
+const { authMiddleware } = require('../middleware/authMiddleware');
+const adminOnly = require('../middleware/admin');
 
 const router = express.Router();
 
-// All audit routes require admin access
-router.get('/', adminMiddleware, getAuditLogs);
-router.get('/export', adminMiddleware, exportAuditLogs);
-router.get('/suspicious', adminMiddleware, getSuspiciousActivities);
-router.delete('/cleanup', adminMiddleware, cleanupAuditLogs);
+// All audit routes require authentication and admin access
+router.get('/', authMiddleware, adminOnly, getAuditLogs);
+router.get('/export', authMiddleware, adminOnly, exportAuditLogs);
+router.get('/suspicious', authMiddleware, adminOnly, getSuspiciousActivities);
+router.delete('/cleanup', authMiddleware, adminOnly, cleanupAuditLogs);
 
 module.exports = router;

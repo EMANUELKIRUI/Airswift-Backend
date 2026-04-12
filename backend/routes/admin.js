@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const { verifyToken } = require('../middleware/auth');
 const adminOnly = require('../middleware/admin');
-const { adminLogin } = require('../controllers/authController');
+// const { adminLogin } = require('../controllers/authController'); // Removed - admin uses regular login
 const {
   getAllApplications,
   updateStatus,
@@ -91,8 +91,8 @@ const interviewUpload = multer({
 
 const router = express.Router();
 
-// Admin auth route
-router.post('/login', adminLogin);
+// Admin auth route - REMOVED: Admin uses regular /api/auth/login endpoint
+// router.post('/login', adminLogin);
 
 // Settings routes
 router.get('/settings', verifyToken, adminOnly, getAllSettings);

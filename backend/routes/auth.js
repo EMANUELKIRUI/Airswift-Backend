@@ -13,7 +13,7 @@ const {
   resetPassword,
   refreshToken,
   logout,
-  adminLogin
+  // adminLogin // Removed - admin uses regular login
 } = require("../controllers/authController");
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
 const { findUserById } = require("../utils/userHelpers");
@@ -33,7 +33,7 @@ router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
 router.post("/login", loginLimiter, loginUser);
-router.post("/admin-login", adminLogin);
+// router.post("/admin-login", adminLogin); // Removed - admin uses regular login
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);

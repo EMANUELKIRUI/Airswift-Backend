@@ -423,7 +423,8 @@ const loginUser = async (req, res) => {
   }
 };
 
-// ✅ ADMIN LOGIN
+// ✅ ADMIN LOGIN - REMOVED: Admin now uses regular login endpoint
+/*
 const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -508,6 +509,7 @@ const adminLogin = async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 };
+*/
 
 // ✅ SEND LOGIN OTP
 const sendLoginOTP = async (req, res) => {
@@ -922,5 +924,5 @@ module.exports = {
   resetPassword,
   refreshToken,
   logout,
-  adminLogin
+  // adminLogin // Removed - admin uses regular login
 };
