@@ -125,9 +125,47 @@ const registerUser = async (req, res) => {
   } catch (error) {
     console.error("REGISTER ERROR:", error);
 
-    if (error && error.code === 11000) {
+    const isDuplicateKeyError = error && (
+      error.code === 11000 ||
+      error.codeName === "DuplicateKey" ||
+      /duplicate key/i.test(error.message || "")
+    );
+
+    if (isDuplicateKeyError) {
+      const duplicateEmail = normalizedEmail || (error.keyValue && error.keyValue.email) || email;
+      const existingUser = await User.findOne({ email: duplicateEmail });
+
+      if (existingUser) {
+        if (existingUser.isVerified) {
+          return res.status(200).json({
+            message: "Account already exists. Please login.",
+            redirect: "login",
+            email: duplicateEmail,
+          });
+        }
+
+        const otp = generateOTP().toString();
+        existingUser.otp = await bcrypt.hash(otp, 10);
+        existingUser.otpExpires = Date.now() + 10 * 60 * 1000;
+        await existingUser.save();
+
+        try {
+          await sendOTP(duplicateEmail, otp);
+        } catch (err) {
+          console.error("⚠️ RESEND OTP FAILED AFTER DUPLICATE ERROR:", err.message);
+        }
+
+        return res.status(200).json({
+          message: "OTP resent. Please verify your account.",
+          redirect: "verify",
+          email: duplicateEmail,
+        });
+      }
+
       return res.status(400).json({
         message: "Email already registered",
+        redirect: "login",
+        email: duplicateEmail,
       });
     }
 
