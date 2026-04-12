@@ -448,7 +448,7 @@ app.use(maintenanceMode);
 
 // Root route
 app.get('/', (req, res) => {
-  res.status(200).send('Server is healthy');
+  res.status(200).json({ message: 'Server is healthy' });
 });
 
 // Health check route
@@ -512,10 +512,9 @@ app.use("/api/email", require("./routes/email"));
 
 // Global error handler for unexpected failures
 app.use((err, req, res, next) => {
-  console.error('UNHANDLED SERVER ERROR:', err?.stack || err);
+  console.error('GLOBAL ERROR:', err);
   res.status(500).json({
-    error: err?.message || 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? err?.stack : undefined,
+    message: err?.message || 'Server error',
   });
 });
 
