@@ -70,19 +70,24 @@ const sendBrevoEmail = async (to, subject, htmlContent) => {
     htmlContent,
   };
 
-  const response = await axios.post(
-    'https://api.brevo.com/v3/smtp/email',
-    emailPayload,
-    {
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  try {
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      emailPayload,
+      {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  console.log('✅ Brevo email sent:', response.data);
-  return true;
+    console.log('✅ Brevo email sent:', response.data);
+    return true;
+  } catch (error) {
+    console.error('❌ Brevo Error:', error.response?.data || error.message);
+    throw error;
+  }
 };
 
 const dispatchEmail = async (to, subject, htmlContent) => {
@@ -95,6 +100,7 @@ const dispatchEmail = async (to, subject, htmlContent) => {
 
 const sendOTPEmail = async (email, otp) => {
   try {
+    console.log('📧 Sending OTP to:', email);
     const subject = 'OTP Verification';
     const html = `
 <html>
@@ -112,7 +118,7 @@ const sendOTPEmail = async (email, otp) => {
     return true;
 
   } catch (error) {
-    console.error(`❌ Failed to send OTP to ${email}:`, error.message);
+    console.error(`❌ Failed to send OTP to ${email}:`, error.response?.data || error.message);
     throw error;
   }
 };

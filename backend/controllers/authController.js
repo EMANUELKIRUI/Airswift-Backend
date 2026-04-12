@@ -132,12 +132,14 @@ const registerUser = async (req, res) => {
       details: `User registered: ${user.email}`,
     });
 
+    console.log('🚀 Calling sendOTP for:', user.email);
+
     let emailSent = false;
     try {
       await sendOTPEmail(user.email, otp);
       emailSent = true;
     } catch (error) {
-      console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+      console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.response?.data || error.message);
     }
 
     const responseMessage = emailSent
