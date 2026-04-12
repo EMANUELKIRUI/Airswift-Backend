@@ -368,7 +368,8 @@
                     <label for="actionFilter">Action Type</label>
                     <select id="actionFilter">
                         <option value="">All Actions</option>
-                        <option value="LOGIN">Login</option>
+                        <option value="LOGIN">User Login</option>
+                        <option value="ADMIN_LOGIN">Admin Login</option>
                         <option value="REGISTER">Registration</option>
                         <option value="LOGOUT">Logout</option>
                         <option value="FAILED_LOGIN">Failed Login</option>
@@ -385,6 +386,11 @@
                 <div class="filter-group">
                     <label for="ipFilter">IP Address</label>
                     <input type="text" id="ipFilter" placeholder="192.168.1.1">
+                </div>
+
+                <div class="filter-group">
+                    <label for="locationFilter">Location</label>
+                    <input type="text" id="locationFilter" placeholder="Kenya, USA, etc...">
                 </div>
 
                 <div class="filter-group">
@@ -428,6 +434,7 @@
                         <th>User</th>
                         <th>Action</th>
                         <th>IP Address</th>
+                        <th>Location</th>
                         <th>Device</th>
                         <th>Date & Time</th>
                         <th>Status</th>
@@ -538,7 +545,7 @@
             tbody.innerHTML = '';
 
             if (auditLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #666;">No audit logs found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #666;">No audit logs found</td></tr>';
                 return;
             }
 
@@ -565,7 +572,11 @@
 
                 // IP Address
                 const ipCell = document.createElement('td');
-                ipCell.innerHTML = `<span class="ip-address">${log.ip_address}</span>`;
+                ipCell.innerHTML = `<span class="ip-address" title="${log.ip_address}">${log.ip_address}</span>`;
+
+                // Location
+                const locationCell = document.createElement('td');
+                locationCell.innerHTML = `<span style="font-size: 12px;"><i class="fas fa-map-marker-alt"></i> ${log.location || 'Unknown'}</span>`;
 
                 // Device info
                 const deviceCell = document.createElement('td');
@@ -574,7 +585,7 @@
                     <div class="device-info">
                         <div><i class="fab fa-${getBrowserIcon(device.browser)}"></i> ${device.browser || 'Unknown'}</div>
                         <div><i class="fas fa-${device.device === 'Mobile' ? 'mobile' : 'desktop'}"></i> ${device.device || 'Unknown'}</div>
-                        <div><i class="fas fa-cogs"></i> ${device.os || 'Unknown'}</div>
+                        <div style="font-size: 11px;"><i class="fas fa-cogs"></i> ${device.os || 'Unknown'}</div>
                     </div>
                 `;
 
@@ -597,6 +608,7 @@
                 row.appendChild(userCell);
                 row.appendChild(actionCell);
                 row.appendChild(ipCell);
+                row.appendChild(locationCell);
                 row.appendChild(deviceCell);
                 row.appendChild(dateCell);
                 row.appendChild(statusCell);
@@ -643,6 +655,7 @@
                 action: document.getElementById('actionFilter').value,
                 user_search: document.getElementById('userSearch').value,
                 ip_address: document.getElementById('ipFilter').value,
+                location: document.getElementById('locationFilter').value,
                 start_date: document.getElementById('startDate').value,
                 end_date: document.getElementById('endDate').value,
             };
@@ -654,6 +667,7 @@
             document.getElementById('actionFilter').value = '';
             document.getElementById('userSearch').value = '';
             document.getElementById('ipFilter').value = '';
+            document.getElementById('locationFilter').value = '';
             document.getElementById('startDate').value = '';
             document.getElementById('endDate').value = '';
 

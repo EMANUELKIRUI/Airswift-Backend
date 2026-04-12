@@ -2,6 +2,26 @@ const UserActivityAudit = require('../models/UserActivityAudit');
 const User = require('../models/User');
 const { Parser } = require('json2csv');
 
+// Helper function to get user-friendly action descriptions
+const getActionDescription = (action) => {
+  const descriptions = {
+    'LOGIN': 'User logged in',
+    'LOGOUT': 'User logged out',
+    'REGISTER': 'User registered new account',
+    'FAILED_LOGIN': 'Failed login attempt',
+    'PASSWORD_RESET': 'Password reset',
+    'EMAIL_VERIFICATION': 'Email verified',
+    'ADMIN_LOGIN': 'Admin logged in',
+    'APPLICATION_SUBMITTED': 'Job application submitted',
+    'APPLICATION_VIEWED': 'Application viewed',
+    'PROFILE_UPDATED': 'Profile updated',
+    'CV_DOWNLOADED': 'CV downloaded',
+    'INTERVIEW_SCHEDULED': 'Interview scheduled',
+    'PAYMENT_PROCESSED': 'Payment processed',
+  };
+  return descriptions[action] || action.replace(/_/g, ' ');
+};
+
 // Get audit logs with filtering and pagination
 const getAuditLogs = async (req, res) => {
   try {
@@ -13,6 +33,7 @@ const getAuditLogs = async (req, res) => {
       start_date,
       end_date,
       ip_address,
+      location,
       user_search,
       suspicious_only = false,
     } = req.query;
@@ -24,6 +45,7 @@ const getAuditLogs = async (req, res) => {
     if (action) query.action = action;
     if (user_id) query.user_id = user_id;
     if (ip_address) query.ip_address = { $regex: ip_address, $options: 'i' };
+    if (location) query.location = { $regex: location, $options: 'i' };
     if (suspicious_only === 'true') query.suspicious = true;
 
     // Date range filter
@@ -88,10 +110,19 @@ const getAuditLogs = async (req, res) => {
       ip_address: log.ip_address,
       user_agent: log.user_agent,
       device_info: log.device_info,
-      suspicious: log.suspicious,
       location: log.location,
+      suspicious: log.suspicious,
       created_at: log.created_at,
+      timestamp: new Date(log.created_at).toLocaleString(),
       details: log.details,
+      // Format device info for display
+      device_display: log.device_info ? {
+        browser: log.device_info.browser || 'Unknown',
+        device: log.device_info.device || 'Unknown',
+        os: log.device_info.os || 'Unknown'
+      } : { browser: 'Unknown', device: 'Unknown', os: 'Unknown' },
+      // Action description for display
+      action_description: getActionDescription(log.action),
     }));
 
     // Get summary statistics

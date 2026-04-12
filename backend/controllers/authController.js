@@ -439,10 +439,20 @@ const adminLogin = async (req, res) => {
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
 
+    // Log admin login
     try {
-      await logLogin(admin._id, req);
+      await logAction({
+        userId: admin._id,
+        action: "ADMIN_LOGIN",
+        entity: "Admin",
+        entityId: admin._id,
+        details: { email: admin.email, role: admin.role },
+        description: "Admin successfully logged in",
+        req
+      });
+      await detectNewIP(admin, req);
     } catch (error) {
-      console.error("ADMIN LOGIN - logLogin error:", error);
+      console.error("ADMIN LOGIN - logAction error:", error);
     }
 
     res.json({
@@ -658,7 +668,21 @@ const forgotPassword = async (req, res) => {
 
     user.resetPasswordToken = hashedToken;
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    
+    console.log("FORGOT PASSWORD - Setting reset token for", user.email, {
+      resetTokenLength: hashedToken.length,
+      expireTime: new Date(user.resetPasswordExpire),
+      expiresIn: "15 minutes"
+    });
+    
     await user.save();
+    
+    // Verify it was saved
+    const savedUser = await User.findById(user._id);
+    console.log("FORGOT PASSWORD - Token saved verification:", {
+      tokenSaved: !!savedUser.resetPasswordToken,
+      expireSaved: !!savedUser.resetPasswordExpire
+    });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
@@ -707,20 +731,41 @@ const resetPassword = async (req, res) => {
       .update(token)
       .digest("hex");
 
+    console.log("RESET PASSWORD DEBUG:", {
+      tokenLength: token?.length,
+      hashedToken: hashedToken.substring(0, 20) + "...",
+      currentTime: Date.now()
+    });
+
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid or expired token" });
+      console.log("RESET PASSWORD TOKEN NOT FOUND - Checking for debugging info:");
+      
+      // Debug: Check if ANY user has this reset token
+      const userWithToken = await User.findOne({
+        resetPasswordToken: hashedToken
+      });
+      
+      if (userWithToken) {
+        console.log("Token found but expired. Expiry:", userWithToken.resetPasswordExpire, "Now:", Date.now());
+        return res.status(400).json({ error: "Password reset link has expired. Please request a new one." });
+      } else {
+        console.log("Token not found in database at all");
+        return res.status(400).json({ error: "Invalid password reset link. Please request a new one." });
+      }
     }
 
     user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpire = null;
 
     await user.save();
+
+    console.log("RESET PASSWORD SUCCESS for user:", user.email);
 
     res.json({ message: "Password reset successful" });
   } catch (err) {
