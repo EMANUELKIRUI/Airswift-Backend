@@ -51,6 +51,14 @@ const auditLogSchema = new mongoose.Schema({
   timestamps: { createdAt: "created_at" }
 });
 
+// Virtuals
+auditLogSchema.virtual('entityDetails', {
+  ref: 'SomeModel',
+  localField: 'entity',
+  foreignField: '_id',
+  justOne: true
+});
+
 // Indexes for performance
 auditLogSchema.index({ user_id: 1 });
 auditLogSchema.index({ entity: 1 });
