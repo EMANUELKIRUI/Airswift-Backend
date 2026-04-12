@@ -59,31 +59,79 @@ const isSequelizeModel = Boolean(User.sequelize);
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     console.log("REGISTER BODY:", req.body);
 
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      if (existingUser.isVerified) {
+        return res.status(200).json({
+          message: "Account already exists. Please login.",
+          redirect: "login",
+        });
+      }
+
+      const otp = generateOTP().toString();
+      const hashedOtp = await bcrypt.hash(otp, 10);
+      existingUser.otp = hashedOtp;
+      existingUser.otpExpires = Date.now() + 10 * 60 * 1000; // 10 min
+      await existingUser.save();
+
+      try {
+        await sendOTP(normalizedEmail, otp);
+      } catch (err) {
+        console.error("⚠️ RESEND OTP FAILED:", err.message);
+      }
+
+      return res.status(200).json({
+        message: "OTP resent. Please verify your account.",
+        redirect: "verify",
+      });
+    }
+
+    const otp = generateOTP().toString();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedOtp = await bcrypt.hash(otp, 10);
 
     const user = await User.create({
       name,
-      email,
-      password,
-      otp,
+      email: normalizedEmail,
+      password: hashedPassword,
+      role,
+      isVerified: false,
+      otp: hashedOtp,
       otpExpires: Date.now() + 10 * 60 * 1000,
     });
 
-    console.log("🚀 Calling sendOTP for:", email);
+    try {
+      await sendOTP(normalizedEmail, otp);
+    } catch (err) {
+      console.error("⚠️ OTP FAILED BUT REGISTRATION CONTINUES:", err.message);
+    }
 
-    await sendOTP(email, otp); // ✅ THIS LINE IS CRITICAL
-
-    res.status(201).json({
-      message: "User registered. OTP sent to email",
-      email,
+    return res.status(201).json({
+      message: "Account created. Please verify OTP.",
+      redirect: "verify",
     });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
-    res.status(500).json({ message: "Registration failed" });
+
+    if (error && error.code === 11000) {
+      return res.status(400).json({
+        message: "Email already registered",
+      });
+    }
+
+    res.status(500).json({
+      message: "Server error",
+    });
   }
 };
 
@@ -214,15 +262,42 @@ const resendOTP = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.lastOtpSent && Date.now() - new Date(user.lastOtpSent).getTime() < 60000) {
-      return res.status(429).json({ message: "Wait before requesting again" });
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Account already verified. Please login." });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000);
+    const now = Date.now();
+    const lastSentAt = user.lastOtpSentAt ? new Date(user.lastOtpSentAt).getTime() : user.lastOtpSent ? new Date(user.lastOtpSent).getTime() : null;
+    const ONE_MINUTE = 60 * 1000;
+    const ONE_HOUR = 60 * 60 * 1000;
 
-    user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000;
-    user.lastOtpSent = Date.now();
+    if (lastSentAt && now - lastSentAt < ONE_MINUTE) {
+      const waitTime = Math.ceil((ONE_MINUTE - (now - lastSentAt)) / 1000);
+      return res.status(429).json({
+        message: `Please wait ${waitTime}s before requesting another OTP`,
+      });
+    }
+
+    if (!user.resendCount && user.resendCount !== 0) {
+      user.resendCount = 0;
+    }
+
+    if (lastSentAt && now - lastSentAt < ONE_HOUR && user.resendCount >= 5) {
+      return res.status(429).json({ message: "Too many OTP requests. Try again later." });
+    }
+
+    if (!lastSentAt || now - lastSentAt > ONE_HOUR) {
+      user.resendCount = 0;
+    }
+
+    const otp = generateOTP().toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    user.otp = hashedOtp;
+    user.otpExpires = now + 10 * 60 * 1000;
+    user.lastOtpSentAt = now;
+    user.lastOtpSent = now;
+    user.resendCount += 1;
 
     await user.save();
 
@@ -233,7 +308,7 @@ const resendOTP = async (req, res) => {
     res.json({ message: "OTP resent successfully" });
   } catch (error) {
     console.error("RESEND OTP ERROR:", error);
-    res.status(500).json({ message: "Failed to resend OTP" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
