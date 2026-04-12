@@ -2,7 +2,6 @@ const bcrypt = require("bcryptjs");
 const { loadEnv } = require("../config/env");
 loadEnv();
 const connectDB = require("../config/db");
-const sequelize = require("../config/database");
 const User = require("../models/User");
 
 const createAdmin = async () => {
@@ -10,19 +9,15 @@ const createAdmin = async () => {
     // Connect to database (MongoDB if available, otherwise proceed)
     await connectDB();
 
-    // Sync Sequelize database
-    await sequelize.sync();
-    console.log("🔄 Database synced...");
-
-    // Admin credentials
-    const adminEmail = "admin@talex.com";
-    const adminPassword = "Admin123!"; // Change this to a secure password
-    const adminName = "Admin User";
-
     console.log("🔐 Creating Admin Account...\n");
 
+    // Admin credentials from environment variables
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@talex.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Admin123!";
+    const adminName = process.env.ADMIN_NAME || "Super Admin";
+
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+    const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (existingAdmin) {
       console.log("⚠️  Admin account with this email already exists!");
@@ -58,12 +53,10 @@ const createAdmin = async () => {
     console.log("2. Change the password after first login");
     console.log("3. Update the .env file with custom credentials if needed\n");
 
-    await sequelize.close();
     process.exit(0);
   } catch (error) {
     console.error("❌ Error creating admin account:", error.message);
     console.error("Full error:", error);
-    await sequelize.close();
     process.exit(1);
   }
 };

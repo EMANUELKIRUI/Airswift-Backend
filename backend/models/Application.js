@@ -102,6 +102,9 @@ const Application = sequelize.define('Application', {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
   },
+}, {
+  timestamps: true,
+  underscored: true, // 🔥 THIS FIXES IT
 });
 
 module.exports = Application;

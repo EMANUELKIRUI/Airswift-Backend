@@ -3,7 +3,7 @@ loadEnv();
 
 const express = require("express");
 const http = require("http");
-const socketIo = require("socket.io");
+const { Server } = require("socket.io");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
@@ -12,30 +12,26 @@ const connectDB = require("./config/db");
 const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./utils/voiceInterview");
 const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 const { User } = require("./models");
 const { findUserByEmail, createUser } = require("./utils/userHelpers");
-const { sendEmail, sendOTPEmail } = require("./services/emailService");
-const { initializeSocket } = require("./utils/socketEmitter");
-const { setSocketInstance } = require("./utils/logger");
-const maintenanceMode = require('./middleware/maintenanceMode');
 
 // Connect to MongoDB
 connectDB();
 
+const { createAdminIfNotExists } = require("./utils/adminSetup");
+const { initializeSocket } = require("./utils/socketEmitter");
+const { setSocketInstance } = require("./utils/logger");
+const maintenanceMode = require('./middleware/maintenanceMode');
+
 const app = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
-const io = socketIo(server, {
+
+const io = new Server(server, {
+  path: "/api/socket",
   cors: {
-    origin: [
-      "https://airswift-frontend.vercel.app",
-      "https://talex-frontend.vercel.app",
-      "http://localhost:3000",
-    ],
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
+    origin: "*",
+  }
 });
 
 // Expose socket.io globally for legacy emitters and services
@@ -416,68 +412,8 @@ io.on("connection", (socket) => {
       console.log("✅ Email service ready (Brevo)");
     }
 
-    // Create default admin user if MongoDB is available
-    try {
-      const adminEmail = "admin@talex.com";
-      const adminPassword = "Admin123!";
-      const adminName = "Admin User";
-
-      const existingAdmin = await findUserByEmail(adminEmail);
-      if (!existingAdmin) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(adminPassword, salt);
-
-        await createUser({
-          name: adminName,
-          email: adminEmail,
-          password: hashedPassword,
-          role: "admin",
-          isVerified: true,
-          authProvider: "local",
-        });
-
-        console.log("✅ Default admin user created");
-        console.log(`📧 Email: ${adminEmail}`);
-        console.log(`🔑 Password: ${adminPassword}`);
-      } else {
-        console.log("ℹ️  Admin user already exists");
-      }
-    } catch (mongoError) {
-      console.warn("⚠️  Could not access MongoDB for admin user creation:");
-      console.warn(`   ${mongoError.message}`);
-      console.warn("   Attempting to create admin in SQL database...");
-
-      try {
-        const adminEmail = "admin@talex.com";
-        const adminPassword = "Admin123!";
-        const adminName = "Admin User";
-
-        const existingAdmin = await findUserByEmail(adminEmail);
-        if (!existingAdmin) {
-          const salt = await bcrypt.genSalt(10);
-          const hashedPassword = await bcrypt.hash(adminPassword, salt);
-
-          await createUser({
-            name: adminName,
-            email: adminEmail,
-            password: hashedPassword,
-            role: "admin",
-            isVerified: true,
-            authProvider: "local",
-          });
-
-          console.log("✅ Default admin user created in SQL database");
-          console.log(`📧 Email: ${adminEmail}`);
-          console.log(`🔑 Password: ${adminPassword}`);
-        } else {
-          console.log("ℹ️  Admin user already exists in SQL database");
-        }
-      } catch (sqlError) {
-        console.warn("⚠️  Could not create admin user in SQL database either:");
-        console.warn(`   ${sqlError.message}`);
-        console.warn("   Admin user creation skipped - proceed with caution");
-      }
-    }
+    // Create admin user if environment variables are set
+    await createAdminIfNotExists();
   } catch (error) {
     console.error("Database connection error:", error);
     process.exit(1);
@@ -567,7 +503,7 @@ app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
-app.use("/api/audit", require("./routes/audit"));
+app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/system-health", require("./routes/systemHealth"));
 app.use("/api/dashboard", require("./routes/dashboard"));

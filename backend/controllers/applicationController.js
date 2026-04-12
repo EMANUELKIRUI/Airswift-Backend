@@ -9,6 +9,20 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard } = require('../utils/socketEmitter');
 const fs = require('fs').promises;
 
+const AuditLog = require("../models/AuditLog");
+
+const logEvent = async ({ userId, action, details }) => {
+  try {
+    await AuditLog.create({
+      userId,
+      action,
+      details,
+    });
+  } catch (err) {
+    console.error("Audit log failed:", err.message);
+  }
+};
+
 const isMongooseModel = Boolean(User.schema);
 const isSequelizeModel = Boolean(User.sequelize);
 
@@ -224,10 +238,11 @@ const applyForJob = async (req, res) => {
     });
 
     // Log audit event
-    await logAuditEvent(req.user.id, 'application_submitted', 'application', application.id, {
-      job_id: job.id,
-      job_title: job.title
-    }, req);
+    await logEvent({
+      userId: req.user.id,
+      action: "APPLICATION_SUBMITTED",
+      details: "User submitted application",
+    });
 
     // Notify applicant with stage template
     await sendStageEmail('application_submitted', req.user.email || req.user.email, {

@@ -64,8 +64,10 @@ const extractToken = (req) => {
 
 const authMiddleware = (req, res, next) => {
   try {
-    // ✅ FIX 4: Try both cookies and Authorization header
-    const token = extractToken(req);
+    // ✅ FIX 4: Extract token from cookies or Authorization header
+    const token =
+      req.cookies?.token ||
+      req.headers.authorization?.split(" ")[1];
 
     console.log("👉 AUTH MIDDLEWARE TOKEN:", token ? "✓ EXISTS" : "✗ MISSING");
 

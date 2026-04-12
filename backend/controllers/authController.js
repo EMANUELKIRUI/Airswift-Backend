@@ -14,6 +14,20 @@ const { logAction } = require("../utils/logger");
 const auditLog = logAction;
 const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = require("../services/securityService");
 
+const AuditLog = require("../models/AuditLog");
+
+const logEvent = async ({ userId, action, details }) => {
+  try {
+    await AuditLog.create({
+      userId,
+      action,
+      details,
+    });
+  } catch (err) {
+    console.error("Audit log failed:", err.message);
+  }
+};
+
 const buildCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
   const domain = isProduction ? "airswift-backend-fjt3.onrender.com" : undefined;
@@ -112,7 +126,11 @@ const registerUser = async (req, res) => {
     });
 
     // Log user registration
-    await logRegistration(user._id, req);
+    await logEvent({
+      userId: user._id,
+      action: "REGISTER",
+      details: `User registered: ${user.email}`,
+    });
 
     let emailSent = false;
     try {
@@ -378,6 +396,12 @@ const loginUser = async (req, res) => {
         details: { email: user.email }
       });
 
+      await logEvent({
+        userId: user._id,
+        action: "LOGIN",
+        details: `User logged in`,
+      });
+
       return res.json({
         success: true,
         token,
@@ -416,9 +440,24 @@ const adminLogin = async (req, res) => {
       return res.status(403).json({ error: "Invalid admin credentials" });
     }
 
-    const admin = await findUserByEmail(email);
+    let admin = await findUserByEmail(email);
 
-    if (!admin || admin.role !== "admin") {
+    // Create admin user if it doesn't exist
+    if (!admin) {
+      console.log("Creating admin user...");
+      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
+      admin = await User.create({
+        name: "Admin User",
+        email: ADMIN_EMAIL,
+        password: hashedPassword,
+        role: "admin",
+        isVerified: true,
+        authProvider: "local",
+      });
+      console.log("Admin user created");
+    }
+
+    if (admin.role !== "admin") {
       return res.status(403).json({ error: "Admin account not found or invalid" });
     }
 

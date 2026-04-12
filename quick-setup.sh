@@ -11,13 +11,8 @@ echo ""
 
 # Check if .env file exists
 if [ -f "backend/.env" ]; then
-    echo "ℹ️  .env file already exists"
-    read -p "Overwrite it? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Skipping .env creation"
-        exit 0
-    fi
+    echo "ℹ️  .env file already exists - skipping creation"
+    exit 0
 fi
 
 # Generate random strings for secrets
@@ -82,6 +77,11 @@ AUDIT_LOG_RETENTION_DAYS=90
 # Redis (optional)
 REDIS_ENABLED=false
 REDIS_URL=redis://localhost:6379
+
+# Admin Configuration
+ADMIN_EMAIL=admin@talex.com
+ADMIN_PASSWORD=Admin123!
+ADMIN_NAME=Super Admin
 
 # SQL Database (optional - PostgreSQL)
 DB_HOST=localhost
