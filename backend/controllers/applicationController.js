@@ -9,8 +9,8 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard } = require('../utils/socketEmitter');
 const fs = require('fs').promises;
 
-const isMongooseModel = User.prototype && typeof User.prototype.save === 'function';
-const isSequelizeModel = User.prototype && typeof User.prototype.update === 'function';
+const isMongooseModel = Boolean(User.schema);
+const isSequelizeModel = Boolean(User.sequelize);
 
 // For document upload path building
 const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
@@ -492,7 +492,7 @@ const updateApplicationStatus = async (req, res) => {
     const user = application.user_id
       ? isMongooseModel
         ? await User.findById(application.user_id)
-        : await User.findByPk(application.user_id)
+        : await User.findById(application.user_id)
       : null;
     const applicantEmail = application.email || user?.email;
 

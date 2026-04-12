@@ -20,7 +20,7 @@ const checkAuth = async (req, res) => {
       return res.status(401).json({ authenticated: false, message: 'Not authenticated' });
     }
 
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(401).json({ authenticated: false, message: 'User not found' });
     }
@@ -48,7 +48,7 @@ const getCurrentUser = async (req, res) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

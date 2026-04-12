@@ -573,6 +573,15 @@ app.use("/api/system-health", require("./routes/systemHealth"));
 app.use("/api/dashboard", require("./routes/dashboard"));
 app.use("/api/email", require("./routes/email"));
 
+// Global error handler for unexpected failures
+app.use((err, req, res, next) => {
+  console.error('UNHANDLED SERVER ERROR:', err?.stack || err);
+  res.status(500).json({
+    error: err?.message || 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err?.stack : undefined,
+  });
+});
+
 // Test route for OTP
 app.post("/api/test-otp", async (req, res) => {
   try {

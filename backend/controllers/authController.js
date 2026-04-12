@@ -9,7 +9,7 @@ const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
 const { findUserByEmail, findUserById, createUser } = require("../utils/userHelpers");
-const { logUserActivity, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
+const { logUserActivity, logRegistration, logLogin, logFailedLogin, logEmailVerification } = require("../utils/auditLogger");
 const { logAction } = require("../utils/logger");
 const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = require("../services/securityService");
 
@@ -37,9 +37,9 @@ const isDatabaseError = (error) => {
   );
 };
 
-// Check if User is a Mongoose model or Sequelize model
-const isMongooseModel = User.prototype && User.prototype.save;
-const isSequelizeModel = User.prototype && User.prototype.update;
+// Check if User is a Mongoose model
+const isMongooseModel = Boolean(User.schema);
+const isSequelizeModel = Boolean(User.sequelize);
 
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
@@ -111,15 +111,7 @@ const registerUser = async (req, res) => {
     });
 
     // Log user registration
-    await logAction({
-      userId: user._id,
-      action: "SIGNUP",
-      entity: "User",
-      entityId: user._id,
-      description: "User registered successfully",
-      details: { email: user.email },
-      req
-    });
+    await logRegistration(user._id, req);
 
     let emailSent = false;
     try {
@@ -298,22 +290,20 @@ const loginUser = async (req, res) => {
       console.log("LOGIN FAILED - User not found:", normalizedEmail);
       try {
         await checkLoginSecurity(normalizedEmail, req);
-        await logAction({
-          action: "LOGIN_FAILED",
-          entity: "User",
-          description: "Invalid login attempt - user not found",
-          details: { email: normalizedEmail },
-          req,
-          status: "error"
-        });
+        await logFailedLogin(req, normalizedEmail);
       } catch (error) {
-        console.error("LOGIN FAILED - logAction error:", error);
+        console.error("LOGIN FAILED - logFailedLogin error:", error);
       }
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     if (!user.password) {
       console.log("LOGIN FAILED - Missing stored password for user:", user._id || normalizedEmail);
+      try {
+        await logFailedLogin(req, normalizedEmail);
+      } catch (error) {
+        console.error("LOGIN FAILED - logFailedLogin error:", error);
+      }
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
@@ -322,22 +312,9 @@ const loginUser = async (req, res) => {
       console.log("LOGIN FAILED - Password mismatch for user:", user._id || normalizedEmail);
       try {
         await checkLoginSecurity(normalizedEmail, req);
-        await logAction({
-          userId: user._id,
-          action: "LOGIN_FAILED",
-          entity: "User",
-          entityId: user._id,
-          description: "Invalid login attempt - wrong password",
-          details: { email: user.email },
-          req,
-          status: "error"
-        });
+        await logFailedLogin(req, normalizedEmail);
       } catch (error) {
-        console.error("LOGIN FAILED - logAction error:", error);
-      }
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
+        console.error("LOGIN FAILED - logFailedLogin error:", error);
     if (!user.isVerified) {
       console.log("LOGIN ATTEMPT - User not verified, sending verification link:", user._id);
 
@@ -411,18 +388,10 @@ const loginUser = async (req, res) => {
 
     // Log successful login
     try {
-      await logAction({
-        userId: user._id,
-        action: "LOGIN_SUCCESS",
-        entity: "User",
-        entityId: user._id,
-        details: { email: user.email },
-        description: "User logged in successfully",
-        req
-      });
+      await logLogin(user._id, req);
       await detectNewIP(user, req);
     } catch (error) {
-      console.error("LOGIN SUCCESS - logAction error:", error);
+      console.error("LOGIN SUCCESS - logLogin error:", error);
     }
 
     res.status(200).json({
@@ -490,6 +459,12 @@ const adminLogin = async (req, res) => {
 
     res.cookie("accessToken", accessToken, cookieOptions);
     res.cookie("refreshToken", refreshToken, cookieOptions);
+
+    try {
+      await logLogin(admin._id, req);
+    } catch (error) {
+      console.error("ADMIN LOGIN - logLogin error:", error);
+    }
 
     res.json({
       token: accessToken,  // ✅ FIX: Use 'token' instead of 'accessToken'

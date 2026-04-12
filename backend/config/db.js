@@ -4,13 +4,12 @@ const mongoose = require("mongoose");
 
 const connectDB = async () => {
   try {
-    const uri =
-      process.env.MONGODB_URI ||
-      process.env.MONGO_URI ||
-      process.env.DATABASE_URL;
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+    const envDatabaseUrl = process.env.DATABASE_URL;
+    const uri = mongoUri || (envDatabaseUrl && envDatabaseUrl.startsWith('mongodb') ? envDatabaseUrl : null);
 
     if (!uri) {
-      console.error("MongoDB URI is missing. MongoDB is required.");
+      console.error("MongoDB URI is missing or not a MongoDB connection string. MongoDB is required.");
       process.exit(1);
     }
 

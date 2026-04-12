@@ -4,9 +4,9 @@ const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
 const { extractCVText, extractSkills, extractEducation, extractExperience } = require('../utils/cvParser');
 
-// Check if User is a Mongoose model or Sequelize model
-const isMongooseModel = User.prototype && User.prototype.save;
-const isSequelizeModel = User.prototype && User.prototype.update;
+// Check if User is a Mongoose model
+const isMongooseModel = Boolean(User.schema);
+const isSequelizeModel = Boolean(User.sequelize);
 
 const profileSchema = Joi.object({
   skills: Joi.array().items(Joi.string()),
@@ -25,7 +25,7 @@ const getProfile = async (req, res) => {
     if (isMongooseModel) {
       user = await User.findById(req.user.id).select('-password');
     } else if (isSequelizeModel) {
-      user = await User.findByPk(req.user.id);
+      user = await User.findById(req.user.id);
     } else {
       return res.status(500).json({ message: 'User model not properly configured' });
     }
@@ -96,7 +96,7 @@ const updateProfile = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      updatedUser = await User.findByPk(req.user.id);
+      updatedUser = await User.findById(req.user.id);
     } else {
       return res.status(500).json({ message: 'User model not properly configured' });
     }
@@ -159,7 +159,7 @@ const uploadCV = async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      updatedUser = await User.findByPk(req.user.id);
+      updatedUser = await User.findById(req.user.id);
     } else {
       return res.status(500).json({ message: 'User model not properly configured' });
     }
@@ -247,7 +247,7 @@ const setupProfile = async (req, res) => {
         return res.status(404).json({ error: "User not found" });
       }
 
-      user = await User.findByPk(req.user.id);
+      user = await User.findById(req.user.id);
     } else {
       return res.status(500).json({ error: 'User model not properly configured' });
     }

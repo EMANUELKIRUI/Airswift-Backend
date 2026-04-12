@@ -5,8 +5,8 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const validRoles = ['user', 'admin', 'recruiter'];
 const editableFields = ['name', 'email', 'phone', 'location', 'skills', 'education', 'experience', 'profilePicture'];
 
-const isMongoose = UserModel.prototype && UserModel.prototype.save;
-const isSequelize = UserModel.prototype && UserModel.prototype.update;
+const isMongoose = Boolean(UserModel.schema);
+const isSequelize = Boolean(UserModel.sequelize);
 
 const sanitizeUser = (user) => {
   if (!user) return null;

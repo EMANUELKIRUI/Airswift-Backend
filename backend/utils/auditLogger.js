@@ -1,6 +1,4 @@
-const UserActivityAudit = require('../models/UserActivityAudit');
-const AuditLogMongo = require('../models/AuditLogMongo');
-const { emitAuditLog, emitUserAction } = require('./socketEmitter');
+const { logAction } = require('../services/auditService');
 
 /**
  * Central audit logging function
@@ -11,32 +9,18 @@ const { emitAuditLog, emitUserAction } = require('./socketEmitter');
  */
 const logUserActivity = async (userId, action, request, details = {}) => {
   try {
-    const auditLog = await UserActivityAudit.logActivity(userId, action, request, details);
+    const description = details.description || `${action.replace(/_/g, ' ').toLowerCase()}`;
 
-    if (auditLog) {
-      emitAuditLog({
-        user_id: userId,
-        action: action.toUpperCase(),
-        description: details.description || `${action.replace(/_/g, ' ').toLowerCase()}`,
-        ip_address: request?.ip || request?.connection?.remoteAddress || 'unknown',
-        device: request?.headers?.['user-agent'] || 'unknown',
-        location: 'Kenya',
-        status: 'success',
-        created_at: auditLog.created_at
-      });
-
-      // Also emit as user_action for dashboard display
-      emitUserAction({
-        user_id: userId,
-        action: action.toUpperCase(),
-        description: details.description || `${action.replace(/_/g, ' ').toLowerCase()}`,
-        ip_address: request?.ip || request?.connection?.remoteAddress || 'unknown',
-        device: request?.headers?.['user-agent'] || 'unknown',
-        location: 'Kenya',
-        status: 'success',
-        created_at: auditLog.created_at
-      });
-    }
+    await logAction({
+      userId,
+      action,
+      entity: 'User',
+      entityId: userId,
+      details,
+      description,
+      req: request,
+      status: 'success'
+    });
   } catch (error) {
     console.error('Failed to log user activity:', error);
     // Don't throw error to avoid breaking main functionality
@@ -138,20 +122,18 @@ const logAuditEvent = async (userId, action, resource, resourceId = null, detail
       else device += ' on Unknown Browser';
     }
 
-    const auditData = {
-      user_id: userId,
-      action: action.toUpperCase(),
+    const logData = {
+      userId,
+      action,
+      entity: resource,
+      entityId: resourceId,
+      details,
       description,
-      ip_address: req?.ip || req?.connection?.remoteAddress || 'unknown',
-      device,
-      location: 'Kenya',
+      req,
       status: 'success'
     };
 
-    // Use the MongoDB AuditLog model
-    const log = await AuditLogMongo.create(auditData);
-
-    emitAuditLog(log);
+    await logAction(logData);
   } catch (error) {
     console.error('Legacy audit logging error:', error);
   }

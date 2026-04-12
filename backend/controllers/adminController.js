@@ -100,9 +100,9 @@ const deleteSetting = async (req, res) => {
 
 const { Application, Job, User, Interview, AuditLog } = require('../models');
 
-// Check if User is a Mongoose model or Sequelize model
-const isMongooseModel = User.prototype && User.prototype.save;
-const isSequelizeModel = User.prototype && User.prototype.update;
+// Check if User is a Mongoose model
+const isMongooseModel = Boolean(User.schema);
+const isSequelizeModel = Boolean(User.sequelize);
 const { sendEmail } = require('../utils/email');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
@@ -281,7 +281,7 @@ const sendInterview = async (req, res) => {
     if (application.user_id) {
       applicant = isMongooseModel 
         ? await User.findById(application.user_id) 
-        : await User.findByPk(application.user_id);
+        : await User.findById(application.user_id);
     }
     if (!applicant || !applicant.email) {
       return res.status(400).json({ message: 'Applicant email not available' });
@@ -316,7 +316,7 @@ const generateOffer = async (req, res) => {
     if (application.user_id) {
       applicant = isMongooseModel 
         ? await User.findById(application.user_id) 
-        : await User.findByPk(application.user_id);
+        : await User.findById(application.user_id);
     }
     const job = application.Job;
 

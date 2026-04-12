@@ -118,7 +118,7 @@ const verifyPayment = async (req, res) => {
 
     // Check status
     if (payment.status === 'completed') {
-      const user = await User.findByPk(payment.user_id);
+      const user = await User.findById(payment.user_id);
       if (user && user.email) {
         await sendStageEmail('visa_payment_received', user.email, {
           name: user.name,
