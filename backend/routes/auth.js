@@ -5,6 +5,7 @@ const {
   registerUser,
   verifyRegistrationOTP,
   resendVerificationEmail,
+  resendOTP,
   loginUser,
   sendLoginOTP,
   verifyLoginOTP,
@@ -32,6 +33,7 @@ router.post("/register", registerUser);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/resend-verification", resendVerificationEmail);
 router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
+router.post("/resend-otp", resendOTP);
 router.post("/login", loginLimiter, loginUser);
 // router.post("/admin-login", adminLogin); // Removed - admin uses regular login
 router.post("/send-login-otp", sendLoginOTP);

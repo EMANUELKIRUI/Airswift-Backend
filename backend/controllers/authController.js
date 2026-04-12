@@ -181,10 +181,10 @@ const resendVerificationEmail = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
+      await sendOTP(user.email, otp);
       emailSent = true;
     } catch (error) {
-      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.message);
+      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.response?.data || error.message);
     }
 
     const responseMessage = emailSent
@@ -198,6 +198,42 @@ const resendVerificationEmail = async (req, res) => {
       message: "Server error",
       error: err.message
     });
+  }
+};
+
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.lastOtpSent && Date.now() - new Date(user.lastOtpSent).getTime() < 60000) {
+      return res.status(429).json({ message: "Wait before requesting again" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    user.otp = otp;
+    user.otpExpires = Date.now() + 10 * 60 * 1000;
+    user.lastOtpSent = Date.now();
+
+    await user.save();
+
+    console.log("🔁 Resending OTP to:", email);
+
+    await sendOTP(email, otp);
+
+    res.json({ message: "OTP resent successfully" });
+  } catch (error) {
+    console.error("RESEND OTP ERROR:", error);
+    res.status(500).json({ message: "Failed to resend OTP" });
   }
 };
 
@@ -839,6 +875,7 @@ module.exports = {
   registerUser,
   verifyRegistrationOTP,
   resendVerificationEmail,
+  resendOTP,
   loginUser,
   sendLoginOTP,
   verifyLoginOTP,
