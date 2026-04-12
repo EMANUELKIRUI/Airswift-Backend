@@ -16,6 +16,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   entity_id: {
     type: mongoose.Schema.Types.ObjectId,
+    refPath: 'entity',
     required: false
   },
   details: {
@@ -53,8 +54,8 @@ const auditLogSchema = new mongoose.Schema({
 
 // Virtuals
 auditLogSchema.virtual('entityDetails', {
-  ref: 'SomeModel',
-  localField: 'entity',
+  refPath: 'entity',
+  localField: 'entity_id',
   foreignField: '_id',
   justOne: true
 });
@@ -70,14 +71,8 @@ auditLogSchema.index({ status: 1 });
 auditLogSchema.virtual('userId').get(function () {
   return this.user_id;
 });
-auditLogSchema.virtual('entity').get(function () {
-  return this.entity;
-});
 auditLogSchema.virtual('entityId').get(function () {
   return this.entity_id;
-});
-auditLogSchema.virtual('details').get(function () {
-  return this.details;
 });
 auditLogSchema.virtual('ipAddress').get(function () {
   return this.ip_address;

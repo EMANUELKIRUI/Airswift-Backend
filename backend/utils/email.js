@@ -5,18 +5,31 @@ const dns = require('dns');
 // Force IPv4
 dns.setDefaultResultOrder("ipv4first");
 
+const emailHost = process.env.EMAIL_HOST || process.env.SMTP_HOST;
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
+
+if (!emailHost || !emailUser || !emailPass) {
+  console.error(
+    "EMAIL CONFIG: Missing required email environment variables. Set EMAIL_HOST or SMTP_HOST, EMAIL_USER, and EMAIL_PASS."
+  );
+}
+
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: 587,
-  secure: false,
+  host: emailHost,
+  port: Number(process.env.EMAIL_PORT) || 587,
+  secure: process.env.EMAIL_SECURE === 'true',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: emailUser,
+    pass: emailPass,
   },
   family: 4, // Force IPv4
 });
 
-console.log("EMAIL CONFIG:", process.env.EMAIL_HOST ? "✓ Configured" : "✗ Missing EMAIL_HOST");
+console.log(
+  "EMAIL CONFIG:",
+  emailHost ? "✓ Configured" : "✗ Missing EMAIL_HOST / SMTP_HOST"
+);
 
 /**
  * Send email with Nodemailer

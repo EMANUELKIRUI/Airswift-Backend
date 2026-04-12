@@ -6,9 +6,11 @@ const generateAccessToken = (user) => {
     throw new Error("JWT_SECRET is missing");
   }
 
+  const userId = user._id ? user._id.toString() : user.id;
+
   return jwt.sign(
     {
-      id: user._id,
+      id: userId,
       role: user.role, // IMPORTANT
     },
     process.env.JWT_SECRET,
@@ -23,9 +25,11 @@ const generateRefreshToken = (user) => {
     throw new Error("JWT_REFRESH_SECRET or REFRESH_TOKEN_SECRET is missing");
   }
 
+  const userId = user._id ? user._id.toString() : user.id;
+
   return jwt.sign(
     {
-      id: user._id,
+      id: userId,
       role: user.role, // IMPORTANT
     },
     refreshSecret,

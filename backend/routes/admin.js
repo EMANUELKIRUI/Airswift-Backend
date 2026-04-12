@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const { verifyToken } = require('../middleware/auth');
@@ -60,9 +61,14 @@ const { sendInterviewMessage } = require('../controllers/interviewMessageControl
 const { getDashboardSummary, getDashboardTrends, getHiringFunnel, getDashboardActivities, getDashboardSettingsSummary } = require('../controllers/dashboardController');
 const { seedEmailTemplates } = require('../scripts/seedEmailTemplates');
 
+const interviewsDir = path.join(__dirname, '../uploads/interviews');
+if (!fs.existsSync(interviewsDir)) {
+  fs.mkdirSync(interviewsDir, { recursive: true });
+}
+
 const interviewStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/interviews/');
+    cb(null, interviewsDir);
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);

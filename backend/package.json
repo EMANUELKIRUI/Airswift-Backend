@@ -50,5 +50,8 @@
   ],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": "22.x"
+  },
   "type": "commonjs"
 }

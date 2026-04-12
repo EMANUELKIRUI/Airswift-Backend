@@ -10,8 +10,8 @@ const connectDB = async () => {
       process.env.DATABASE_URL;
 
     if (!uri) {
-      console.warn("MongoDB URI is missing - proceeding without MongoDB");
-      return;
+      console.error("MongoDB URI is missing. MongoDB is required.");
+      process.exit(1);
     }
 
     await mongoose.connect(uri, {
@@ -22,9 +22,9 @@ const connectDB = async () => {
 
     console.log("MongoDB connected");
   } catch (error) {
-    console.warn("MongoDB connection warning:", error.message);
-    console.warn("Proceeding without MongoDB - some features may be unavailable");
-    // Don't exit - allow app to run with just SQLite
+    console.error("MongoDB connection failed:", error.message);
+    console.error("MongoDB is required. Exiting.");
+    process.exit(1);
   }
 };
 

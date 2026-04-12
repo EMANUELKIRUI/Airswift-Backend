@@ -381,7 +381,8 @@ const loginUser = async (req, res) => {
       });
     }
 
-    console.log("LOGIN SUCCESS - Generating tokens for user:", user._id);
+    const userId = user._id ? user._id.toString() : user.id;
+    console.log("LOGIN SUCCESS - User found:", userId);
     // Generate access and refresh tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -613,14 +614,16 @@ const verifyLoginOTP = async (req, res) => {
     user.resetToken = null;
     user.resetTokenExpiry = null;
 
+    const userId = user._id ? user._id.toString() : user.id;
+
     const accessToken = jwt.sign(
-      { id: user._id, role: user.role, email: user.email },
+      { id: userId, role: user.role, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "15m" }
     );
 
     const refreshTokenValue = jwt.sign(
-      { id: user._id },
+      { id: userId },
       process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
@@ -635,7 +638,7 @@ const verifyLoginOTP = async (req, res) => {
 
     res.json({
       user: {
-        id: user._id,
+        id: userId,
         name: user.name,
         email: user.email,
         role: user.role,
