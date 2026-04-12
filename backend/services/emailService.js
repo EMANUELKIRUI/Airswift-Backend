@@ -123,6 +123,11 @@ const sendOTPEmail = async (email, otp) => {
   }
 };
 
+const sendOTP = async (email, otp) => {
+  console.log('📧 Sending OTP to:', email);
+  return sendOTPEmail(email, otp);
+};
+
 /**
  * Send interview invitation email
  */
@@ -349,6 +354,7 @@ const sendOfferLetter = async (req, res) => {
 };
 
 module.exports = {
+  sendOTP,
   sendOTPEmail,
   sendEmail,
   renderTemplate,

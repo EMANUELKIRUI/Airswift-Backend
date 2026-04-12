@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const { generateToken } = require("../utils/generateToken");
-const { sendEmail, sendOTPEmail } = require("../services/emailService");
+const { sendEmail, sendOTP } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
@@ -90,10 +90,10 @@ const registerUser = async (req, res) => {
 
       let emailSent = false;
       try {
-        await sendOTPEmail(existing.email, otp);
+        await sendOTP(existing.email, otp);
         emailSent = true;
       } catch (error) {
-        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.response?.data || error.message);
       }
 
       return res.status(409).json({
@@ -136,7 +136,7 @@ const registerUser = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
+      await sendOTP(user.email, otp);
       emailSent = true;
     } catch (error) {
       console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.response?.data || error.message);
