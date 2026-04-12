@@ -772,12 +772,12 @@ const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    user.resetToken = hashedToken;
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
     
     console.log("FORGOT PASSWORD - Setting reset token for", user.email, {
       resetTokenLength: hashedToken.length,
-      expireTime: new Date(user.resetPasswordExpire),
+      expireTime: new Date(user.resetTokenExpiry),
       expiresIn: "15 minutes"
     });
     
@@ -786,8 +786,8 @@ const forgotPassword = async (req, res) => {
     // Verify it was saved
     const savedUser = await User.findById(user._id);
     console.log("FORGOT PASSWORD - Token saved verification:", {
-      tokenSaved: !!savedUser.resetPasswordToken,
-      expireSaved: !!savedUser.resetPasswordExpire
+      tokenSaved: !!savedUser.resetToken,
+      expireSaved: !!savedUser.resetTokenExpiry
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -825,8 +825,7 @@ const forgotPassword = async (req, res) => {
 // ✅ RESET PASSWORD - Verify OTP and update password
 const resetPassword = async (req, res) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
+    const { token, password } = req.body;
 
     if (!token || !password) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -844,8 +843,8 @@ const resetPassword = async (req, res) => {
     });
 
     const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
+      resetToken: hashedToken,
+      resetTokenExpiry: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -853,21 +852,21 @@ const resetPassword = async (req, res) => {
       
       // Debug: Check if ANY user has this reset token
       const userWithToken = await User.findOne({
-        resetPasswordToken: hashedToken
+        resetToken: hashedToken
       });
       
       if (userWithToken) {
-        console.log("Token found but expired. Expiry:", userWithToken.resetPasswordExpire, "Now:", Date.now());
-        return res.status(400).json({ error: "Password reset link has expired. Please request a new one." });
+        console.log("Token found but expired. Expiry:", userWithToken.resetTokenExpiry, "Now:", Date.now());
+        return res.status(400).json({ error: "Invalid or expired token" });
       } else {
         console.log("Token not found in database at all");
-        return res.status(400).json({ error: "Invalid password reset link. Please request a new one." });
+        return res.status(400).json({ error: "Invalid or expired token" });
       }
     }
 
     user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
 
     await user.save();
 
