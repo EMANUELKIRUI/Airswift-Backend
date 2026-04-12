@@ -93,6 +93,7 @@ const registerUser = async (req, res) => {
       return res.status(200).json({
         message: "OTP resent. Please verify your account.",
         redirect: "verify",
+        email: normalizedEmail,
       });
     }
 
@@ -119,6 +120,7 @@ const registerUser = async (req, res) => {
     return res.status(201).json({
       message: "Account created. Please verify OTP.",
       redirect: "verify",
+      email: normalizedEmail,
     });
   } catch (error) {
     console.error("REGISTER ERROR:", error);
