@@ -825,7 +825,8 @@ const forgotPassword = async (req, res) => {
 // ✅ RESET PASSWORD - Verify OTP and update password
 const resetPassword = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const token = req.params.token || req.body.token;
+    const { password } = req.body;
 
     if (!token || !password) {
       return res.status(400).json({ error: "Missing required fields" });
