@@ -60,16 +60,14 @@ router.get('/job-options', getApplicationJobs); // ✅ Application form job drop
 
 // ✅ Main application submission route (local multer upload)
 router.post('/', authMiddleware, upload.fields([
-  { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
-  { name: 'idDocument', maxCount: 1 }
+  { name: 'passport', maxCount: 1 }
 ]), handleMulterError, createApplication);
 
 // Alias route for backward compatibility
 router.post('/create', authMiddleware, upload.fields([
-  { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
-  { name: 'idDocument', maxCount: 1 }
+  { name: 'passport', maxCount: 1 }
 ]), handleMulterError, createApplication);
 
 // Existing cloud upload route remains available under /apply

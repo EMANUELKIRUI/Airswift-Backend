@@ -290,13 +290,12 @@ const applyForJob = async (req, res) => {
 const createApplication = async (req, res) => {
   try {
     console.log('BODY:', req.body);
-    console.log('FILES:', req.files);
+    console.log('FILES RECEIVED:', req.files);
 
     const passportFile = req.files?.passport?.[0];
     const cvFile = req.files?.cv?.[0];
-    const idDocumentFile = req.files?.idDocument?.[0];
 
-    if (!passportFile || !cvFile || !idDocumentFile) {
+    if (!passportFile || !cvFile) {
       return res.status(400).json({
         message: 'Files not received',
       });
