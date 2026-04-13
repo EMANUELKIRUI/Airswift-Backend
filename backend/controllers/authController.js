@@ -19,7 +19,7 @@ const AuditLog = require("../models/AuditLog");
 const logEvent = async ({ userId, action, details }) => {
   try {
     await AuditLog.create({
-      userId,
+      user_id: userId,
       action,
       details,
     });
