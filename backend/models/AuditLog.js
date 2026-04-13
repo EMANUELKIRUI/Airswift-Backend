@@ -17,7 +17,7 @@ const AuditLog = sequelize.define('AuditLog', {
   },
   description: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
   ip_address: {
     type: DataTypes.STRING,

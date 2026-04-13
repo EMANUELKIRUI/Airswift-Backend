@@ -292,79 +292,24 @@ const createApplication = async (req, res) => {
     console.log('BODY:', req.body);
     console.log('FILES:', req.files);
 
-    const jobId = req.body.jobId || req.body.job_id;
-    const nationalId = req.body.nationalId || req.body.national_id;
-    const phone = req.body.phone;
-
     const passportFile = req.files?.passport?.[0];
     const cvFile = req.files?.cv?.[0];
 
     if (!passportFile || !cvFile) {
       return res.status(400).json({
-        message: 'Files not received properly',
+        message: 'Files not received',
       });
     }
 
-    if (!jobId || !nationalId || !phone) {
-      return res.status(400).json({
-        message: 'All fields including files are required',
-      });
-    }
+    console.log('PASSPORT PATH:', passportFile.path);
+    console.log('CV PATH:', cvFile.path);
 
-    const { jobId: resolvedJobId, job: resolvedJob, error: jobResolveError } = await resolveJobFromRequest(req.body);
-    if (jobResolveError) {
-      return res.status(400).json({ message: jobResolveError });
-    }
-
-    if (!resolvedJobId) {
-      return res.status(400).json({ message: 'Please select or enter a valid job' });
-    }
-
-    const existing = await Application.findOne({ where: { user_id: req.user.id, job_id: resolvedJobId } });
-    if (existing) {
-      return res.status(400).json({ message: 'Already applied' });
-    }
-
-    const passportUpload = await cloudinary.uploader.upload(passportFile.path);
-    const cvUpload = await cloudinary.uploader.upload(cvFile.path);
-
-    const application = await Application.create({
-      user_id: req.user.id,
-      job_id: resolvedJobId,
-      name: req.user?.name || req.body.name || null,
-      email: req.user?.email || req.body.email || null,
-      national_id: nationalId,
-      phone,
-      passport_path: passportFile.path,
-      cv_path: cvFile.path,
-      passport: passportUpload.secure_url,
-      passport_url: passportUpload.secure_url,
-      cv: cvUpload.secure_url,
-      cv_url: cvUpload.secure_url,
-      status: 'pending',
+    return res.status(200).json({
+      message: 'Files received successfully',
     });
-
-    if (isMongooseModel) {
-      await User.findByIdAndUpdate(req.user.id, {
-        has_submitted: true,
-      });
-    } else if (isSequelizeModel) {
-      await User.update({ has_submitted: true }, { where: { id: req.user.id } });
-    }
-
-    await Notification.create({
-      userId: req.user.id,
-      title: 'New Application',
-      message: 'A new user has applied',
-    });
-
-    res.status(201).json({
-      message: 'Application submitted successfully',
-      application,
-    });
-  } catch (err) {
-    console.error('🔥 FULL ERROR:', err);
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    console.error('🔥 ERROR:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 
