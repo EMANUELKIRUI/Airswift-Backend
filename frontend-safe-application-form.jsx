@@ -354,7 +354,7 @@ const SafeApplicationForm = () => {
               id="cv-upload"
               type="file"
               accept=".pdf,application/pdf"
-              onChange={(e) => handleFileChange(e, 'CV')}
+              onChange={(e) => handleFileChange(e, 'cv')}
               aria-label="Upload CV"
               required
             />
@@ -375,7 +375,7 @@ const SafeApplicationForm = () => {
               id="national-id-upload"
               type="file"
               accept=".pdf,application/pdf"
-              onChange={(e) => handleFileChange(e, 'National ID')}
+              onChange={(e) => handleFileChange(e, 'nationalId')}
               aria-label="Upload National ID"
               required
             />
@@ -396,7 +396,7 @@ const SafeApplicationForm = () => {
               id="passport-upload"
               type="file"
               accept=".pdf,application/pdf"
-              onChange={(e) => handleFileChange(e, 'Passport')}
+              onChange={(e) => handleFileChange(e, 'passport')}
               aria-label="Upload Passport"
               required
             />
