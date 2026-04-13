@@ -294,8 +294,9 @@ const createApplication = async (req, res) => {
 
     const passportFile = req.files?.passport?.[0];
     const cvFile = req.files?.cv?.[0];
+    const idDocumentFile = req.files?.idDocument?.[0];
 
-    if (!passportFile || !cvFile) {
+    if (!passportFile || !cvFile || !idDocumentFile) {
       return res.status(400).json({
         message: 'Files not received',
       });
