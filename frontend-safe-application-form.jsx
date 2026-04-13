@@ -105,6 +105,11 @@ const SafeApplicationForm = () => {
   // Validate form before submission
   const validateForm = () => {
     console.log('🔍 Validating form...');
+    console.log('DEBUG - Current files state:', {
+      cv: files.cv?.name || 'null',
+      nationalId: files.nationalId?.name || 'null',
+      passport: files.passport?.name || 'null'
+    });
 
     // Check required fields
     if (!formData.phone?.trim()) {
@@ -124,16 +129,19 @@ const SafeApplicationForm = () => {
 
     // Check files
     if (!files.cv) {
+      console.log('❌ CV file is missing:', files.cv);
       setError('❌ CV file is required');
       return false;
     }
 
     if (!files.nationalId) {
+      console.log('❌ National ID file is missing:', files.nationalId);
       setError('❌ National ID file is required');
       return false;
     }
 
     if (!files.passport) {
+      console.log('❌ Passport file is missing:', files.passport);
       setError('❌ Passport file is required');
       return false;
     }
