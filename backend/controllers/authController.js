@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const { generateToken } = require("../utils/generateToken");
-const { sendEmail, sendOTPEmail } = require("../services/emailService");
+const { sendEmail, sendOTP } = require("../services/emailService");
 const { otpTemplate } = require("../utils/templates/otpTemplate");
 const { generateOTP } = require("../utils/generateOTP");
 const { generateAccessToken, generateRefreshToken } = require("../utils/tokenHelpers");
@@ -59,171 +59,168 @@ const isSequelizeModel = Boolean(User.sequelize);
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+    const { name, email, password, role } = req.body;
 
     console.log("REGISTER BODY:", req.body);
 
-    if (!name || !normalizedEmail || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
     }
 
-    const existing = await findUserByEmail(normalizedEmail);
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
 
-    if (existing) {
-      if (existing.isVerified) {
-        return res.status(400).json({ message: "User already exists" });
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      if (existingUser.isVerified) {
+        return res.status(200).json({
+          message: "Account already exists. Please login.",
+          redirect: "login",
+        });
       }
 
       const otp = generateOTP().toString();
       const hashedOtp = await bcrypt.hash(otp, 10);
+      existingUser.otp = hashedOtp;
+      existingUser.otpExpires = Date.now() + 10 * 60 * 1000; // 10 min
+      await existingUser.save();
 
-      existing.otp = hashedOtp;
-      existing.otpExpires = Date.now() + 10 * 60 * 1000;
-      existing.verificationToken = null;
-      existing.verificationTokenExpires = null;
-      existing.name = name;
-      existing.password = await bcrypt.hash(password, 10);
-      await existing.save();
-
-      let emailSent = false;
       try {
-        await sendOTPEmail(existing.email, otp);
-        emailSent = true;
-      } catch (error) {
-        console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+        await sendOTP(normalizedEmail, otp);
+      } catch (err) {
+        console.error("⚠️ RESEND OTP FAILED:", err.message);
       }
 
-      return res.status(409).json({
-        message: "Email already exists - not verified",
-        error: "EMAIL_NOT_VERIFIED",
-        unverified: true,
-        redirect: "/verify-otp",
-        email: existing.email,
-        otpSent: emailSent,
+      return res.status(200).json({
+        message: "OTP resent. Please verify your account.",
+        redirect: "verify",
+        email: normalizedEmail,
       });
     }
 
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const otp = generateOTP().toString();
+    const hashedPassword = await bcrypt.hash(password, 10);
     const hashedOtp = await bcrypt.hash(otp, 10);
-    const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     const user = await User.create({
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role: "user", // Explicitly set role to user - no admin accounts allowed
-      otp: hashedOtp,
-      otpExpires,
+      role,
       isVerified: false,
-      verificationToken: null,
-      verificationTokenExpires: null,
+      otp: hashedOtp,
+      otpExpires: Date.now() + 10 * 60 * 1000,
     });
 
-    // Log user registration
-    await logEvent({
-      userId: user._id,
-      action: "REGISTER",
-      details: `User registered: ${user.email}`,
-    });
-
-    let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
-      emailSent = true;
-    } catch (error) {
-      console.error(`REGISTER OTP EMAIL ERROR for ${email}:`, error.message);
+      await sendOTP(normalizedEmail, otp);
+    } catch (err) {
+      console.error("⚠️ OTP FAILED BUT REGISTRATION CONTINUES:", err.message);
     }
 
-    const responseMessage = emailSent
-      ? "Verification OTP sent"
-      : "User registered, but verification OTP could not be delivered";
-
-    res.status(emailSent ? 200 : 201).json({
-      message: responseMessage,
-      otpSent: emailSent,
-      redirect: "/verify-otp",
-      email: user.email,
-      user: {
-        _id: user._id,
-        role: user.role || "user",
-        has_submitted: user.has_submitted || false,
-      },
+    return res.status(201).json({
+      message: "Account created. Please verify OTP.",
+      redirect: "verify",
+      email: normalizedEmail,
     });
-  } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    return res.status(500).json({
+  } catch (error) {
+    console.error("REGISTER ERROR:", error);
+
+    const isDuplicateKeyError = error && (
+      error.code === 11000 ||
+      error.codeName === "DuplicateKey" ||
+      /duplicate key/i.test(error.message || "")
+    );
+
+    if (isDuplicateKeyError) {
+      const duplicateEmail = normalizedEmail || (error.keyValue && error.keyValue.email) || email;
+      const existingUser = await User.findOne({ email: duplicateEmail });
+
+      if (existingUser) {
+        if (existingUser.isVerified) {
+          return res.status(200).json({
+            message: "Account already exists. Please login.",
+            redirect: "login",
+            email: duplicateEmail,
+          });
+        }
+
+        const otp = generateOTP().toString();
+        existingUser.otp = await bcrypt.hash(otp, 10);
+        existingUser.otpExpires = Date.now() + 10 * 60 * 1000;
+        await existingUser.save();
+
+        try {
+          await sendOTP(duplicateEmail, otp);
+        } catch (err) {
+          console.error("⚠️ RESEND OTP FAILED AFTER DUPLICATE ERROR:", err.message);
+        }
+
+        return res.status(200).json({
+          message: "OTP resent. Please verify your account.",
+          redirect: "verify",
+          email: duplicateEmail,
+        });
+      }
+
+      return res.status(400).json({
+        message: "Email already registered",
+        redirect: "login",
+        email: duplicateEmail,
+      });
+    }
+
+    res.status(500).json({
       message: "Server error",
-      error: err.message
     });
   }
 };
 
 // ✅ VERIFY REGISTRATION OTP
 const verifyRegistrationOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
+  const { email, otp } = req.body;
 
-    if (!email || !otp) {
+  try {
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim() : email;
+    const enteredOtp = typeof otp === 'string' ? otp.trim() : String(otp);
+
+    if (!normalizedEmail || !enteredOtp) {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(normalizedEmail);
     if (!user) {
-      return res.status(400).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
     if (user.isVerified) {
       return res.status(400).json({ message: "Account is already verified" });
     }
 
-    if (!user.otp || !(await bcrypt.compare(otp, user.otp))) {
-      return res.status(400).json({ message: "Invalid OTP" });
-    }
+    console.log("Entered OTP:", enteredOtp);
+    console.log("Stored OTP:", user.otp);
 
-    if (Date.now() > user.otpExpires) {
+    if (!user.otpExpires || user.otpExpires < Date.now()) {
       return res.status(400).json({ message: "OTP expired" });
     }
 
+    const isMatch = await bcrypt.compare(enteredOtp, user.otp);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
     user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
+    user.otp = undefined;
+    user.otpExpires = undefined;
 
-    const accessToken = generateAccessToken(user);
-    const refreshTokenValue = generateRefreshToken(user);
-
-    user.refreshToken = refreshTokenValue;
     await user.save();
 
-    const cookieOptions = buildCookieOptions(req);
-
-    res.cookie("accessToken", accessToken, cookieOptions);
-    res.cookie("refreshToken", refreshTokenValue, cookieOptions);
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Account verified successfully",
-      accessToken,
-      refreshToken: refreshTokenValue,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
+      redirect: "login"
     });
   } catch (err) {
-    console.error("VERIFY REGISTRATION OTP ERROR:", err);
-    return res.status(500).json({
-      message: "Server error",
-      error: err.message
-    });
+    console.error("VERIFY OTP ERROR:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -258,10 +255,10 @@ const resendVerificationEmail = async (req, res) => {
 
     let emailSent = false;
     try {
-      await sendOTPEmail(user.email, otp);
+      await sendOTP(user.email, otp);
       emailSent = true;
     } catch (error) {
-      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.message);
+      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.response?.data || error.message);
     }
 
     const responseMessage = emailSent
@@ -275,6 +272,69 @@ const resendVerificationEmail = async (req, res) => {
       message: "Server error",
       error: err.message
     });
+  }
+};
+
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Account already verified. Please login." });
+    }
+
+    const now = Date.now();
+    const lastSentAt = user.lastOtpSentAt ? new Date(user.lastOtpSentAt).getTime() : user.lastOtpSent ? new Date(user.lastOtpSent).getTime() : null;
+    const ONE_MINUTE = 60 * 1000;
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    if (lastSentAt && now - lastSentAt < ONE_MINUTE) {
+      const waitTime = Math.ceil((ONE_MINUTE - (now - lastSentAt)) / 1000);
+      return res.status(429).json({
+        message: `Please wait ${waitTime}s before requesting another OTP`,
+      });
+    }
+
+    if (!user.resendCount && user.resendCount !== 0) {
+      user.resendCount = 0;
+    }
+
+    if (lastSentAt && now - lastSentAt < ONE_HOUR && user.resendCount >= 5) {
+      return res.status(429).json({ message: "Too many OTP requests. Try again later." });
+    }
+
+    if (!lastSentAt || now - lastSentAt > ONE_HOUR) {
+      user.resendCount = 0;
+    }
+
+    const otp = generateOTP().toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    user.otp = hashedOtp;
+    user.otpExpires = now + 10 * 60 * 1000;
+    user.lastOtpSentAt = now;
+    user.lastOtpSent = now;
+    user.resendCount += 1;
+
+    await user.save();
+
+    console.log("🔁 Resending OTP to:", email);
+
+    await sendOTP(email, otp);
+
+    res.json({ message: "OTP resent successfully" });
+  } catch (error) {
+    console.error("RESEND OTP ERROR:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -607,7 +667,12 @@ const verifyLoginOTP = async (req, res) => {
       });
     }
 
-    if (!user.resetToken || !(await bcrypt.compare(otp, user.resetToken))) {
+    if (!user.resetToken) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.resetToken);
+    if (!isMatch) {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
@@ -707,12 +772,12 @@ const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
+    user.resetToken = hashedToken;
+    user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
     
     console.log("FORGOT PASSWORD - Setting reset token for", user.email, {
       resetTokenLength: hashedToken.length,
-      expireTime: new Date(user.resetPasswordExpire),
+      expireTime: new Date(user.resetTokenExpiry),
       expiresIn: "15 minutes"
     });
     
@@ -721,8 +786,8 @@ const forgotPassword = async (req, res) => {
     // Verify it was saved
     const savedUser = await User.findById(user._id);
     console.log("FORGOT PASSWORD - Token saved verification:", {
-      tokenSaved: !!savedUser.resetPasswordToken,
-      expireSaved: !!savedUser.resetPasswordExpire
+      tokenSaved: !!savedUser.resetToken,
+      expireSaved: !!savedUser.resetTokenExpiry
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -760,7 +825,7 @@ const forgotPassword = async (req, res) => {
 // ✅ RESET PASSWORD - Verify OTP and update password
 const resetPassword = async (req, res) => {
   try {
-    const { token } = req.params;
+    const token = req.params.token || req.body.token || req.query.token;
     const { password } = req.body;
 
     if (!token || !password) {
@@ -779,8 +844,8 @@ const resetPassword = async (req, res) => {
     });
 
     const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
+      resetToken: hashedToken,
+      resetTokenExpiry: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -788,21 +853,21 @@ const resetPassword = async (req, res) => {
       
       // Debug: Check if ANY user has this reset token
       const userWithToken = await User.findOne({
-        resetPasswordToken: hashedToken
+        resetToken: hashedToken
       });
       
       if (userWithToken) {
-        console.log("Token found but expired. Expiry:", userWithToken.resetPasswordExpire, "Now:", Date.now());
-        return res.status(400).json({ error: "Password reset link has expired. Please request a new one." });
+        console.log("Token found but expired. Expiry:", userWithToken.resetTokenExpiry, "Now:", Date.now());
+        return res.status(400).json({ error: "Invalid or expired token" });
       } else {
         console.log("Token not found in database at all");
-        return res.status(400).json({ error: "Invalid password reset link. Please request a new one." });
+        return res.status(400).json({ error: "Invalid or expired token" });
       }
     }
 
     user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
 
     await user.save();
 
@@ -916,6 +981,7 @@ module.exports = {
   registerUser,
   verifyRegistrationOTP,
   resendVerificationEmail,
+  resendOTP,
   loginUser,
   sendLoginOTP,
   verifyLoginOTP,

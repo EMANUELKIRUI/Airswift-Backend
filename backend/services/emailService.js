@@ -1,4 +1,6 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
+
 let nodeFetch;
 const fetch = async (...args) => {
   if (!nodeFetch) {
@@ -46,35 +48,45 @@ const sendEmail = async (to, subject, htmlContent) => {
   }
 
   try {
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          email: process.env.SENDER_EMAIL,
-          name: 'Talex',
-        },
-        to: [{ email: to }],
-        subject,
-        htmlContent,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Brevo error:', data);
-      throw new Error('Email failed');
-    }
-
-    console.log('✅ Email sent:', data);
-    return true;
+    return await sendBrevoEmail(to, subject, htmlContent);
   } catch (error) {
     console.error('❌ Email send error:', error.message);
     return false;
+  }
+};
+
+const sendBrevoEmail = async (to, subject, htmlContent) => {
+  if (!process.env.BREVO_API_KEY || !process.env.SENDER_EMAIL) {
+    throw new Error('Brevo configuration missing');
+  }
+
+  const emailPayload = {
+    sender: {
+      email: process.env.SENDER_EMAIL,
+      name: 'Airswift',
+    },
+    to: [{ email: to }],
+    subject,
+    htmlContent,
+  };
+
+  try {
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      emailPayload,
+      {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log('✅ Brevo email sent:', response.data);
+    return true;
+  } catch (error) {
+    console.error('❌ Brevo Error:', error.response?.data || error.message);
+    throw error;
   }
 };
 
@@ -88,6 +100,7 @@ const dispatchEmail = async (to, subject, htmlContent) => {
 
 const sendOTPEmail = async (email, otp) => {
   try {
+    console.log('📧 Sending OTP to:', email);
     const subject = 'OTP Verification';
     const html = `
 <html>
@@ -105,9 +118,14 @@ const sendOTPEmail = async (email, otp) => {
     return true;
 
   } catch (error) {
-    console.error(`❌ Failed to send OTP to ${email}:`, error.message);
+    console.error(`❌ Failed to send OTP to ${email}:`, error.response?.data || error.message);
     throw error;
   }
+};
+
+const sendOTP = async (email, otp) => {
+  console.log('📧 Sending OTP to:', email);
+  return sendOTPEmail(email, otp);
 };
 
 /**
@@ -336,6 +354,7 @@ const sendOfferLetter = async (req, res) => {
 };
 
 module.exports = {
+  sendOTP,
   sendOTPEmail,
   sendEmail,
   renderTemplate,

@@ -245,11 +245,17 @@ const applyForJob = async (req, res) => {
       details: "User submitted application",
     });
 
-    // Notify applicant with stage template
-    await sendStageEmail('application_submitted', req.user.email || req.user.email, {
-      name: req.user.name,
-      jobTitle: job.title,
-    });
+    // Notify applicant with stage template (do not block submission if email fails)
+    try {
+      if (req.user?.email) {
+        await sendStageEmail('application_submitted', req.user.email, {
+          name: req.user.name,
+          jobTitle: job.title,
+        });
+      }
+    } catch (emailError) {
+      console.error('Application stage email failed:', emailError);
+    }
 
     // Notify admin (placeholder)
     // sendEmail('admin@example.com', 'New Application', `New application for ${job.title}`);

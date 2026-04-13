@@ -5,6 +5,7 @@ const {
   registerUser,
   verifyRegistrationOTP,
   resendVerificationEmail,
+  resendOTP,
   loginUser,
   sendLoginOTP,
   verifyLoginOTP,
@@ -27,17 +28,27 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiter for OTP resend requests
+const otpRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 OTP requests per hour
+  message: 'Too many OTP requests from this IP, please try again after an hour.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
-router.post("/resend-verification", resendVerificationEmail);
-router.post("/send-registration-otp", resendVerificationEmail); // Alias for frontend compatibility
+router.post("/resend-verification", otpRateLimiter, resendVerificationEmail);
+router.post("/send-registration-otp", otpRateLimiter, resendVerificationEmail); // Alias for frontend compatibility
+router.post("/resend-otp", otpRateLimiter, resendOTP);
 router.post("/login", loginLimiter, loginUser);
 // router.post("/admin-login", adminLogin); // Removed - admin uses regular login
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+router.post("/reset-password/:token?", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);
 
