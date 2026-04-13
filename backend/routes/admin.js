@@ -8,6 +8,7 @@ const adminOnly = require('../middleware/admin');
 const {
   getAllApplications,
   updateStatus,
+  deleteApplication,
   getStats,
   sendInterview,
   generateOffer,
@@ -111,6 +112,7 @@ router.delete('/settings/:key', verifyToken, adminOnly, deleteSetting);
 router.get('/applications', verifyToken, adminOnly, getAllApplications);
 router.put('/application/:id', verifyToken, adminOnly, updateStatus);
 router.patch('/applications/:id', verifyToken, adminOnly, updateStatus);
+router.delete('/applications/:id', verifyToken, adminOnly, deleteApplication);
 router.post('/messages/send', verifyToken, adminOnly, sendInterviewMessage);
 router.get('/stats', verifyToken, adminOnly, getStats);
 router.post('/send-interview/:id', verifyToken, adminOnly, sendInterview);

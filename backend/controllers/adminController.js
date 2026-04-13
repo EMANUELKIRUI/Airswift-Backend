@@ -162,7 +162,7 @@ const getAllApplications = async (req, res) => {
 const updateStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const valid = ['pending', 'shortlisted', 'interview', 'rejected', 'hired'];
+    const valid = ['pending', 'approved', 'rejected'];
 
     // Convert to lowercase for validation
     const normalizedStatus = status.toLowerCase();
@@ -208,6 +208,23 @@ const updateStatus = async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('updateStatus error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteApplication = async (req, res) => {
+  try {
+    const app = await Application.findByPk(req.params.id);
+    if (!app) return res.status(404).json({ message: 'Application not found' });
+
+    await app.destroy();
+
+    // Log audit event
+    await logAuditEvent(req.user.id, 'application_delete', 'application', req.params.id, {}, req);
+
+    res.json({ message: 'Application deleted' });
+  } catch (error) {
+    console.error('deleteApplication error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -1928,6 +1945,7 @@ module.exports = {
   deleteSetting,
   getAllApplications,
   updateStatus,
+  deleteApplication,
   sendInterviewMessage,
   getStats,
   sendInterview,

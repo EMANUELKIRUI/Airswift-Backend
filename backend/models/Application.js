@@ -36,12 +36,8 @@ const Application = sequelize.define('Application', {
     validate: {
       isIn: [[
         'pending',
-        'under_review',
-        'shortlisted',
-        'interview',
-        'accepted',
-        'rejected',
-        'hired'
+        'approved',
+        'rejected'
       ]]
     }
   },
