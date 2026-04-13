@@ -446,6 +446,9 @@ app.use((req, res, next) => {
 });
 app.use(maintenanceMode);
 
+// Serve static files from root directory
+app.use(express.static('../'));
+
 // Root route
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'Server is healthy' });
