@@ -20,10 +20,11 @@ const {
 } = require('../controllers/applicationController');
 const { verifyToken } = require('../middleware/auth');
 const { authMiddleware } = require('../middleware/authMiddleware');
-const { upload } = require('../middleware/upload');
 const { cloudUpload } = require('../middleware/cloudinaryUpload');
 const adminOnly = require('../middleware/admin');
 const isAdmin = adminOnly;
+
+const upload = multer({ dest: 'uploads/' });
 
 // Middleware to handle multer errors
 const handleMulterError = (err, req, res, next) => {

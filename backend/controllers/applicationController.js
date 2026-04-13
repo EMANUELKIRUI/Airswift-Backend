@@ -299,7 +299,13 @@ const createApplication = async (req, res) => {
     const passportFile = req.files?.passport?.[0];
     const cvFile = req.files?.cv?.[0];
 
-    if (!jobId || !nationalId || !phone || !passportFile || !cvFile) {
+    if (!passportFile || !cvFile) {
+      return res.status(400).json({
+        message: 'Files not received properly',
+      });
+    }
+
+    if (!jobId || !nationalId || !phone) {
       return res.status(400).json({
         message: 'All fields including files are required',
       });
@@ -357,7 +363,7 @@ const createApplication = async (req, res) => {
       application,
     });
   } catch (err) {
-    console.error('createApplication error:', err);
+    console.error('🔥 FULL ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
