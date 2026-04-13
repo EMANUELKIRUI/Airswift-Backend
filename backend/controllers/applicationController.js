@@ -301,14 +301,9 @@ const createApplication = async (req, res) => {
       });
     }
 
-    console.log('PASSPORT PATH:', passportFile.path);
-    console.log('CV PATH:', cvFile.path);
-
-    return res.status(200).json({
-      message: 'Files received successfully',
-    });
+    res.status(200).json({ message: 'Working' });
   } catch (error) {
-    console.error('🔥 ERROR:', error);
+    console.error('ERROR:', error);
     res.status(500).json({ message: error.message });
   }
 };
