@@ -159,35 +159,28 @@ const SafeApplicationForm = () => {
       console.log('📤 Preparing form submission...');
 
       // ✅ FIX 4: Use FormData for file uploads
-      const submitFormData = new FormData();
+      const formDataToSend = new FormData();
 
-      // Add files
-      submitFormData.append('cv', files.cv);
-      submitFormData.append('nationalId', files.nationalId);
-      submitFormData.append('passport', files.passport);
-
-      // Add form fields
-      submitFormData.append('job_id', formData.jobId);
-      submitFormData.append('job_title', formData.jobTitle);
-      submitFormData.append('phone', formData.phone);
-      submitFormData.append('national_id', formData.nationalId);
-      if (formData.coverLetter?.trim()) {
-        submitFormData.append('cover_letter', formData.coverLetter);
-      }
+      formDataToSend.append('jobId', formData.jobId);
+      formDataToSend.append('nationalId', formData.nationalId);
+      formDataToSend.append('phone', formData.phone);
+      formDataToSend.append('passport', files.passport);
+      formDataToSend.append('cv', files.cv);
 
       console.log('📋 Form data prepared:');
       console.log('   - CV:', files.cv?.name);
-      console.log('   - National ID:', files.nationalId?.name);
       console.log('   - Passport:', files.passport?.name);
-      console.log('   - Job:', formData.jobId || formData.jobTitle);
+      console.log('   - Job:', formData.jobId);
       console.log('   - Phone:', formData.phone);
 
       // ✅ FIX 5: Send with correct headers and error handling
       console.log('📤 Sending application...');
-      const response = await api.post('/applications/apply', submitFormData, {
+      const response = await fetch(`${API_URL || ''}/api/applications`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+        body: formDataToSend,
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total
@@ -197,7 +190,13 @@ const SafeApplicationForm = () => {
         },
       });
 
-      console.log('✅ Application submitted successfully:', response.data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Application submitted successfully:', data);
       setSuccess(true);
       setUploadProgress(0);
 
