@@ -57,28 +57,29 @@ const router = express.Router();
 router.get('/', authMiddleware, getUserApplications);
 router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
 
-// ✅ Main application submission route (Cloudinary upload)
-router.post('/', verifyToken, cloudUpload.fields([
-  { name: 'cv', maxCount: 1 },
-  { name: 'nationalId', maxCount: 1 },
+// ✅ Main application submission route (local multer upload)
+router.post('/', authMiddleware, upload.fields([
   { name: 'passport', maxCount: 1 },
-]), handleMulterError, applyForJob);
+  { name: 'cv', maxCount: 1 },
+]), handleMulterError, createApplication);
 
-// Legacy route (local upload) - keep for backward compatibility
+// Alias route for backward compatibility
 router.post('/create', authMiddleware, upload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'cv', maxCount: 1 },
-]), createApplication);
-router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
-router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
-router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
-router.get('/admin/stats', verifyToken, isAdmin, getAdminStats);
-router.get('/user/applications', verifyToken, getMyApplications);
+]), handleMulterError, createApplication);
+
+// Existing cloud upload route remains available under /apply
 router.post('/apply', verifyToken, cloudUpload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
 ]), handleMulterError, applyForJob);
+router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
+router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
+router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
+router.get('/admin/stats', verifyToken, isAdmin, getAdminStats);
+router.get('/user/applications', verifyToken, getMyApplications);
 router.get('/my', verifyToken, getMyApplications);
 router.post('/upload-documents', verifyToken, cloudUpload.fields([
   { name: 'passport', maxCount: 1 },

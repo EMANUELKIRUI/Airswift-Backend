@@ -9,6 +9,7 @@ const { logAuditEvent } = require('../utils/auditLogger');
 const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard, emitAdminUserUpdate, emitUserEvent } = require('../utils/socketEmitter');
 const Interview = require('../models/Interview');
 const fs = require('fs').promises;
+const cloudinary = require('../config/cloudinary');
 
 const AuditLog = require("../models/AuditLog");
 
@@ -288,28 +289,38 @@ const applyForJob = async (req, res) => {
 
 const createApplication = async (req, res) => {
   try {
+    console.log('BODY:', req.body);
+    console.log('FILES:', req.files);
+
     const jobId = req.body.jobId || req.body.job_id;
-    const jobTitle = (req.body.job || req.body.job_title || req.body.jobTitle || '').trim();
     const nationalId = req.body.nationalId || req.body.national_id;
     const phone = req.body.phone;
+
+    const passportFile = req.files?.passport?.[0];
+    const cvFile = req.files?.cv?.[0];
+
+    if (!jobId || !nationalId || !phone || !passportFile || !cvFile) {
+      return res.status(400).json({
+        message: 'All fields including files are required',
+      });
+    }
 
     const { jobId: resolvedJobId, job: resolvedJob, error: jobResolveError } = await resolveJobFromRequest(req.body);
     if (jobResolveError) {
       return res.status(400).json({ message: jobResolveError });
     }
 
-    if (!resolvedJobId || !nationalId || !phone) {
-      return res.status(400).json({ message: 'All fields required' });
-    }
-
-    if (!req.files?.passport?.[0] || !req.files?.cv?.[0]) {
-      return res.status(400).json({ message: 'Passport & CV required' });
+    if (!resolvedJobId) {
+      return res.status(400).json({ message: 'Please select or enter a valid job' });
     }
 
     const existing = await Application.findOne({ where: { user_id: req.user.id, job_id: resolvedJobId } });
     if (existing) {
       return res.status(400).json({ message: 'Already applied' });
     }
+
+    const passportUpload = await cloudinary.uploader.upload(passportFile.path);
+    const cvUpload = await cloudinary.uploader.upload(cvFile.path);
 
     const application = await Application.create({
       user_id: req.user.id,
@@ -318,9 +329,12 @@ const createApplication = async (req, res) => {
       email: req.user?.email || req.body.email || null,
       national_id: nationalId,
       phone,
-      passport_path: req.files.passport[0].path,
-      cv_path: req.files.cv[0].path,
-      cv_url: req.files.cv[0].path,
+      passport_path: passportFile.path,
+      cv_path: cvFile.path,
+      passport: passportUpload.secure_url,
+      passport_url: passportUpload.secure_url,
+      cv: cvUpload.secure_url,
+      cv_url: cvUpload.secure_url,
       status: 'pending',
     });
 
@@ -338,7 +352,10 @@ const createApplication = async (req, res) => {
       message: 'A new user has applied',
     });
 
-    res.json({ success: true, application });
+    res.status(201).json({
+      message: 'Application submitted successfully',
+      application,
+    });
   } catch (err) {
     console.error('createApplication error:', err);
     res.status(500).json({ message: err.message });
