@@ -7,7 +7,9 @@ const SafeApplicationForm = () => {
   const [formData, setFormData] = useState({
     phone: '',
     nationalId: '',
-    coverLetter: ''
+    coverLetter: '',
+    name: '',
+    jobId: ''
   });
   const [files, setFiles] = useState({
     cv: null,
@@ -85,6 +87,16 @@ const SafeApplicationForm = () => {
     });
 
     // Check required fields
+    if (!formData.name?.trim()) {
+      setError('❌ Name is required');
+      return false;
+    }
+
+    if (!formData.jobId?.trim()) {
+      setError('❌ Job ID is required');
+      return false;
+    }
+
     if (!formData.phone?.trim()) {
       setError('❌ Phone number is required');
       return false;
@@ -137,19 +149,29 @@ const SafeApplicationForm = () => {
       // ✅ FIX 4: Use FormData for file uploads
       const formDataToSend = new FormData();
 
-      formDataToSend.append('nationalId', formData.nationalId);
+      // Files
+      formDataToSend.append("cv", files.cv);
+      formDataToSend.append("nationalId", files.nationalId);
+      formDataToSend.append("passport", files.passport);
+
+      // Other fields
+      formDataToSend.append("jobId", formData.jobId);
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append('nationalId', formData.nationalId); // text
       formDataToSend.append('phone', formData.phone);
-      formDataToSend.append('passport', files.passport);
-      formDataToSend.append('cv', files.cv);
+      formDataToSend.append('coverLetter', formData.coverLetter);
 
       console.log('📋 Form data prepared:');
+      console.log('   - Name:', formData.name);
+      console.log('   - Job ID:', formData.jobId);
       console.log('   - CV:', files.cv?.name);
+      console.log('   - National ID:', files.nationalId?.name);
       console.log('   - Passport:', files.passport?.name);
       console.log('   - Phone:', formData.phone);
 
       // ✅ FIX 5: Send with correct headers and error handling
       console.log('📤 Sending application...');
-      const response = await fetch(`${API_URL || ''}/api/applications`, {
+      const response = await fetch(`${API_URL || ''}/api/applications/apply`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -178,7 +200,9 @@ const SafeApplicationForm = () => {
       setFormData({
         phone: '',
         nationalId: '',
-        coverLetter: ''
+        coverLetter: '',
+        name: '',
+        jobId: ''
       });
       setFiles({
         cv: null,
@@ -244,6 +268,38 @@ const SafeApplicationForm = () => {
       )}
 
       <form onSubmit={handleSubmit} encType="multipart/form-data">
+        {/* Name */}
+        <div className="form-group">
+          <label htmlFor="name">
+            Full Name <span className="required">*</span>
+          </label>
+          <input
+            id="name"
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            placeholder="Your full name"
+            required
+          />
+        </div>
+
+        {/* Job ID */}
+        <div className="form-group">
+          <label htmlFor="jobId">
+            Job ID <span className="required">*</span>
+          </label>
+          <input
+            id="jobId"
+            type="text"
+            name="jobId"
+            value={formData.jobId}
+            onChange={handleInputChange}
+            placeholder="Job ID"
+            required
+          />
+        </div>
+
         {/* Phone */}
         <div className="form-group">
           <label htmlFor="phone">
@@ -383,8 +439,8 @@ const SafeApplicationForm = () => {
       <details className="debug-section">
         <summary>🔍 Debug Information (Click to expand)</summary>
         <pre>{JSON.stringify({
-          jobSelected: formData.jobId,
-          jobTitle: formData.jobTitle,
+          name: formData.name,
+          jobId: formData.jobId,
           phone: formData.phone,
           nationalId: formData.nationalId,
           files: {
