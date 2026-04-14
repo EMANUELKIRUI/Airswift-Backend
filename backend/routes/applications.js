@@ -74,6 +74,12 @@ router.post('/', authMiddleware, upload.fields([
       });
     }
 
+    if (!req.files.passport || req.files.passport.length === 0) {
+      return res.status(400).json({
+        error: "Passport file is required",
+      });
+    }
+
     const cv = req.files.cv[0];
     const passport = req.files.passport?.[0];
 
@@ -109,6 +115,12 @@ router.post('/create', authMiddleware, upload.fields([
     if (!req.files || !req.files.cv || req.files.cv.length === 0) {
       return res.status(400).json({
         error: "CV file is required",
+      });
+    }
+
+    if (!req.files.passport || req.files.passport.length === 0) {
+      return res.status(400).json({
+        error: "Passport file is required",
       });
     }
 
