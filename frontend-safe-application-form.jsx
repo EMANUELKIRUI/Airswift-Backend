@@ -154,8 +154,17 @@ const SafeApplicationForm = () => {
       formDataToSend.append("nationalId", files.nationalId);
       formDataToSend.append("passport", files.passport);
 
-      // Other fields
-      formDataToSend.append("jobId", formData.jobId);
+      // Determine whether the selected job value is an ID or a title
+      const jobValue = formData.jobId.trim();
+      if (jobValue) {
+        const jobIdParsed = Number(jobValue);
+        if (Number.isInteger(jobIdParsed) && String(jobIdParsed) === jobValue) {
+          formDataToSend.append('job_id', jobValue);
+        } else {
+          formDataToSend.append('job', jobValue);
+        }
+      }
+
       formDataToSend.append("name", formData.name);
       formDataToSend.append('nationalIdNumber', formData.nationalId); // text
       formDataToSend.append('phone', formData.phone);
@@ -175,25 +184,20 @@ const SafeApplicationForm = () => {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Accept: 'application/json',
         },
         body: formDataToSend,
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          setUploadProgress(percentCompleted);
-          console.log(`📊 Upload progress: ${percentCompleted}%`);
-        },
       });
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
+        const responseText = await response.text();
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(responseText);
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch (jsonErr) {
-          const errorText = await response.text();
-          console.error('Server returned HTML or text error:', errorText);
+          console.error('Server returned non-JSON error response:', responseText);
+          errorMessage = responseText || errorMessage;
         }
         throw new Error(errorMessage);
       }

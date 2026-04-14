@@ -34,19 +34,23 @@ const UPLOAD_BASE_URL = process.env.UPLOAD_BASE_URL || '';
 
 const applySchema = Joi.object({
   job_id: Joi.number().integer(),
+  jobId: Joi.alternatives().try(Joi.number().integer(), Joi.string().trim()),
   job_title: Joi.string().trim(),
   jobTitle: Joi.string().trim(),
   job: Joi.string().trim(),
   cover_letter: Joi.string().allow(''),
   phone: Joi.string().required(),
   national_id: Joi.string().required(),
-}).or('job_id', 'job_title', 'jobTitle', 'job');
+}).or('job_id', 'jobId', 'job_title', 'jobTitle', 'job');
 
 const resolveJobFromRequest = async (body) => {
-  const requestedJobId = body.job_id || body.jobId;
-  const requestedJobTitle = (body.job || body.job_title || body.jobTitle || '').trim();
+  const rawJobInput = body.job_id || body.jobId || body.job || body.job_title || body.jobTitle || '';
+  const requestedJobId = Number(rawJobInput);
+  const requestedJobTitle = typeof rawJobInput === 'string' && rawJobInput.trim() && isNaN(requestedJobId)
+    ? rawJobInput.trim()
+    : (body.job || body.job_title || body.jobTitle || '').trim();
 
-  if (requestedJobId) {
+  if (!Number.isNaN(requestedJobId) && rawJobInput !== '' && rawJobInput !== null && rawJobInput !== undefined) {
     return { jobId: requestedJobId };
   }
 
@@ -80,8 +84,10 @@ const resolveJobFromRequest = async (body) => {
 
 const applyForJob = async (req, res) => {
   try {
-    const jobTitle = (req.body.job || req.body.job_title || req.body.jobTitle || '').trim();
-    const job_id = req.body.job_id || req.body.jobId;
+    const rawJobInput = req.body.job || req.body.job_title || req.body.jobTitle || req.body.jobId || '';
+    const parsedJobId = Number(req.body.job_id || req.body.jobId);
+    const job_id = !Number.isNaN(parsedJobId) && (req.body.job_id || req.body.jobId) ? parsedJobId : undefined;
+    const jobTitle = typeof rawJobInput === 'string' ? rawJobInput.trim() : '';
     const {
       cover_letter,
       coverLetter,
@@ -96,7 +102,10 @@ const applyForJob = async (req, res) => {
 
     const { error } = applySchema.validate({
       job_id,
+      jobId: req.body.jobId,
       job_title: jobTitle,
+      jobTitle,
+      job: jobTitle,
       cover_letter: cover_letter || coverLetter,
       phone: phoneValue,
       national_id: nationalIdValueFinal,
