@@ -25,10 +25,11 @@ const JobSelectionInput = () => {
       const response = await api.get('/jobs');
       console.log('Jobs fetched:', response.data);
 
-      const jobsData = Array.isArray(response.data)
-        ? response.data
-        : response.data.jobs
-        ? response.data.jobs
+      const payload = response.data?.data || response.data || [];
+      const jobsData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload.jobs)
+        ? payload.jobs
         : [];
 
       // Sort jobs alphabetically A to Z by title

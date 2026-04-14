@@ -19,10 +19,16 @@ const getJobCategories = async (req, res) => {
       attributes: ['id', 'name', 'description'],
       order: [['name', 'ASC']],
     });
-    res.json({ categories });
+    res.json({
+      success: true,
+      data: categories,
+    });
   } catch (error) {
     console.error('getJobCategories error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
   }
 };
 
@@ -68,10 +74,16 @@ const getJobs = async (req, res) => {
       location: job.location,
     }));
 
-    res.json(formattedJobs);
+    res.json({
+      success: true,
+      data: formattedJobs,
+    });
   } catch (error) {
     console.error('getJobs error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+    });
   }
 };
 
