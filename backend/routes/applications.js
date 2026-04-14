@@ -153,6 +153,7 @@ router.post('/create', authMiddleware, upload.fields([
 router.post('/apply', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
+  { name: 'nationalId', maxCount: 1 },
 ]), async (req, res) => {
   try {
     if (!req.user) {
