@@ -153,15 +153,9 @@
 
             <form id="application-form">
                 <div class="form-group">
-                    <label for="job-select">Job Title</label>
-                    <select id="job-select" name="jobId">
-                        <option value="">Select from available jobs...</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="job-title">Custom Job Title (optional)</label>
-                    <input type="text" id="job-title" name="jobTitle" placeholder="Enter job title if not in list">
+                    <label for="job-title">Job Title *</label>
+                    <input type="text" id="job-title" name="jobTitle" placeholder="Type the job title you want" required list="job-options" />
+                    <datalist id="job-options"></datalist>
                 </div>
 
                 <div class="form-group">
@@ -214,7 +208,7 @@
     <script>
         // Form state
         let formData = {
-            jobId: '',
+
             jobTitle: '',
             phone: '',
             nationalId: '',
@@ -248,17 +242,17 @@
             try {
                 console.log('📥 Fetching available jobs...');
                 const response = await fetch('/api/applications/job-options');
-                const jobs = await response.json();
+                const body = await response.json();
+                const jobs = body?.data?.jobs || body?.jobs || body || [];
 
-                const select = document.getElementById('job-select');
-                select.innerHTML = '<option value="">Select from available jobs...</option>';
+                const dataList = document.getElementById('job-options');
+                dataList.innerHTML = '';
 
                 if (Array.isArray(jobs)) {
                     jobs.forEach(job => {
                         const option = document.createElement('option');
-                        option.value = job._id || job.id;
-                        option.textContent = job.title;
-                        select.appendChild(option);
+                        option.value = job.title || job.name || '';
+                        dataList.appendChild(option);
                     });
                     console.log(`✅ Jobs loaded: ${jobs.length}`);
                 }
@@ -321,11 +315,6 @@
         }
 
         // Form input handlers
-        document.getElementById('job-select').addEventListener('change', (e) => {
-            formData.jobId = e.target.value;
-            updateDebugInfo();
-        });
-
         document.getElementById('job-title').addEventListener('input', (e) => {
             formData.jobTitle = e.target.value;
             updateDebugInfo();
@@ -372,8 +361,8 @@
                 return false;
             }
 
-            if (!formData.jobId && !formData.jobTitle?.trim()) {
-                showError('❌ Please select or enter a job title');
+            if (!formData.jobTitle?.trim()) {
+                showError('❌ Please enter a job title');
                 return false;
             }
 
@@ -410,7 +399,7 @@
                 const formDataToSend = new FormData();
 
                 // Append form fields
-                formDataToSend.append('jobId', formData.jobId);
+                formDataToSend.append('jobTitle', formData.jobTitle);
                 formDataToSend.append('nationalId', formData.nationalId);
                 formDataToSend.append('phone', formData.phone);
 
@@ -421,7 +410,7 @@
                 console.log('📋 Form data prepared:');
                 console.log('   - CV:', files.cv?.name);
                 console.log('   - Passport:', files.passport?.name);
-                console.log('   - Job:', formData.jobId);
+                console.log('   - Job:', formData.jobTitle);
                 console.log('   - Phone:', formData.phone);
 
                 // Send request
@@ -456,7 +445,6 @@
         // Reset form
         function resetForm() {
             formData = {
-                jobId: '',
                 jobTitle: '',
                 phone: '',
                 nationalId: '',
@@ -506,7 +494,6 @@
 
         function updateDebugInfo() {
             debugInfo.textContent = JSON.stringify({
-                jobSelected: formData.jobId,
                 jobTitle: formData.jobTitle,
                 phone: formData.phone,
                 nationalId: formData.nationalId,

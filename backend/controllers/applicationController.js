@@ -384,12 +384,19 @@ const getApplicationJobs = async (req, res) => {
       });
 
     res.json({
-      jobs: sortedGrouped,
-      total: jobs.length,
+      success: true,
+      data: {
+        jobs: sortedGrouped,
+        total: jobs.length,
+      },
     });
   } catch (error) {
     console.error('getApplicationJobs error:', error);
-    res.status(500).json({ message: 'Failed to fetch jobs', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch jobs',
+      error: error.message,
+    });
   }
 };
 

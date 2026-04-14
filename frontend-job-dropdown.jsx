@@ -29,12 +29,15 @@ const JobDropdown = ({ onSelect, defaultValue = '' }) => {
       // 🔍 STEP 1: Inspect the actual response
       console.log('JOBS RAW:', response.data);
       console.log('TYPE:', typeof response.data);
-      console.log('Has jobs property:', 'jobs' in response.data);
+
+      const payload = response.data?.data || response.data;
+      console.log('PAYLOAD:', payload);
+      console.log('Has jobs property:', payload && 'jobs' in payload);
 
       // 🔍 STEP 2: Handle different response formats (safe version)
-      const jobsData = Array.isArray(response.data)
-        ? response.data
-        : response.data?.jobs || [];
+      const jobsData = Array.isArray(payload)
+        ? payload
+        : payload?.jobs || {};
 
       console.log('SAFE JOBS:', jobsData);
       console.log('Jobs type:', typeof jobsData);
