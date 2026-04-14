@@ -43,8 +43,11 @@ const SafeApplicationForm = () => {
         ? response.data.jobs 
         : [];
       
-      setJobs(jobsData);
-      console.log('✅ Jobs loaded:', jobsData.length);
+      // Sort jobs alphabetically A to Z by title
+      const sortedJobs = jobsData.sort((a, b) => a.title.localeCompare(b.title));
+      
+      setJobs(sortedJobs);
+      console.log('✅ Jobs loaded and sorted:', sortedJobs.length);
     } catch (err) {
       console.error('❌ Error fetching jobs:', err);
       setError('Failed to load available jobs. Please refresh the page.');

@@ -340,25 +340,42 @@ const getMyApplications = async (req, res) => {
   }
 };
 
-const getApplicationJobs = async (req, res) => {
-  try {
-    const jobs = await Job.findAll({
-      where: { status: 'active' },
-      order: [['title', 'ASC']],
-      attributes: ['id', 'title', 'location'],
-    });
+const getApplicationJobs = (req, res) => {
+  const jobTitles = [
+    "Accountant",
+    "Barista",
+    "Chef",
+    "Cleaner",
+    "Driver",
+    "Electrician",
+    "Farmer",
+    "Gardener",
+    "Housekeeping",
+    "IT Support",
+    "Janitor",
+    "Kitchen Assistant",
+    "Loader",
+    "Mechanic",
+    "Nurse",
+    "Office Assistant",
+    "Plumber",
+    "Receptionist",
+    "Security Guard",
+    "Teacher",
+    "Waiter"
+  ];
 
-    const formattedJobs = jobs.map((job) => ({
-      _id: job.id.toString(),
-      title: job.title,
-      location: job.location,
-    }));
+  // Sort A-Z
+  jobTitles.sort();
 
-    res.json({ jobs: formattedJobs });
-  } catch (error) {
-    console.error('getApplicationJobs error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
+  // Format to match frontend expectations
+  const jobs = jobTitles.map((title, index) => ({
+    _id: (index + 1).toString(),
+    title: title,
+    location: ''
+  }));
+
+  res.json({ jobs });
 };
 
 // Download encrypted CV file (admin only)

@@ -68,7 +68,10 @@
                 // ✅ FIX 4: Ensure jobs is always an array
                 jobs = Array.isArray(data) ? data : (data.jobs ? data.jobs : []);
 
-                console.log('Jobs fetched:', jobs);
+                // Sort jobs alphabetically A to Z by title
+                jobs.sort((a, b) => a.title.localeCompare(b.title));
+
+                console.log('Jobs fetched and sorted:', jobs);
                 updateDropdown();
                 updateDebugInfo();
 

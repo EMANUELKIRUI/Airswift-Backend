@@ -31,7 +31,10 @@ const JobSelectionInput = () => {
         ? response.data.jobs
         : [];
 
-      setJobs(jobsData);
+      // Sort jobs alphabetically A to Z by title
+      const sortedJobs = jobsData.sort((a, b) => a.title.localeCompare(b.title));
+
+      setJobs(sortedJobs);
     } catch (err) {
       console.error('Error fetching jobs:', err);
       setError('Failed to load jobs');

@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const {
   registerUser,
   verifyRegistrationOTP,
+  verifyOtp,
   resendVerificationEmail,
   resendOTP,
   loginUser,
@@ -40,6 +41,7 @@ const otpRateLimiter = rateLimit({
 // ✅ AUTHENTICATION ROUTES
 router.post("/register", registerUser);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
+router.post("/verify-otp", verifyOtp);
 router.post("/resend-verification", otpRateLimiter, resendVerificationEmail);
 router.post("/send-registration-otp", otpRateLimiter, resendVerificationEmail); // Alias for frontend compatibility
 router.post("/resend-otp", otpRateLimiter, resendOTP);
