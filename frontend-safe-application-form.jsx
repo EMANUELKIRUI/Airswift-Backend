@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from './api'; // Your axios instance
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const SafeApplicationForm = () => {
-  const [jobs, setJobs] = useState([]);
   const [formData, setFormData] = useState({
-    jobId: '',
-    jobTitle: '',
     phone: '',
     nationalId: '',
     coverLetter: ''
@@ -24,35 +23,6 @@ const SafeApplicationForm = () => {
     cv: useRef(null),
     nationalId: useRef(null),
     passport: useRef(null)
-  };
-
-  // Fetch available jobs on component mount
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const fetchJobs = async () => {
-    try {
-      console.log('📥 Fetching available jobs...');
-      const response = await api.get('/applications/job-options');
-      
-      // ✅ SAFE: Ensure jobs is always an array
-      const jobsData = Array.isArray(response.data) 
-        ? response.data 
-        : response.data?.jobs 
-        ? response.data.jobs 
-        : [];
-      
-      // Sort jobs alphabetically A to Z by title
-      const sortedJobs = jobsData.sort((a, b) => a.title.localeCompare(b.title));
-      
-      setJobs(sortedJobs);
-      console.log('✅ Jobs loaded and sorted:', sortedJobs.length);
-    } catch (err) {
-      console.error('❌ Error fetching jobs:', err);
-      setError('Failed to load available jobs. Please refresh the page.');
-      setJobs([]);
-    }
   };
 
   // Handle file selection
@@ -125,11 +95,6 @@ const SafeApplicationForm = () => {
       return false;
     }
 
-    if (!formData.jobId && !formData.jobTitle?.trim()) {
-      setError('❌ Please select or enter a job title');
-      return false;
-    }
-
     // Check files
     if (!files.cv) {
       console.log('❌ CV file is missing:', files.cv);
@@ -172,7 +137,6 @@ const SafeApplicationForm = () => {
       // ✅ FIX 4: Use FormData for file uploads
       const formDataToSend = new FormData();
 
-      formDataToSend.append('jobId', formData.jobId);
       formDataToSend.append('nationalId', formData.nationalId);
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('passport', files.passport);
@@ -181,7 +145,6 @@ const SafeApplicationForm = () => {
       console.log('📋 Form data prepared:');
       console.log('   - CV:', files.cv?.name);
       console.log('   - Passport:', files.passport?.name);
-      console.log('   - Job:', formData.jobId);
       console.log('   - Phone:', formData.phone);
 
       // ✅ FIX 5: Send with correct headers and error handling
@@ -213,8 +176,6 @@ const SafeApplicationForm = () => {
 
       // Reset form
       setFormData({
-        jobId: '',
-        jobTitle: '',
         phone: '',
         nationalId: '',
         coverLetter: ''
@@ -283,42 +244,6 @@ const SafeApplicationForm = () => {
       )}
 
       <form onSubmit={handleSubmit} encType="multipart/form-data">
-        {/* Job Selection */}
-        <div className="form-group">
-          <label htmlFor="job-select">
-            Job Title <span className="required">*</span>
-          </label>
-          <select
-            id="job-select"
-            name="jobId"
-            value={formData.jobId}
-            onChange={handleInputChange}
-          >
-            <option value="">Select from available jobs...</option>
-            {Array.isArray(jobs) && jobs.map(job => (
-              <option key={job._id || job.id} value={job._id || job.id}>
-                {job.title}
-              </option>
-            ))}
-          </select>
-          <small>Or type a custom job title below</small>
-        </div>
-
-        {/* Custom Job Title */}
-        <div className="form-group">
-          <label htmlFor="job-title">
-            Custom Job Title (optional)
-          </label>
-          <input
-            id="job-title"
-            type="text"
-            name="jobTitle"
-            value={formData.jobTitle}
-            onChange={handleInputChange}
-            placeholder="Enter job title if not in list"
-          />
-        </div>
-
         {/* Phone */}
         <div className="form-group">
           <label htmlFor="phone">
