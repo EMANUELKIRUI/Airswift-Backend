@@ -82,16 +82,24 @@ const applyForJob = async (req, res) => {
   try {
     const jobTitle = (req.body.job || req.body.job_title || req.body.jobTitle || '').trim();
     const job_id = req.body.job_id || req.body.jobId;
-    const { cover_letter, coverLetter, phone, national_id, nationalId } = req.body;
+    const {
+      cover_letter,
+      coverLetter,
+      phone,
+      national_id,
+      nationalId,
+      nationalIdNumber,
+      nationalIdValue,
+    } = req.body;
     const phoneValue = phone || req.body.phone;
-    const nationalIdValue = national_id || nationalId;
+    const nationalIdValueFinal = national_id || nationalId || nationalIdNumber || nationalIdValue;
 
     const { error } = applySchema.validate({
       job_id,
       job_title: jobTitle,
       cover_letter: cover_letter || coverLetter,
       phone: phoneValue,
-      national_id: nationalIdValue,
+      national_id: nationalIdValueFinal,
     });
     if (error) return res.status(400).json({ message: error.details[0].message });
 

@@ -157,7 +157,7 @@ const SafeApplicationForm = () => {
       // Other fields
       formDataToSend.append("jobId", formData.jobId);
       formDataToSend.append("name", formData.name);
-      formDataToSend.append('nationalId', formData.nationalId); // text
+      formDataToSend.append('nationalIdNumber', formData.nationalId); // text
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('coverLetter', formData.coverLetter);
 

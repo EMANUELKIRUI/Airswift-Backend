@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
 const {
   getUserApplications,
@@ -23,7 +25,9 @@ const { cloudUpload } = require('../middleware/cloudinaryUpload');
 const adminOnly = require('../middleware/admin');
 const isAdmin = adminOnly;
 
-const upload = multer({ dest: 'uploads/' });
+const uploadDir = path.join(__dirname, '../uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ dest: uploadDir });
 
 // Middleware to handle multer errors
 const handleMulterError = (err, req, res, next) => {
@@ -145,12 +149,16 @@ router.post('/create', authMiddleware, upload.fields([
   }
 });
 
-// Existing cloud upload route remains available under /apply
-router.post('/apply', verifyToken, cloudUpload.fields([
+// Existing local upload route for /apply with debug logging
+router.post('/apply', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
-]), handleMulterError, applyForJob);
+]), (req, res, next) => {
+  console.log('📦 BODY:', req.body);
+  console.log('📁 FILES:', req.files);
+  next();
+}, handleMulterError, applyForJob);
 router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
 router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
 router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
