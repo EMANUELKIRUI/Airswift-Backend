@@ -94,6 +94,19 @@
             color: #333;
         }
 
+        /* 🎨 STATUS COLORS */
+        .text-green-600 {
+            color: #16a34a;
+        }
+
+        .text-red-600 {
+            color: #dc2626;
+        }
+
+        .text-yellow-600 {
+            color: #ca8a04;
+        }
+
         .form-section {
             background: white;
             border-radius: 8px;
@@ -400,6 +413,12 @@ TALEX HR Team"></textarea>
     </div>
 
     <script>
+        // ✅ ADMIN PROTECTION
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (user?.role !== "admin") {
+          window.location.href = "/";
+        }
+
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const applicationId = urlParams.get('applicationId');
@@ -445,7 +464,14 @@ TALEX HR Team"></textarea>
                 document.getElementById('applicantName').textContent = data.applicant?.name || 'Unknown';
                 document.getElementById('applicantEmail').textContent = data.applicant?.email || 'Unknown';
                 document.getElementById('jobTitle').textContent = data.Job?.title || 'Unknown Position';
-                document.getElementById('applicationStatus').textContent = data.status || 'Unknown';
+                
+                // 🎨 STATUS COLORS
+                const statusSpan = document.createElement('span');
+                statusSpan.className = data.status === "Hired" ? "text-green-600" : 
+                                       data.status === "Rejected" ? "text-red-600" : "text-yellow-600";
+                statusSpan.textContent = data.status || 'Unknown';
+                document.getElementById('applicationStatus').innerHTML = '';
+                document.getElementById('applicationStatus').appendChild(statusSpan);
 
                 // Pre-fill subject
                 document.getElementById('subject').value = `Interview Invitation - ${data.Job?.title || 'Position'}`;

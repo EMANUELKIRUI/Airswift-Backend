@@ -26,9 +26,18 @@ const applyJob = async (req, res) => {
   try {
     // 🔍 DEBUG: Log incoming request body
     console.log('APPLICATION BODY:', req.body);
+    console.log('APPLICATION FILES:', req.files);
     console.log('APPLICATION USER:', req.user);
 
-    const { jobId, nationalId, phone, passport, cv, coverLetter, resumeSnapshot } = req.body;
+    let { jobId, nationalId, phone, passport, cv, coverLetter, resumeSnapshot } = req.body;
+
+    // If files are uploaded, use file paths
+    if (req.files) {
+      if (req.files.cv && req.files.cv[0]) cv = req.files.cv[0].path;
+      if (req.files.passport && req.files.passport[0]) passport = req.files.passport[0].path;
+      if (req.files.nationalId && req.files.nationalId[0]) nationalId = req.files.nationalId[0].path;
+    }
+
     const { error } = applyJobSchema.validate({ jobId, nationalId, phone, passport, cv, coverLetter, resumeSnapshot });
     
     if (error) {
@@ -262,6 +271,54 @@ const parseExperienceYears = (experience) => {
   return match ? Number(match[1]) : 0;
 };
 
+const downloadFile = async (req, res) => {
+  try {
+    const { id, fileType } = req.params;
+    const application = await Application.findById(id).populate('userId', 'name');
+
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    let filePath;
+    let filename;
+
+    const applicantName = application.userId?.name || 'applicant';
+
+    switch (fileType) {
+      case 'cv':
+        filePath = application.cv;
+        filename = `CV-${applicantName.replace(/\s+/g, '-')}.pdf`;
+        break;
+      case 'passport':
+        filePath = application.passport;
+        filename = `Passport-${applicantName.replace(/\s+/g, '-')}.pdf`;
+        break;
+      case 'nationalId':
+        filePath = application.nationalId;
+        filename = `NationalID-${applicantName.replace(/\s+/g, '-')}.pdf`;
+        break;
+      default:
+        return res.status(400).json({ message: 'Invalid file type' });
+    }
+
+    if (!filePath) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Check if file exists
+    const fs = require('fs');
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on disk' });
+    }
+
+    res.download(filePath, filename);
+  } catch (err) {
+    console.error('downloadFile error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   STATUS_FLOW,
   applyJob,
@@ -270,4 +327,5 @@ module.exports = {
   getAllApplications,
   getApplicationAnalytics,
   calculateAIScore,
+  downloadFile,
 };

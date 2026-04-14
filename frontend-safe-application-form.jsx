@@ -180,11 +180,11 @@ const SafeApplicationForm = () => {
 
       // ✅ FIX 5: Send with correct headers and error handling
       console.log('📤 Sending application...');
+      const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL || ''}/api/applications/apply`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: formDataToSend,
       });

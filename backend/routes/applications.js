@@ -66,42 +66,22 @@ router.post('/', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
-]), async (req, res) => {
+]), handleMulterError, async (req, res) => {
   try {
-    console.log("📦 BODY:", req.body);
-    console.log("📁 FILES:", req.files);
+    console.log("FILES:", req.files);
+    console.log("BODY:", req.body);
 
-    // ✅ SAFE CHECK (prevents crash)
-    if (!req.files || !req.files.cv || req.files.cv.length === 0) {
-      return res.status(400).json({
-        error: "CV file is required",
-      });
+    if (!req.files || !req.files.cv) {
+      return res.status(400).json({ message: "CV is required" });
     }
 
-    if (!req.files.passport || req.files.passport.length === 0) {
-      return res.status(400).json({
-        error: "Passport file is required",
-      });
-    }
+    // continue saving...
 
-    const cv = req.files.cv[0];
-    const passport = req.files.passport?.[0];
-
-    console.log("✅ CV:", cv.filename);
-    console.log("✅ Passport:", passport?.filename);
-
-    // 👉 simulate save
-    res.json({
-      success: true,
-      message: "Application submitted successfully",
-    });
+    res.status(200).json({ message: "Application submitted successfully" });
 
   } catch (err) {
-    console.error("🔥 BACKEND CRASH:", err);
-
-    res.status(500).json({
-      error: err.message || "Internal server error",
-    });
+    console.error("APPLICATION ERROR:", err);
+    res.status(500).json({ message: err.message }); // ✅ IMPORTANT
   }
 });
 

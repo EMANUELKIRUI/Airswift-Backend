@@ -415,20 +415,36 @@
 
                 // Send request
                 console.log('📤 Sending application...');
+                const token = localStorage.getItem("token");
                 const response = await fetch('/api/applications', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        Authorization: `Bearer ${token}`,
                     },
                     body: formDataToSend,
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                    let errorMessage = `HTTP ${response.status}`;
+                    const responseText = await response.text();
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        errorMessage = errorData.message || errorData.error || errorMessage;
+                    } catch (jsonErr) {
+                        console.error('Server returned non-JSON error response:', responseText);
+                        errorMessage = responseText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
                 }
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    const html = await response.text();
+                    console.error('Server returned HTML:', html);
+                    throw new Error('Server error');
+                }
                 console.log('✅ Application submitted successfully:', data);
 
                 showSuccess('✅ Application submitted successfully!');

@@ -5,6 +5,13 @@ import React, { useState, useEffect } from 'react';
 import api from './api'; // Your API configuration with interceptors
 
 const SafeDashboard = () => {
+  // ✅ ADMIN PROTECTION
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (user?.role !== "admin") {
+    window.location.href = "/";
+    return null; // Prevent rendering
+  }
+
   const [dashboardData, setDashboardData] = useState({
     applications: [],
     jobs: [],
