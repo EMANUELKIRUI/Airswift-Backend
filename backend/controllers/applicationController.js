@@ -295,7 +295,7 @@ const createApplication = async (req, res) => {
 
     const cvFile = req.files?.cv?.[0];
     const passportFile = req.files?.passport?.[0];
-    const nationalIdDocFile = req.files?.nationalIdDoc?.[0];
+    const nationalIdFile = req.files?.nationalId?.[0];
 
     if (!cvFile) {
       return res.status(400).json({
@@ -306,7 +306,7 @@ const createApplication = async (req, res) => {
     // Optional files may be handled later in the save logic
     console.log('CV file:', cvFile?.originalname);
     console.log('Passport file:', passportFile?.originalname || 'none');
-    console.log('National ID doc file:', nationalIdDocFile?.originalname || 'none');
+    console.log('National ID file:', nationalIdFile?.originalname || 'none');
 
     res.status(200).json({
       success: true,
@@ -314,7 +314,7 @@ const createApplication = async (req, res) => {
       files: {
         cv: !!cvFile,
         passport: !!passportFile,
-        nationalIdDoc: !!nationalIdDocFile,
+        nationalId: !!nationalIdFile,
       },
     });
   } catch (error) {
