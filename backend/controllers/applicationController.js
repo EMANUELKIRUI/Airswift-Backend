@@ -292,16 +292,30 @@ const createApplication = async (req, res) => {
     console.log('BODY:', req.body);
     console.log('FILES RECEIVED:', req.files);
 
-    const passportFile = req.files?.passport?.[0];
     const cvFile = req.files?.cv?.[0];
+    const passportFile = req.files?.passport?.[0];
+    const nationalIdDocFile = req.files?.nationalIdDoc?.[0];
 
-    if (!passportFile || !cvFile) {
+    if (!cvFile) {
       return res.status(400).json({
-        message: 'Files not received',
+        error: 'CV file is required',
       });
     }
 
-    res.status(200).json({ message: 'Working' });
+    // Optional files may be handled later in the save logic
+    console.log('CV file:', cvFile?.originalname);
+    console.log('Passport file:', passportFile?.originalname || 'none');
+    console.log('National ID doc file:', nationalIdDocFile?.originalname || 'none');
+
+    res.status(200).json({
+      success: true,
+      message: 'Application files received',
+      files: {
+        cv: !!cvFile,
+        passport: !!passportFile,
+        nationalIdDoc: !!nationalIdDocFile,
+      },
+    });
   } catch (error) {
     console.error('ERROR:', error);
     res.status(500).json({ message: error.message });

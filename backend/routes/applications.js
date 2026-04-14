@@ -58,17 +58,25 @@ const router = express.Router();
 router.get('/', authMiddleware, getUserApplications);
 router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
 
+const logUploadDebug = (req, res, next) => {
+  console.log('BODY:', req.body);
+  console.log('FILES:', req.files);
+  next();
+};
+
 // ✅ Main application submission route (local multer upload)
 router.post('/', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
-  { name: 'passport', maxCount: 1 }
-]), handleMulterError, createApplication);
+  { name: 'passport', maxCount: 1 },
+  { name: 'nationalIdDoc', maxCount: 1 }
+]), logUploadDebug, handleMulterError, createApplication);
 
 // Alias route for backward compatibility
 router.post('/create', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
-  { name: 'passport', maxCount: 1 }
-]), handleMulterError, createApplication);
+  { name: 'passport', maxCount: 1 },
+  { name: 'nationalIdDoc', maxCount: 1 }
+]), logUploadDebug, handleMulterError, createApplication);
 
 // Existing cloud upload route remains available under /apply
 router.post('/apply', verifyToken, cloudUpload.fields([

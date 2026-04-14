@@ -187,11 +187,25 @@ const SafeApplicationForm = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch (jsonErr) {
+          const errorText = await response.text();
+          console.error('Server returned HTML or text error:', errorText);
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        const html = await response.text();
+        console.error('Server returned HTML:', html);
+        throw new Error('Server error');
+      }
       console.log('✅ Application submitted successfully:', data);
       setSuccess(true);
       setUploadProgress(0);
