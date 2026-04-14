@@ -21,23 +21,62 @@ const JobDropdown = ({ onSelect, defaultValue = '' }) => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      console.log('📡 Fetching jobs from API...');
       const response = await api.get('/applications/job-options');
 
-      // Flatten grouped jobs into a single array for dropdown
+      // 🔍 STEP 1: Inspect the actual response
+      console.log('JOBS RAW:', response.data);
+      console.log('TYPE:', typeof response.data);
+      console.log('Has jobs property:', 'jobs' in response.data);
+
+      // 🔍 STEP 2: Handle different response formats (safe version)
+      const jobsData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.jobs || [];
+
+      console.log('SAFE JOBS:', jobsData);
+      console.log('Jobs type:', typeof jobsData);
+      console.log('Is array:', Array.isArray(jobsData));
+
+      // 🔍 STEP 3: Flatten grouped jobs into a single array for dropdown
       const flatJobs = [];
-      Object.entries(response.data.jobs || {}).forEach(([category, jobList]) => {
-        jobList.forEach(job => {
-          flatJobs.push({
-            ...job,
-            category,
-          });
+      
+      if (typeof jobsData === 'object' && !Array.isArray(jobsData)) {
+        // jobsData is grouped by category (object with category keys)
+        console.log('✅ Jobs are grouped by category');
+        Object.entries(jobsData).forEach(([category, jobList]) => {
+          console.log(`Processing category: ${category}`, jobList);
+          if (Array.isArray(jobList)) {
+            jobList.forEach(job => {
+              flatJobs.push({
+                ...job,
+                category,
+              });
+            });
+          }
         });
-      });
+      } else if (Array.isArray(jobsData)) {
+        // jobsData is already a flat array
+        console.log('✅ Jobs are already a flat array');
+        flatJobs.push(...jobsData);
+      }
+
+      console.log('FINAL FLAT JOBS:', flatJobs);
+      console.log('Total jobs count:', flatJobs.length);
+
+      if (flatJobs.length === 0) {
+        console.warn('⚠️ No jobs found after processing');
+        setError('No jobs available. Please try again later.');
+      }
 
       setJobs(flatJobs);
     } catch (err) {
-      console.error('Error fetching jobs:', err);
-      setError('Failed to load jobs');
+      console.error('❌ Error fetching jobs:', err);
+      console.error('Error message:', err.message);
+      console.error('Error response:', err.response?.data);
+      setError(err.response?.data?.message || 'Failed to load jobs');
     } finally {
       setLoading(false);
     }

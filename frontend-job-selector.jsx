@@ -24,14 +24,53 @@ const JobSelector = ({ onSelect, selectedJobId = null }) => {
       setLoading(true);
       setError(null);
 
-      // Fetch jobs from API endpoint
+      // 🔍 STEP 1: Fetch and inspect the actual response
+      console.log('📡 Fetching jobs from API...');
       const response = await api.get('/applications/job-options');
-      console.log('✅ Jobs fetched:', response.data);
 
-      setJobs(response.data.jobs || {});
+      console.log('JOBS RAW:', response.data);
+      console.log('TYPE:', typeof response.data);
+      console.log('Has jobs property:', 'jobs' in response.data);
+
+      // 🔍 STEP 2: Handle different response formats (safe version)
+      let jobsData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.jobs || {};
+
+      console.log('SAFE JOBS:', jobsData);
+      console.log('Jobs type:', typeof jobsData);
+      console.log('Is array:', Array.isArray(jobsData));
+
+      // 🔍 STEP 3: Ensure we have an object format (category -> jobs)
+      if (typeof jobsData === 'object' && !Array.isArray(jobsData)) {
+        console.log('✅ Jobs are properly grouped by category');
+        console.log('Categories found:', Object.keys(jobsData));
+        setJobs(jobsData);
+      } else if (Array.isArray(jobsData)) {
+        console.log('ℹ️ Jobs are in array format, converting to grouped format...');
+        // Convert array to grouped format
+        const grouped = {};
+        jobsData.forEach(job => {
+          const category = job.category || 'Uncategorized';
+          if (!grouped[category]) {
+            grouped[category] = [];
+          }
+          grouped[category].push(job);
+        });
+        console.log('✅ Converted to grouped format:', grouped);
+        setJobs(grouped);
+      } else {
+        console.warn('⚠️ Unexpected jobs format:', typeof jobsData);
+        setJobs({});
+        setError('Invalid jobs format received from server');
+      }
     } catch (err) {
       console.error('❌ Error fetching jobs:', err);
+      console.error('Error message:', err.message);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
       setError(err.response?.data?.message || 'Failed to load jobs');
+      setJobs({});
     } finally {
       setLoading(false);
     }
