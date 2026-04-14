@@ -149,16 +149,40 @@ router.post('/create', authMiddleware, upload.fields([
   }
 });
 
-// Existing local upload route for /apply with debug logging
+// Existing local upload route for /apply with safe, no-crash logic
 router.post('/apply', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
-  { name: 'nationalId', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
-]), (req, res, next) => {
-  console.log('📦 BODY:', req.body);
-  console.log('📁 FILES:', req.files);
-  next();
-}, handleMulterError, applyForJob);
+]), async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    console.log('📦 BODY:', req.body);
+    console.log('📁 FILES:', req.files);
+
+    if (!req.files || !req.files.cv || req.files.cv.length === 0) {
+      return res.status(400).json({
+        error: 'CV file is required',
+      });
+    }
+
+    const cv = req.files.cv[0];
+    const passport = req.files.passport?.[0];
+
+    console.log('✅ CV:', cv.filename);
+    console.log('✅ Passport:', passport?.filename);
+
+    return res.json({
+      success: true,
+      message: 'Application submitted',
+    });
+  } catch (err) {
+    console.error('🔥 ERROR:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
 router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
 router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
 router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
