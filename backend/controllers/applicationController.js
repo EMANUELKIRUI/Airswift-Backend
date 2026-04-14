@@ -340,42 +340,12 @@ const getMyApplications = async (req, res) => {
   }
 };
 
-const getApplicationJobs = (req, res) => {
-  const jobTitles = [
-    "Accountant",
-    "Barista",
-    "Chef",
-    "Cleaner",
-    "Driver",
-    "Electrician",
-    "Farmer",
-    "Gardener",
-    "Housekeeping",
-    "IT Support",
-    "Janitor",
-    "Kitchen Assistant",
-    "Loader",
-    "Mechanic",
-    "Nurse",
-    "Office Assistant",
-    "Plumber",
-    "Receptionist",
-    "Security Guard",
-    "Teacher",
-    "Waiter"
-  ];
+const getApplicationJobs = async (req, res) => {
+  const jobs = await Job.find();
 
-  // Sort A-Z
-  jobTitles.sort();
-
-  // Format to match frontend expectations
-  const jobs = jobTitles.map((title, index) => ({
-    _id: (index + 1).toString(),
-    title: title,
-    location: ''
-  }));
-
-  res.json({ jobs });
+  res.json({
+    jobs: jobs.map(j => j.title)
+  });
 };
 
 // Download encrypted CV file (admin only)
