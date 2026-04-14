@@ -342,11 +342,20 @@ const getMyApplications = async (req, res) => {
 
 const getApplicationJobs = async (req, res) => {
   const jobs = await Job.findAll({
-    order: [['title', 'ASC']] // 🔥 A–Z sort
+    where: { status: 'active' },
+    order: [['title', 'ASC']], // 🔥 A–Z sort
+    attributes: ['id', 'title', 'location', 'status'],
   });
 
   res.json({
-    jobs: jobs.map(j => j.title)
+    jobs: jobs.map((job) => ({
+      id: job.id,
+      _id: job.id.toString(),
+      title: job.title,
+      location: job.location,
+      status: job.status,
+    })),
+    total: jobs.length,
   });
 };
 
