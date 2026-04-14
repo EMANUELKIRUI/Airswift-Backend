@@ -22,6 +22,7 @@ const { createAdminIfNotExists } = require("./utils/adminSetup");
 const { initializeSocket } = require("./utils/socketEmitter");
 const { setSocketInstance } = require("./utils/logger");
 const maintenanceMode = require('./middleware/maintenanceMode');
+const seedJobsWithCategories = require('./scripts/seedJobsWithCategories');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -401,6 +402,9 @@ io.on("connection", (socket) => {
       // Sync database models and apply safe alterations for new settings fields
       await sequelize.sync({ force: false, alter: true });
       console.log("✅ Database synced");
+
+      // 🔥 Seed jobs with categories if needed
+      await seedJobsWithCategories();
     } catch (dbError) {
       console.warn("⚠️  Database connection failed:", dbError.message);
       console.warn("⚠️  Continuing without SQL database - some features may be limited");

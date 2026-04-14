@@ -341,22 +341,56 @@ const getMyApplications = async (req, res) => {
 };
 
 const getApplicationJobs = async (req, res) => {
-  const jobs = await Job.findAll({
-    where: { status: 'active' },
-    order: [['title', 'ASC']], // 🔥 A–Z sort
-    attributes: ['id', 'title', 'location', 'status'],
-  });
+  try {
+    // ✅ Fetch all active jobs with category information
+    const jobs = await Job.findAll({
+      where: { status: 'active' },
+      attributes: ['id', 'title', 'category_id'],
+      include: [
+        {
+          model: require('../models').JobCategory,
+          as: 'category', // Use the association alias defined in models/index.js
+          attributes: ['id', 'name'],
+          required: false, // Allow jobs without category
+        }
+      ],
+      order: [['title', 'ASC']], // Sort by title A-Z
+    });
 
-  res.json({
-    jobs: jobs.map((job) => ({
-      id: job.id,
-      _id: job.id.toString(),
-      title: job.title,
-      location: job.location,
-      status: job.status,
-    })),
-    total: jobs.length,
-  });
+    // ✅ Group jobs by category
+    const grouped = {};
+    jobs.forEach(job => {
+      const categoryName = job.category?.name || 'Uncategorized';
+      
+      if (!grouped[categoryName]) {
+        grouped[categoryName] = [];
+      }
+      
+      grouped[categoryName].push({
+        id: job.id,
+        _id: job.id.toString(),
+        title: job.title,
+      });
+    });
+
+    // ✅ Sort categories A-Z and jobs within each category A-Z
+    const sortedGrouped = {};
+    Object.keys(grouped)
+      .sort()
+      .forEach(category => {
+        sortedGrouped[category] = grouped[category].sort((a, b) =>
+          a.title.localeCompare(b.title)
+        );
+      });
+
+    res.json({
+      jobs: sortedGrouped,
+      total: jobs.length,
+    });
+  } catch (error) {
+    console.error('getApplicationJobs error:', error);
+    res.status(500).json({ message: 'Failed to fetch jobs', error: error.message });
+  }
 };
 
 // Download encrypted CV file (admin only)
