@@ -67,15 +67,13 @@ const logUploadDebug = (req, res, next) => {
 // ✅ Main application submission route (local multer upload)
 router.post('/', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
-  { name: 'passport', maxCount: 1 },
-  { name: 'nationalIdDoc', maxCount: 1 }
+  { name: 'passport', maxCount: 1 }
 ]), logUploadDebug, handleMulterError, createApplication);
 
 // Alias route for backward compatibility
 router.post('/create', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
-  { name: 'passport', maxCount: 1 },
-  { name: 'nationalIdDoc', maxCount: 1 }
+  { name: 'passport', maxCount: 1 }
 ]), logUploadDebug, handleMulterError, createApplication);
 
 // Existing cloud upload route remains available under /apply

@@ -291,6 +291,7 @@ const createApplication = async (req, res) => {
   try {
     console.log('BODY:', req.body);
     console.log('FILES RECEIVED:', req.files);
+    console.log('FILES:', req.files);
 
     const cvFile = req.files?.cv?.[0];
     const passportFile = req.files?.passport?.[0];
