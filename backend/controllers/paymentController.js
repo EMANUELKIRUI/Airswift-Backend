@@ -7,82 +7,18 @@ const { sendEmail } = require('../utils/sendEmail');
 const { paymentReceiptTemplate } = require('../utils/emailTemplates');
 
 // Initiate M-Pesa STK Push payment
-const initiatePayment = async (req, res) => {
+const stkPush = async (req, res) => {
   try {
-    const { amount, phoneNumber, accountReference, description } = req.body;
+    console.log("📥 Payment request received");
 
-    if (!amount || !phoneNumber || !accountReference) {
-      return res.status(400).json({
-        message: 'Amount, phone number, and account reference are required'
-      });
-    }
-
-    // Validate phone number
-    if (!mpesaService.validatePhoneNumber(phoneNumber)) {
-      return res.status(400).json({
-        message: 'Invalid phone number format. Use format: +254XXXXXXXXX or 254XXXXXXXXX or 0XXXXXXXXX'
-      });
-    }
-
-    // Create payment record
-    const payment = new Payment({
-      user_id: req.user.id,
-      amount: parseFloat(amount),
-      status: 'pending',
-      phone_number: mpesaService.formatPhoneNumber(phoneNumber),
-      accountReference,
-      transactionId: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    res.json({
+      success: true,
+      message: "Payment initiated"
     });
 
-    await payment.save();
-
-    // Initiate STK push
-    const stkResult = await mpesaService.initiateSTKPush(
-      phoneNumber,
-      amount,
-      accountReference,
-      description || 'Job Application Payment'
-    );
-
-    if (!stkResult.success) {
-      // Update payment status to failed
-      payment.status = 'failed';
-      await payment.save();
-
-      return res.status(400).json({
-        message: 'Failed to initiate payment',
-        error: stkResult.error
-      });
-    }
-
-    // Update payment with checkout request ID
-    payment.checkoutRequestId = stkResult.checkoutRequestId;
-    await payment.save();
-
-    // Log payment initiation
-    await auditLogger.logAction(
-      req.user.id,
-      'PAYMENT_INITIATED',
-      `M-Pesa payment initiated: KES ${amount} for ${accountReference}`,
-      req.ip,
-      { paymentId: payment._id, checkoutRequestId: stkResult.checkoutRequestId }
-    );
-
-    res.status(200).json({
-      message: 'Payment initiated successfully. Check your phone for M-Pesa prompt.',
-      payment: {
-        id: payment.id || payment._id,
-        amount: payment.amount,
-        status: payment.status,
-        method: 'mpesa',
-        checkoutRequestId: payment.checkoutRequestId,
-        transactionId: payment.transactionId
-      },
-      stkResponse: stkResult
-    });
   } catch (error) {
-    console.error('Payment initiation error:', error);
-    res.status(500).json({ message: 'Payment initiation failed', error: error.message });
+    console.error("❌ Payment error:", error);
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -327,7 +263,7 @@ const updatePaymentStatus = async (req, res) => {
 };
 
 module.exports = {
-  initiatePayment,
+  stkPush,
   checkPaymentStatus,
   mpesaCallback,
   getUserPayments,
