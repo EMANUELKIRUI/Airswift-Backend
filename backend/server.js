@@ -82,6 +82,24 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
+  // 🔥 USER-SPECIFIC ROOMS
+  socket.on("join_user", (userId) => {
+    if (!socket.user || socket.user.id !== userId) {
+      return socket.emit('socket-error', { message: 'Unauthorized room access' });
+    }
+    socket.join(`user_${userId}`);
+    console.log(`Socket ${socket.id} joined user room: user_${userId}`);
+  });
+
+  // 🔥 ADMIN ROOMS
+  socket.on("join_admin", () => {
+    if (!socket.user || socket.user.role !== 'admin') {
+      return socket.emit('socket-error', { message: 'Admin access required' });
+    }
+    socket.join("admins");
+    console.log(`Admin socket ${socket.id} joined admins room`);
+  });
+
   socket.on("join", (userId) => {
     if (socket.user.id !== userId && socket.user.role !== 'admin') {
       return socket.emit('socket-error', { message: 'Unauthorized room access' });
@@ -95,9 +113,10 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 
+  // Auto-join admin room for admin users
   if (socket.user?.role === 'admin') {
     socket.join('admins');
-    console.log(`Admin socket ${socket.id} joined admins room`);
+    console.log(`Admin socket ${socket.id} auto-joined admins room`);
   }
 
   // 👨‍💼 ADMIN APPLICANT TRACKING EVENTS

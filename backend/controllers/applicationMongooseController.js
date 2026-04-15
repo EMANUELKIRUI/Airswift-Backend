@@ -164,6 +164,7 @@ const updateApplicationStatus = async (req, res) => {
       status,
       updatedBy: req.user.name || 'Admin',
       email: application.userId?.email,
+      userId: application.userId?._id || application.userId // 🔥 Add userId for user-specific room
     });
 
     res.json({ success: true, application });

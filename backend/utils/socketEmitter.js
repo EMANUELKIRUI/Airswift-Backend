@@ -34,12 +34,12 @@ const emitNewApplication = (applicationData) => {
   }
 };
 
-// Emit application status update (ONLY to admins)
+// Emit application status update (TO ADMINS + SPECIFIC USER)
 const emitApplicationStatusUpdate = (applicationData) => {
   if (io) {
-    console.log('Emitting application status update to admins:', applicationData);
-    // 🔥 Send only to admin room
-    io.to('admins').emit('applicationUpdate', {
+    console.log('Emitting application status update:', applicationData);
+
+    const payload = {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName,
       jobTitle: applicationData.jobTitle,
@@ -47,7 +47,26 @@ const emitApplicationStatusUpdate = (applicationData) => {
       timestamp: new Date(),
       updatedBy: applicationData.updatedBy,
       email: applicationData.email
-    });
+    };
+
+    // 🔥 Send to admin room
+    io.to('admins').emit('applicationUpdate', payload);
+
+    // 🔥 Send to specific user room (if userId provided)
+    if (applicationData.userId) {
+      io.to(`user_${applicationData.userId}`).emit('application_status_updated', {
+        ...payload,
+        message: `Your application status has been updated to: ${applicationData.status}`,
+        type: 'status_update'
+      });
+
+      // 🔥 Send notification
+      io.to(`user_${applicationData.userId}`).emit('notification', {
+        message: `Your application for ${applicationData.jobTitle} has been ${applicationData.status}`,
+        type: 'application_status',
+        data: payload
+      });
+    }
   } else {
     console.warn('Socket.io not initialized');
   }
@@ -70,10 +89,10 @@ const emitCVScoringComplete = (applicationData) => {
   }
 };
 
-// Emit interview scheduled event (ONLY to admins)
+// Emit interview scheduled event (TO ADMINS + SPECIFIC USER)
 const emitInterviewScheduled = (interviewData) => {
   if (io) {
-    console.log('Emitting interview scheduled to admins:', interviewData);
+    console.log('Emitting interview scheduled:', interviewData);
     const payload = {
       applicationId: interviewData.applicationId,
       interviewId: interviewData.interviewId,
@@ -84,9 +103,25 @@ const emitInterviewScheduled = (interviewData) => {
       timestamp: new Date()
     };
 
-    // 🔥 Send only to admin room
+    // 🔥 Send to admin room
     io.to('admins').emit('interviewScheduled', payload);
     io.to('admins').emit('new_interview', payload);
+
+    // 🔥 Send to specific user room (if applicantId provided)
+    if (interviewData.applicantId) {
+      io.to(`user_${interviewData.applicantId}`).emit('interview_scheduled', {
+        ...payload,
+        message: `Your interview has been scheduled for ${new Date(interviewData.scheduledDate).toLocaleString()}`,
+        type: 'interview_scheduled'
+      });
+
+      // 🔥 Send notification
+      io.to(`user_${interviewData.applicantId}`).emit('notification', {
+        message: `Interview scheduled for ${new Date(interviewData.scheduledDate).toLocaleString()}`,
+        type: 'interview_scheduled',
+        data: payload
+      });
+    }
   } else {
     console.warn('Socket.io not initialized');
   }
@@ -135,17 +170,46 @@ const emitDashboardUpdate = (stats) => {
   }
 };
 
-// Emit bulk email sent event
-const emitBulkEmailSent = (emailData) => {
-  if (io) {
-    console.log('Emitting bulk email sent:', emailData);
-    io.emit('bulkEmailSent', {
-      count: emailData.count,
-      recipients: emailData.recipients,
-      subject: emailData.subject,
+// Emit general notification to user
+const emitNotification = (userId, notificationData) => {
+  if (io && userId) {
+    console.log('Emitting notification to user:', userId, notificationData);
+    io.to(`user_${userId}`).emit('notification', {
+      message: notificationData.message,
+      type: notificationData.type || 'general',
+      data: notificationData.data || {},
       timestamp: new Date()
     });
+  } else {
+    console.warn('Socket.io not initialized or no userId provided');
   }
+};
+
+// Emit application accepted notification
+const emitApplicationAccepted = (userId, applicationData) => {
+  emitNotification(userId, {
+    message: `Congratulations! Your application for ${applicationData.jobTitle} has been accepted 🎉`,
+    type: 'application_accepted',
+    data: applicationData
+  });
+};
+
+// Emit application rejected notification
+const emitApplicationRejected = (userId, applicationData) => {
+  emitNotification(userId, {
+    message: `Your application for ${applicationData.jobTitle} has been rejected`,
+    type: 'application_rejected',
+    data: applicationData
+  });
+};
+
+// Emit interview reminder notification
+const emitInterviewReminder = (userId, interviewData) => {
+  emitNotification(userId, {
+    message: `Reminder: Your interview is scheduled for ${new Date(interviewData.scheduledDate).toLocaleString()}`,
+    type: 'interview_reminder',
+    data: interviewData
+  });
 };
 
 // Emit interview rescheduled event
@@ -316,4 +380,7 @@ module.exports = {
   emitUserAction,
   emitDirectMessage,
   emitNotification,
+  emitApplicationAccepted,
+  emitApplicationRejected,
+  emitInterviewReminder,
 };
