@@ -11,10 +11,10 @@ const initializeSocket = (socketInstance) => {
   console.log('Socket.io initialized for real-time events');
 };
 
-// Emit new application event
+// Emit new application event (ONLY to admins)
 const emitNewApplication = (applicationData) => {
   if (io) {
-    console.log('Emitting new application event:', applicationData);
+    console.log('Emitting new application event to admins:', applicationData);
     const payload = {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName || 'New Applicant',
@@ -26,18 +26,20 @@ const emitNewApplication = (applicationData) => {
       score: applicationData.score || 0
     };
 
-    io.emit('newApplication', payload);
-    io.emit('new_application', payload);
+    // 🔥 Send only to admin room
+    io.to('admins').emit('newApplication', payload);
+    io.to('admins').emit('new_application', payload);
   } else {
     console.warn('Socket.io not initialized');
   }
 };
 
-// Emit application status update
+// Emit application status update (ONLY to admins)
 const emitApplicationStatusUpdate = (applicationData) => {
   if (io) {
-    console.log('Emitting application status update:', applicationData);
-    io.emit('applicationUpdate', {
+    console.log('Emitting application status update to admins:', applicationData);
+    // 🔥 Send only to admin room
+    io.to('admins').emit('applicationUpdate', {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName,
       jobTitle: applicationData.jobTitle,
@@ -51,11 +53,12 @@ const emitApplicationStatusUpdate = (applicationData) => {
   }
 };
 
-// Emit CV scoring event
+// Emit CV scoring event (ONLY to admins)
 const emitCVScoringComplete = (applicationData) => {
   if (io) {
-    console.log('Emitting CV scoring complete:', applicationData);
-    io.emit('cvScoringComplete', {
+    console.log('Emitting CV scoring complete to admins:', applicationData);
+    // 🔥 Send only to admin room
+    io.to('admins').emit('cvScoringComplete', {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName,
       score: applicationData.score,
@@ -67,10 +70,10 @@ const emitCVScoringComplete = (applicationData) => {
   }
 };
 
-// Emit interview scheduled event
+// Emit interview scheduled event (ONLY to admins)
 const emitInterviewScheduled = (interviewData) => {
   if (io) {
-    console.log('Emitting interview scheduled:', interviewData);
+    console.log('Emitting interview scheduled to admins:', interviewData);
     const payload = {
       applicationId: interviewData.applicationId,
       interviewId: interviewData.interviewId,
@@ -81,8 +84,9 @@ const emitInterviewScheduled = (interviewData) => {
       timestamp: new Date()
     };
 
-    io.emit('interviewScheduled', payload);
-    io.emit('new_interview', payload);
+    // 🔥 Send only to admin room
+    io.to('admins').emit('interviewScheduled', payload);
+    io.to('admins').emit('new_interview', payload);
   } else {
     console.warn('Socket.io not initialized');
   }
