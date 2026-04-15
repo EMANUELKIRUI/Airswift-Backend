@@ -15,7 +15,7 @@ const initializeSocket = (socketInstance) => {
 const emitNewApplication = (applicationData) => {
   if (io) {
     console.log('Emitting new application event:', applicationData);
-    io.emit('newApplication', {
+    const payload = {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName || 'New Applicant',
       jobTitle: applicationData.jobTitle,
@@ -24,7 +24,10 @@ const emitNewApplication = (applicationData) => {
       timestamp: new Date(),
       status: 'pending',
       score: applicationData.score || 0
-    });
+    };
+
+    io.emit('newApplication', payload);
+    io.emit('new_application', payload);
   } else {
     console.warn('Socket.io not initialized');
   }
@@ -68,14 +71,18 @@ const emitCVScoringComplete = (applicationData) => {
 const emitInterviewScheduled = (interviewData) => {
   if (io) {
     console.log('Emitting interview scheduled:', interviewData);
-    io.emit('interviewScheduled', {
+    const payload = {
       applicationId: interviewData.applicationId,
+      interviewId: interviewData.interviewId,
       applicantName: interviewData.applicantName,
       scheduledDate: interviewData.scheduledDate,
       interviewType: interviewData.interviewType,
       roomId: interviewData.roomId,
       timestamp: new Date()
-    });
+    };
+
+    io.emit('interviewScheduled', payload);
+    io.emit('new_interview', payload);
   } else {
     console.warn('Socket.io not initialized');
   }

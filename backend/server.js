@@ -69,6 +69,19 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
+  socket.on("join", (userId) => {
+    if (socket.user.id !== userId && socket.user.role !== 'admin') {
+      return socket.emit('socket-error', { message: 'Unauthorized room access' });
+    }
+
+    socket.join(userId);
+    console.log(`Socket ${socket.id} joined room ${userId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+
   if (socket.user?.role === 'admin') {
     socket.join('admins');
     console.log(`Admin socket ${socket.id} joined admins room`);
@@ -495,6 +508,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/audit-logs", require("./routes/audit"));
+app.use("/api/settings", require("./routes/settings"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/jobs", require("./routes/jobs"));
