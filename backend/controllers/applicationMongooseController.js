@@ -113,6 +113,7 @@ const applyJob = async (req, res) => {
       email: req.user.email,
       location: req.user.location || '',
       score: aiScore,
+      userId: req.user.id // 🔥 Add userId for user-specific room
     });
 
     // Audit log

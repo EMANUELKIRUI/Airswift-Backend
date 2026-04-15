@@ -45,7 +45,8 @@ const io = new Server(server, {
     origin: "https://airswift-frontend.vercel.app",
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  transports: ["websocket", "polling"] // 👈 IMPORTANT
 });
 
 // Expose socket.io globally for legacy emitters and services
@@ -566,6 +567,7 @@ app.use("/api/auth-status", require("./routes/authStatus"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
+app.use("/api/health", require("./routes/health"));
 app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/system-health", require("./routes/systemHealth"));

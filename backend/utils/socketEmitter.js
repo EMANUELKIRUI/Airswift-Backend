@@ -11,10 +11,10 @@ const initializeSocket = (socketInstance) => {
   console.log('Socket.io initialized for real-time events');
 };
 
-// Emit new application event (ONLY to admins)
+// Emit new application event (TO ADMINS + USER)
 const emitNewApplication = (applicationData) => {
   if (io) {
-    console.log('Emitting new application event to admins:', applicationData);
+    console.log('Emitting new application event:', applicationData);
     const payload = {
       applicationId: applicationData.applicationId || applicationData.id,
       applicantName: applicationData.applicantName || 'New Applicant',
@@ -26,9 +26,25 @@ const emitNewApplication = (applicationData) => {
       score: applicationData.score || 0
     };
 
-    // 🔥 Send only to admin room
+    // 🔥 Send to admin room
     io.to('admins').emit('newApplication', payload);
     io.to('admins').emit('new_application', payload);
+
+    // 🔥 Send to specific user room (if userId provided)
+    if (applicationData.userId) {
+      io.to(`user_${applicationData.userId}`).emit('application_submitted', {
+        ...payload,
+        message: `Your application for ${applicationData.jobTitle} has been submitted successfully!`,
+        type: 'application_submitted'
+      });
+
+      // 🔥 Send notification
+      io.to(`user_${applicationData.userId}`).emit('notification', {
+        message: `Application submitted for ${applicationData.jobTitle}`,
+        type: 'application_submitted',
+        data: payload
+      });
+    }
   } else {
     console.warn('Socket.io not initialized');
   }
