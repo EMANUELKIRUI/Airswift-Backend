@@ -1,3 +1,17 @@
+const AuditLog = require("../models/AuditLogMongo");
+
+const logAction = async (userId, action, description) => {
+  try {
+    await AuditLog.create({
+      user_id: userId,
+      action,
+      description,
+    });
+  } catch (err) {
+    console.error("Audit log failed:", err.message);
+  }
+};
+
 const { logAction: logActionService } = require('../services/auditService');
 
 /**
@@ -139,7 +153,7 @@ const logAuditEvent = async (userId, action, resource, resourceId = null, detail
   }
 };
 
-const logAction = async ({ action, performedBy, targetUser, metadata = {}, req }) => {
+const logActionAdvanced = async ({ action, performedBy, targetUser, metadata = {}, req }) => {
   try {
     await logActionService({
       userId: performedBy || null,
@@ -164,7 +178,7 @@ module.exports = {
   logFailedLogin,
   logEmailVerification,
   logPasswordReset,
-  logAction,
+  logAction: logActionAdvanced,
   // Legacy export for backward compatibility
   logAuditEvent,
 };

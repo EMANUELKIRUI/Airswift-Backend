@@ -3,6 +3,23 @@ import api from './api'; // Your axios instance
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
+const calculateProfileCompletion = (user) => {
+  const fields = [
+    user.name,
+    user.email,
+    user.phone,
+    user.location,
+    user.skills,
+    user.experience,
+  ];
+
+  const filled = fields.filter(
+    (field) => field && field.toString().trim() !== ""
+  ).length;
+
+  return Math.round((filled / fields.length) * 100);
+};
+
 const SafeApplicationForm = () => {
   const [formData, setFormData] = useState({
     phone: '',

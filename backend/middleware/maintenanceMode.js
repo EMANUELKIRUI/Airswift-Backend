@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getSettingByKey } = require('../services/settingsService');
+const Settings = require('../models/Settings');
 
 const allowedPaths = [
   /^\/$/,
@@ -8,6 +8,8 @@ const allowedPaths = [
   /^\/api\/system-health(\/|$)/,
   /^\/api\/health(\/|$)/,
   /^\/api\/auth-status(\/|$)/,
+  /^\/api\/settings\/public(\/|$)/,
+  /^\/api\/settings\/feature-flags(\/|$)/,
 ];
 
 const extractToken = (req) => {
@@ -22,19 +24,29 @@ const extractToken = (req) => {
 };
 
 const maintenanceMode = async (req, res, next) => {
+  // Skip maintenance check for allowed paths
   if (allowedPaths.some((pattern) => pattern.test(req.path))) {
     return next();
   }
 
   try {
-    const setting = await getSettingByKey('maintenance_mode');
-    if (!setting || !(setting.value === true || setting.value === 'true')) {
+    const singletonSettings = await Settings.findOne({ singleton: true });
+    const maintenanceEnabled = singletonSettings ? singletonSettings.maintenanceMode : undefined;
+    if (maintenanceEnabled === undefined) {
+      const setting = await Settings.findOne({ key: 'maintenance_mode' });
+      if (!setting || !(setting.value === true || setting.value === 'true')) {
+        return next();
+      }
+    } else if (!maintenanceEnabled) {
       return next();
     }
 
     const token = extractToken(req);
     if (!token) {
-      return res.status(503).json({ message: 'Service temporarily unavailable due to maintenance.' });
+      return res.status(503).json({
+        message: 'Service temporarily unavailable due to maintenance.',
+        maintenance: true
+      });
     }
 
     try {
@@ -44,12 +56,16 @@ const maintenanceMode = async (req, res, next) => {
         return next();
       }
     } catch (error) {
-      // fall through to maintenance response
+      // Token invalid, fall through to maintenance response
     }
 
-    return res.status(503).json({ message: 'Service temporarily unavailable due to maintenance.' });
+    return res.status(503).json({
+      message: 'Service temporarily unavailable due to maintenance.',
+      maintenance: true
+    });
   } catch (error) {
     console.error('maintenanceMode error:', error);
+    // On error, allow request to continue to avoid blocking the app
     return next();
   }
 };

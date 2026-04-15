@@ -4,6 +4,7 @@ const Application = require('../models/ApplicationMongoose');
 const Job = require('../models/JobMongoose');
 const User = require('../models/User');
 const { emitNewApplication, emitApplicationStatusUpdate } = require('../utils/socketEmitter');
+const { logAction } = require('../utils/auditLogger');
 
 const STATUS_FLOW = {
   Submitted: 'Under Review',
@@ -116,6 +117,9 @@ const applyJob = async (req, res) => {
       location: req.user.location || '',
       score: aiScore,
     });
+
+    // Audit log
+    await logAction(req.user.id, "APPLICATION_SUBMITTED", `User applied for job: ${job.title}`);
 
     res.status(201).json({
       message: 'Application submitted successfully',

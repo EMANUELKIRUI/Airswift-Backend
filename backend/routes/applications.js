@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const Application = require('../models/ApplicationMongoose');
 const {
   getUserApplications,
   applyForJob,
@@ -164,12 +165,35 @@ router.post('/apply', authMiddleware, upload.fields([
     return res.status(500).json({ error: err.message });
   }
 });
-router.get('/admin/applications', verifyToken, isAdmin, getAllApplicationsAdmin);
+// 🔐 ADMIN - Get all applications
+router.get('/admin', verifyToken, adminOnly, async (req, res) => {
+  try {
+    const applications = await Application.find()
+      .populate('userId', 'name email')
+      .populate('jobId')
+      .sort({ createdAt: -1 });
+
+    res.json(applications);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
 router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
 router.get('/admin/stats', verifyToken, isAdmin, getAdminStats);
 router.get('/user/applications', verifyToken, getMyApplications);
-router.get('/my', verifyToken, getMyApplications);
+// 🔐 USER - Get their applications
+router.get('/my', verifyToken, async (req, res) => {
+  try {
+    const applications = await Application.find({ userId: req.user.id })
+      .populate('jobId')
+      .sort({ createdAt: -1 });
+
+    res.json(applications);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 router.post('/upload-documents', verifyToken, cloudUpload.fields([
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
@@ -177,6 +201,29 @@ router.post('/upload-documents', verifyToken, cloudUpload.fields([
   { name: 'certificate', maxCount: 5 },
 ]), handleMulterError, uploadApplicantDocs);
 router.post('/:id/attend-interview', verifyToken, markInterviewAttended);
+
+// UPDATE USER PROFILE
+router.put('/profile', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        name: req.body.name,
+        phone: req.body.phone,
+        location: req.body.location,
+        skills: req.body.skills,
+        experience: req.body.experience,
+      },
+      { new: true }
+    );
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Admin routes
 router.get('/admin/all', verifyToken, adminOnly, getAllApplicationsAdmin);

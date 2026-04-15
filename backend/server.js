@@ -9,14 +9,26 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
 const connectDB = require("./config/db");
+const Settings = require("./models/Settings");
 const { askAI, analyzeVoiceResponse, generateInterviewSummary } = require("./utils/voiceInterview");
 const { analyzeSpeech, streamElevenLabsTTS } = require("./controllers/speechController");
 const jwt = require("jsonwebtoken");
 const { User } = require("./models");
 const { findUserByEmail, createUser } = require("./utils/userHelpers");
 
-// Connect to MongoDB
-connectDB();
+const initializeSettings = async () => {
+  try {
+    const existing = await Settings.findOne({ singleton: true });
+    if (!existing) {
+      await Settings.create({ singleton: true });
+      console.log('✅ Default settings created');
+    } else {
+      console.log('✅ Settings already exist');
+    }
+  } catch (error) {
+    console.error('Failed to initialize default settings:', error.message);
+  }
+};
 
 const { createAdminIfNotExists } = require("./utils/adminSetup");
 const { initializeSocket } = require("./utils/socketEmitter");
@@ -590,7 +602,15 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT} with WebSocket support`));
+
+const startServer = async () => {
+  await connectDB();
+  await initializeSettings();
+
+  server.listen(PORT, () => console.log(`Server running on port ${PORT} with WebSocket support`));
+};
+
+startServer();
 
 // Export io for use in controllers
 module.exports = { app, server, io };

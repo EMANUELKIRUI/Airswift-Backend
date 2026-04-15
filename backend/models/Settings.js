@@ -1,38 +1,56 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Settings = sequelize.define('Settings', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+const settingsSchema = new mongoose.Schema({
+  singleton: {
+    type: Boolean,
+    default: true,
+    index: true,
   },
+  platformName: { type: String, default: 'Talex' },
+  currency: { type: String, default: 'USD' },
+  maxJobsPerDay: { type: Number, default: 50 },
+  maxApplicationsPerDay: { type: Number, default: 100 },
+  companyEmail: { type: String, default: '' },
+  companyPhone: { type: String, default: '' },
+  emailNotifications: { type: Boolean, default: true },
+  maintenanceMode: { type: Boolean, default: false },
+  mpesaApiKey: { type: String, default: '' },
+  paymentProvider: { type: String, default: '' },
+
   key: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-  },
-  category: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    defaultValue: 'general',
+    type: String,
+    index: true,
   },
   value: {
-    type: DataTypes.JSON,
-    allowNull: true,
+    type: mongoose.Schema.Types.Mixed,
   },
   description: {
-    type: DataTypes.TEXT,
-    allowNull: true,
+    type: String,
+    default: ''
   },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
+  category: {
+    type: String,
+    enum: ['general', 'security', 'email', 'payment', 'maintenance', 'features'],
+    default: 'general'
   },
-  updated_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
+  isPublic: {
+    type: Boolean,
+    default: false
   },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { timestamps: true, strict: false });
+
+// Update the updatedAt field on save
+settingsSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
-module.exports = Settings;
+module.exports = mongoose.model('Settings', settingsSchema);

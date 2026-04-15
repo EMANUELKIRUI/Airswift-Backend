@@ -7,6 +7,7 @@ const adminMiddleware = require('../middleware/admin');
 const adminOnly = adminMiddleware;
 const Application = require('../models/ApplicationMongoose');
 const { sendEmail } = require('../utils/sendEmail');
+const { logAction } = require('../utils/auditLogger');
 const {
   applyJob,
   updateApplicationStatus,
@@ -82,6 +83,9 @@ router.put("/admin/:id/approve", verifyToken, adminOnly, async (req, res) => {
       req,
     });
 
+    // Audit log
+    await logAction(req.user.id, "APPLICATION_APPROVED", `Admin approved application for ${app.userId.name}`);
+
     res.json(app);
 
   } catch (err) {
@@ -110,6 +114,9 @@ router.put("/admin/:id/reject", verifyToken, adminOnly, async (req, res) => {
       sentBy: req.user.id,
       req,
     });
+
+    // Audit log
+    await logAction(req.user.id, "APPLICATION_REJECTED", `Admin rejected application for ${app.userId.name}`);
 
     res.json(app);
 

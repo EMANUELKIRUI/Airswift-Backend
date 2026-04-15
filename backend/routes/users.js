@@ -1,8 +1,31 @@
 const express = require('express');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
 const { verifyToken } = require('../middleware/auth');
 const User = require('../models/User');
+const { parseCVWithAI } = require('../utils/aiParser');
 
 const router = express.Router();
+
+const upload = multer({ storage: multer.memoryStorage() });
+
+router.post('/parse-cv', verifyToken, upload.single('cv'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'CV file required' });
+    }
+
+    const pdf = await pdfParse(req.file.buffer);
+    const text = pdf.text;
+
+    const extracted = await parseCVWithAI(text);
+
+    res.json(extracted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Get user status
 router.get('/status', verifyToken, async (req, res) => {
