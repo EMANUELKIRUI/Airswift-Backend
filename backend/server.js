@@ -41,9 +41,10 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  path: "/api/socket",
   cors: {
-    origin: "*",
+    origin: "https://airswift-frontend.vercel.app",
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
