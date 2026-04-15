@@ -1,12 +1,14 @@
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
+  // Extract token from Authorization header with Bearer prefix
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
   }
 
+  // Split "Bearer <token>" and extract the actual token
   const token = authHeader.split(' ')[1];
 
   try {
@@ -38,4 +40,23 @@ const verifyRole = (role) => {
   };
 };
 
-module.exports = { authMiddleware, verifyToken, verifyRole };
+// Alias for compatibility with different imports
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    if (!req.user.role) {
+      return res.status(403).json({ message: 'User role not found' });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    next();
+  };
+};
+
+module.exports = { authMiddleware, verifyToken, verifyRole, authorizeRoles };
