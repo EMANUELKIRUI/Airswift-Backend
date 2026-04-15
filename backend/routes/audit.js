@@ -1,14 +1,32 @@
-const express = require('express');
-const { getAuditLogs, getAuditStats, exportAuditCsv, exportAuditPdf } = require('../controllers/auditController');
-const { authMiddleware } = require('../middleware/authMiddleware');
-const adminOnly = require('../middleware/admin');
-
+const express = require("express");
 const router = express.Router();
+const AuditLog = require("../models/AuditLogMongo");
+const { verifyToken } = require("../middleware/auth");
 
-// All audit routes require authentication and admin access
-router.get('/', authMiddleware, adminOnly, getAuditLogs);
-router.get('/stats', authMiddleware, adminOnly, getAuditStats);
-router.get('/export/csv', authMiddleware, adminOnly, exportAuditCsv);
-router.get('/export/pdf', authMiddleware, adminOnly, exportAuditPdf);
+// GET logs with filters
+router.get("/", verifyToken, async (req, res) => {
+  try {
+    const { search, action, resource } = req.query;
+
+    let query = {};
+
+    if (action) query.action = action;
+    if (resource) query.resource = resource;
+
+    if (search) {
+      query.description = { $regex: search, $options: "i" };
+    }
+
+    const logs = await AuditLog.find(query)
+      .populate("userId", "email name")
+      .sort({ createdAt: -1 })
+      .limit(100); // Limit to prevent large responses
+
+    res.json(logs);
+  } catch (err) {
+    console.error("Audit logs fetch error:", err);
+    res.status(500).json({ message: "Failed to fetch logs" });
+  }
+});
 
 module.exports = router;

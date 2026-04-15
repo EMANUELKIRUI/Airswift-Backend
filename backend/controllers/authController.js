@@ -497,6 +497,16 @@ const loginUser = async (req, res) => {
         details: `User logged in`,
       });
 
+      // 🔥 New audit logging format
+      const logAction = require('../utils/auditLogger');
+      await logAction({
+        userId: user._id,
+        action: "LOGIN",
+        resource: "AUTH",
+        description: "User logged in successfully",
+        metadata: { email: user.email, ip: req.ip }
+      });
+
       return res.json({
         success: true,
         token,

@@ -117,7 +117,14 @@ const applyJob = async (req, res) => {
     });
 
     // Audit log
-    await logAction(req.user.id, "APPLICATION_SUBMITTED", `User applied for job: ${job.title}`);
+    const logAction = require('../utils/auditLogger');
+    await logAction({
+      userId: req.user.id,
+      action: "CREATE_APPLICATION",
+      resource: "APPLICATION",
+      description: `User submitted application for job: ${job.title}`,
+      metadata: { jobId: job._id, applicationId: application._id }
+    });
 
     res.status(201).json({
       message: 'Application submitted successfully',
@@ -166,6 +173,16 @@ const updateApplicationStatus = async (req, res) => {
       updatedBy: req.user.name || 'Admin',
       email: application.userId?.email,
       userId: application.userId?._id || application.userId // 🔥 Add userId for user-specific room
+    });
+
+    // 🔥 Audit log for status update
+    const logAction = require('../utils/auditLogger');
+    await logAction({
+      userId: req.user.id,
+      action: "UPDATE_APPLICATION",
+      resource: "APPLICATION",
+      description: `Application status updated to: ${status}`,
+      metadata: { applicationId: application._id, previousStatus: application.status, newStatus: status }
     });
 
     res.json({ success: true, application });

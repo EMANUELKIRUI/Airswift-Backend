@@ -1,53 +1,20 @@
 const AuditLog = require("../models/AuditLogMongo");
 
-const logAction = async (userId, action, description) => {
+const logAction = async ({ userId, action, resource, description, metadata }) => {
   try {
     await AuditLog.create({
-      user_id: userId,
+      userId,
       action,
+      resource,
       description,
+      metadata,
     });
   } catch (err) {
     console.error("Audit log failed:", err.message);
   }
 };
 
-const { logAction: logActionService } = require('../services/auditService');
-
-/**
- * Central audit logging function
- * @param {string} userId - User ID (can be null for failed logins)
- * @param {string} action - Action type (REGISTER, LOGIN, LOGOUT, FAILED_LOGIN, etc.)
- * @param {Object} request - Express request object
- * @param {Object} details - Additional details/context
- */
-const logUserActivity = async (userId, action, request, details = {}) => {
-  try {
-    const description = details.description || `${action.replace(/_/g, ' ').toLowerCase()}`;
-
-    await logAction({
-      userId,
-      action,
-      entity: 'User',
-      entityId: userId,
-      details,
-      description,
-      req: request,
-      status: 'success'
-    });
-  } catch (error) {
-    console.error('Failed to log user activity:', error);
-    // Don't throw error to avoid breaking main functionality
-  }
-};
-
-/**
- * Log user registration
- */
-const logRegistration = async (userId, request) => {
-  await logUserActivity(userId, 'REGISTER', request, {
-    event: 'user_registration',
-    description: 'New user account created'
+module.exports = logAction;
   });
 };
 

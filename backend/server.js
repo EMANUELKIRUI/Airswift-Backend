@@ -568,6 +568,7 @@ app.use("/api/users", require("./routes/users"));
 app.use("/api/interviews", require("./routes/interviews"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/health", require("./routes/health"));
+app.use("/api/audit", require("./routes/audit"));
 app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/system-health", require("./routes/systemHealth"));
