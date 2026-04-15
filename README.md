@@ -230,6 +230,12 @@ try {
   throw err;
 }
 
+// 🔥 CRITICAL: Store token after successful login
+if (data.token) {
+  localStorage.setItem("token", data.token);
+  localStorage.setItem("user", JSON.stringify(data.user));
+}
+
 console.log(data);
 ```
 

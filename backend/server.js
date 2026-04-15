@@ -68,17 +68,22 @@ const adminSessions = new Map(); // Track active admin connections for real-time
 const voiceInterviewSessions = new Map();
 
 io.use((socket, next) => {
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-  if (!token) {
-    return next(new Error('Not authenticated'));
-  }
-
   try {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+      return next(new Error("Not authenticated"));
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
     socket.user = decoded;
-    return next();
+
+    socket.join("user_" + decoded.id);
+
+    next();
   } catch (err) {
-    return next(new Error('Invalid token'));
+    next(new Error("Not authenticated"));
   }
 });
 
