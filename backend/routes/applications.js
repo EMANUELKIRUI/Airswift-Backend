@@ -60,6 +60,17 @@ const router = express.Router();
 
 // User routes
 router.get('/', authMiddleware, getUserApplications);
+router.get("/check", authMiddleware, async (req, res) => {
+  try {
+    const existing = await Application.findOne({
+      userId: req.user.id,
+    });
+
+    res.json({ hasApplied: !!existing });
+  } catch (err) {
+    res.status(500).json({ message: "Error checking application" });
+  }
+});
 router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
 
 // ✅ Main application submission route (local multer upload)

@@ -3,6 +3,22 @@ const router = express.Router();
 const AuditLog = require("../models/AuditLogMongo");
 const { verifyToken } = require("../middleware/auth");
 
+// GET single audit log
+router.get("/:id", async (req, res) => {
+  try {
+    const log = await AuditLog.findById(req.params.id)
+      .populate("userId", "email name");
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    res.json(log);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch log" });
+  }
+});
+
 // GET logs with filters
 router.get("/", verifyToken, async (req, res) => {
   try {
