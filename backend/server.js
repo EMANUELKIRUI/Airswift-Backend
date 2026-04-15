@@ -31,10 +31,12 @@ const initializeSettings = async () => {
 };
 
 const { createAdminIfNotExists } = require("./utils/adminSetup");
-const { initializeSocket } = require("./utils/socketEmitter");
+const initializeSocket = require("./utils/socket");
 const { setSocketInstance } = require("./utils/logger");
 const maintenanceMode = require('./middleware/maintenanceMode');
 const seedJobsWithCategories = require('./scripts/seedJobsWithCategories');
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://airswift-frontend.vercel.app";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -42,7 +44,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "https://airswift-frontend.vercel.app",
+    origin: FRONTEND_URL,
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -469,8 +471,6 @@ io.on("connection", (socket) => {
     process.exit(1);
   }
 })();
-
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://airswift-frontend.vercel.app";
 
 app.use(
   cors({

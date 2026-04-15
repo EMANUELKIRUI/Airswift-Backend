@@ -1,6 +1,6 @@
 let io;
 
-const initSocket = (serverIO) => {
+const initializeSocket = (serverIO) => {
   io = serverIO;
 };
 
@@ -20,7 +20,7 @@ const emitNotification = (userId, notification) => {
 };
 
 module.exports = {
-  initSocket,
+  initializeSocket,
   emitApplicationUpdate,
   emitInterviewScheduled,
   emitNotification,
