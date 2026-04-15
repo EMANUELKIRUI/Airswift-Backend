@@ -34,7 +34,12 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed');
+      if (err.response?.status === 401) {
+        alert("Session expired. Please login again.");
+      } else {
+        alert("Something went wrong");
+        setError(err.response?.data?.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }

@@ -41,11 +41,16 @@ api.interceptors.response.use(
       message: error.response?.data?.message || error.message
     });
 
-    // Handle 401 Unauthorized - token expired or invalid
+    // Handle different error types
     if (error.response?.status === 401) {
       console.warn('🔐 UNAUTHORIZED - Clearing token and redirecting to login');
       localStorage.removeItem('token');
+      alert("Session expired. Please login again.");
       window.location.href = '/login';
+    } else if (!error.response) {
+      // Network error
+      alert("Something went wrong");
+      console.error('Network error:', error.message);
     }
 
     return Promise.reject(error);

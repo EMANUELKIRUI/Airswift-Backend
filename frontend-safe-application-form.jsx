@@ -257,27 +257,23 @@ const SafeApplicationForm = () => {
       console.error('❌ Application submission error:', err);
 
       const backendData = err.response?.data || {};
-      const backendMessage = backendData.message || backendData.error;
-
-      // ✅ FIX 6: Handle different error types
-      let errorMessage = 'Failed to submit application. Please try again.';
-
-      if (err.response?.status === 400) {
-        errorMessage = `❌ ${backendMessage || 'Invalid form data'}`;
-      } else if (err.response?.status === 401) {
-        errorMessage = '❌ Your session has expired. Please log in again.';
-        setTimeout(() => window.location.href = '/login', 2000);
+      // ✅ FIX: Show specific error messages based on response status
+      if (err.response?.status === 401) {
+        alert("Session expired. Please login again.");
+        setTimeout(() => window.location.href = '/login', 1000);
+      } else if (err.response?.status === 400) {
+        const backendMessage = err.response?.data?.message || err.response?.data?.error;
+        setError(`❌ ${backendMessage || 'Invalid form data'}`);
       } else if (err.response?.status === 413) {
-        errorMessage = '❌ Files are too large. Maximum 5MB per file.';
+        setError('❌ Files are too large. Maximum 5MB per file.');
       } else if (err.response?.status === 500) {
-        errorMessage = '❌ Server error. Please try again later.';
+        setError('❌ Server error. Please try again later.');
       } else if (err.message === 'Network Error') {
-        errorMessage = '❌ Network error. Check your connection.';
-      } else if (backendMessage) {
-        errorMessage = `❌ ${backendMessage}`;
+        setError('❌ Network error. Check your connection.');
+      } else {
+        alert("Something went wrong");
+        setError('Failed to submit application. Please try again.');
       }
-
-      setError(errorMessage);
     } finally {
       setLoading(false);
       setUploadProgress(0);
