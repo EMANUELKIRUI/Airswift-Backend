@@ -3,6 +3,7 @@ const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const { verifyToken } = require('../middleware/auth');
 const User = require('../models/User');
+const Application = require('../models/ApplicationMongoose');
 const { parseCVWithAI } = require('../utils/aiParser');
 
 const router = express.Router();
@@ -35,6 +36,8 @@ router.get('/status', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const application = await Application.findOne({ userId: req.user.id });
+
     res.json({
       user: {
         id: user._id,
@@ -44,6 +47,8 @@ router.get('/status', verifyToken, async (req, res) => {
         has_submitted: user.has_submitted,
         isVerified: user.isVerified
       },
+      hasApplied: !!application,
+      application,
       status: 'authenticated'
     });
   } catch (error) {

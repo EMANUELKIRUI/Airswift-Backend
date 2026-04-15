@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const User = require('../models/User');
+const Profile = require('../models/ProfileMongoose');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
 const { extractCVText, extractSkills, extractEducation, extractExperience } = require('../utils/cvParser');
@@ -20,31 +21,8 @@ const profileSchema = Joi.object({
 
 const getProfile = async (req, res) => {
   try {
-    let user;
-    
-    if (isMongooseModel) {
-      user = await User.findById(req.user.id).select('-password');
-    } else if (isSequelizeModel) {
-      user = await User.findById(req.user.id);
-    } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
-    }
-
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const profile = {
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      location: user.location,
-      skills: Array.isArray(user.skills) ? user.skills : (user.skills ? JSON.parse(user.skills) : []),
-      education: user.education,
-      experience: user.experience,
-      profilePicture: user.profilePicture,
-      cv: user.cv,
-    };
-
-    res.json(profile);
+    const profile = await Profile.findOne({ user: req.user.id })
+    res.json(profile)
   } catch (error) {
     console.error('GET PROFILE ERROR:', error);
     res.status(500).json({ message: 'Server error' });
@@ -53,74 +31,25 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { error, value } = profileSchema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.details[0].message });
+    let profile = await Profile.findOne({ user: req.user.id })
 
-    console.log('UPDATE PROFILE - User ID:', req.user.id);
-    console.log('UPDATE PROFILE - Data:', value);
-
-    let updatedUser;
-
-    if (isMongooseModel) {
-      // Build update object with only defined values
-      const updateData = {};
-      if (value.name !== undefined) updateData.name = value.name;
-      if (value.phone !== undefined) updateData.phone = value.phone;
-      if (value.location !== undefined) updateData.location = value.location;
-      if (value.skills !== undefined) updateData.skills = value.skills;
-      if (value.education !== undefined) updateData.education = value.education;
-      if (value.experience !== undefined) updateData.experience = value.experience;
-      if (value.profilePicture !== undefined) updateData.profilePicture = value.profilePicture;
-
-      updatedUser = await User.findByIdAndUpdate(
-        req.user.id,
-        updateData,
+    if (profile) {
+      // update
+      profile = await Profile.findOneAndUpdate(
+        { user: req.user.id },
+        req.body,
         { new: true }
-      ).select('-password');
-    } else if (isSequelizeModel) {
-      // Build update object for Sequelize
-      const updateData = {};
-      if (value.name !== undefined) updateData.name = value.name;
-      if (value.phone !== undefined) updateData.phone = value.phone;
-      if (value.location !== undefined) updateData.location = value.location;
-      if (value.skills !== undefined) updateData.skills = value.skills;
-      if (value.education !== undefined) updateData.education = value.education;
-      if (value.experience !== undefined) updateData.experience = value.experience;
-      if (value.profilePicture !== undefined) updateData.profilePicture = value.profilePicture;
-
-      const [affectedRows] = await User.update(updateData, {
-        where: { id: req.user.id }
-      });
-
-      if (affectedRows === 0) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      updatedUser = await User.findById(req.user.id);
+      )
     } else {
-      return res.status(500).json({ message: 'User model not properly configured' });
+      // create
+      profile = new Profile({
+        user: req.user.id,
+        ...req.body
+      })
+      await profile.save()
     }
 
-    if (!updatedUser) return res.status(404).json({ message: 'User not found' });
-
-    console.log('UPDATE PROFILE - Success:', isMongooseModel ? updatedUser._id : updatedUser.id);
-
-    const profile = {
-      name: updatedUser.name,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-      location: updatedUser.location,
-      skills: Array.isArray(updatedUser.skills) ? updatedUser.skills : (updatedUser.skills ? JSON.parse(updatedUser.skills) : []),
-      education: updatedUser.education,
-      experience: updatedUser.experience,
-      profilePicture: updatedUser.profilePicture,
-      cv: updatedUser.cv,
-    };
-
-    res.status(200).json({
-      message: 'Profile updated successfully',
-      profile,
-    });
+    res.json(profile)
   } catch (error) {
     console.error('UPDATE PROFILE ERROR:', error);
     res.status(500).json({ message: 'Server error' });

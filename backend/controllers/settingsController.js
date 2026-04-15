@@ -18,6 +18,9 @@ exports.getSettings = async (req, res) => {
 // SAVE settings
 exports.saveSettings = async (req, res) => {
   try {
+    console.log('Incoming settings:', req.body);
+    console.log('User:', req.user);
+
     let settings = await Settings.findOne();
 
     if (!settings) {

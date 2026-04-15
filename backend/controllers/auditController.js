@@ -53,12 +53,6 @@ const getAuditLogs = async (req, res) => {
 
     res.json({
       logs: logsWithUser,
-      pagination: {
-        total: count,
-        page: parseInt(page),
-        pages: Math.ceil(count / limit),
-        limit: parseInt(limit),
-      },
     });
   } catch (error) {
     console.error('getAuditLogs error:', error);

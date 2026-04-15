@@ -4,6 +4,7 @@ import api from './api'; // Your axios instance
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminAuditLogs = () => {
+  const [data, setData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,10 +18,12 @@ const AdminAuditLogs = () => {
     try {
       setLoading(true);
       const response = await api.get('/admin/audit-logs');
-      setLogs(response.data);
+      const auditData = response.data;
+      setData(auditData);
+      setLogs(auditData?.logs || auditData || []);
     } catch (err) {
       setError('Failed to load audit logs');
-      console.error(err);
+      console.error('Audit error:', err);
     } finally {
       setLoading(false);
     }
@@ -34,6 +37,7 @@ const AdminAuditLogs = () => {
 
   if (loading) return <div>Loading audit logs...</div>;
   if (error) return <div>Error: {error}</div>;
+  if (!data) return <div>Loading...</div>;
 
   return (
     <div className="p-6">

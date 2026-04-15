@@ -1,32 +1,5 @@
 const mongoose = require('mongoose');
 
-const statusHistorySchema = new mongoose.Schema(
-  {
-    status: {
-      type: String,
-      enum: [
-        'Submitted',
-        'Under Review',
-        'Shortlisted',
-        'Interview Scheduled',
-        'Hired',
-        'Rejected',
-      ],
-      required: true,
-    },
-    changedAt: {
-      type: Date,
-      default: Date.now,
-    },
-    changedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
-    note: String,
-  },
-  { _id: false }
-);
-
 const applicationSchema = new mongoose.Schema(
   {
     userId: {
@@ -60,16 +33,16 @@ const applicationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [
-        'Submitted',
-        'Under Review',
-        'Shortlisted',
-        'Interview Scheduled',
-        'Hired',
-        'Rejected',
-      ],
-      default: 'Submitted',
+      enum: ['pending', 'reviewed', 'accepted', 'rejected'],
+      default: 'pending'
     },
+
+    timeline: [
+      {
+        status: String,
+        date: { type: Date, default: Date.now }
+      }
+    ],
     aiScore: {
       type: Number,
       default: 0,
@@ -84,7 +57,6 @@ const applicationSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
-    statusHistory: [statusHistorySchema],
     resumeVersion: {
       type: String,
     },

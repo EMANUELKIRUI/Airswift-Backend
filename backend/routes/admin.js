@@ -18,7 +18,7 @@ router.use(verifyToken, adminOnly);
 router.get("/users", async (req, res) => {
   try {
     const users = await User.find().select("-password");
-    res.json(users);
+    res.json({ users });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

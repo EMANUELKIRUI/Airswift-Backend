@@ -7,10 +7,8 @@ const { emitNewApplication, emitApplicationStatusUpdate } = require('../utils/so
 const { logAction } = require('../utils/auditLogger');
 
 const STATUS_FLOW = {
-  Submitted: 'Under Review',
-  'Under Review': 'Shortlisted',
-  Shortlisted: 'Interview Scheduled',
-  'Interview Scheduled': 'Hired',
+  pending: 'reviewed',
+  reviewed: 'accepted',
 };
 
 const applyJobSchema = Joi.object({
@@ -95,14 +93,13 @@ const applyJob = async (req, res) => {
       passport,
       cv,
       coverLetter,
-      status: 'Submitted',
+      status: 'pending',
       aiScore,
       resumeSnapshot: resumeSnapshot || cv || req.user.cv || '',
-      statusHistory: [
+      timeline: [
         {
-          status: 'Submitted',
-          changedBy: req.user.id,
-          note: 'Application submitted',
+          status: 'pending',
+          date: new Date(),
         },
       ],
     });
@@ -135,12 +132,10 @@ const updateApplicationStatus = async (req, res) => {
   try {
     const { id, status } = req.body;
     const validStatuses = [
-      'Submitted',
-      'Under Review',
-      'Shortlisted',
-      'Interview Scheduled',
-      'Hired',
-      'Rejected',
+      'pending',
+      'reviewed',
+      'accepted',
+      'rejected',
     ];
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -155,10 +150,9 @@ const updateApplicationStatus = async (req, res) => {
     if (!application) return res.status(404).json({ error: 'Application not found' });
 
     application.status = status;
-    application.statusHistory.push({
+    application.timeline.push({
       status,
-      changedBy: req.user.id,
-      note: `Status set to ${status}`,
+      date: new Date(),
     });
     application.updatedAt = Date.now();
     await application.save();

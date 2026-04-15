@@ -521,6 +521,15 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/admin/audit-logs", require("./routes/audit"));
 app.use("/api/settings", require("./routes/settings"));
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: new Date()
+  });
+});
+
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/jobs", require("./routes/jobs"));
