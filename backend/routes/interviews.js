@@ -13,26 +13,6 @@ const {
   autonomousRecruiter,
   rankApplicationsViaAI,
 } = require('../controllers/interviewController');
-const { verifyToken } = require('../middleware/auth');
-const adminOnly = require('../middleware/admin');
-
-const router = express.Router();
-
-const express = require('express');
-const {
-  createInterview,
-  createVoiceSession,
-  getInterview,
-  updateInterview,
-  getAdminInterviews,
-  getMyInterviews,
-  scoreResponse,
-  scheduleInterview, // Legacy
-  askAIInterview,
-  scoreCV,
-  autonomousRecruiter,
-  rankApplicationsViaAI,
-} = require('../controllers/interviewController');
 const { protect, permit } = require('../middleware/auth');
 const adminOnly = require('../middleware/admin');
 
