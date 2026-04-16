@@ -17,9 +17,9 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     role: {
-      type: String,
-      default: "user",
-      enum: ["user", "admin", "recruiter"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null, // Will be populated on user creation
     },
     status: {
       type: String,

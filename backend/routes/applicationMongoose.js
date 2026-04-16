@@ -2,9 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { verifyToken } = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
-const adminOnly = adminMiddleware;
+const { protect, authorize } = require('../middleware/auth');
 const Application = require('../models/ApplicationMongoose');
 const { sendEmail } = require('../utils/sendEmail');
 const { logAction } = require('../utils/auditLogger');
@@ -28,13 +26,13 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post('/apply', verifyToken, upload.fields([
+router.post('/apply', protect, upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
 ]), applyJob);
 // GET user application
-router.get("/my", verifyToken, async (req, res) => {
+router.get("/my", protect, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -52,7 +50,7 @@ router.get("/my", verifyToken, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-router.get("/admin", verifyToken, adminOnly, async (req, res) => {
+router.get("/admin", protect, authorize('admin'), async (req, res) => {
   try {
     const applications = await Application.find()
       .populate("userId", "name email")
@@ -66,7 +64,7 @@ router.get("/admin", verifyToken, adminOnly, async (req, res) => {
   }
 });
 // Approve
-router.put("/admin/:id/approve", verifyToken, adminOnly, async (req, res) => {
+router.put("/admin/:id/approve", protect, authorize('admin'), async (req, res) => {
   try {
     const app = await Application.findByIdAndUpdate(
       req.params.id,
@@ -99,7 +97,7 @@ router.put("/admin/:id/approve", verifyToken, adminOnly, async (req, res) => {
 });
 
 // Reject
-router.put("/admin/:id/reject", verifyToken, adminOnly, async (req, res) => {
+router.put("/admin/:id/reject", protect, authorize('admin'), async (req, res) => {
   try {
     const app = await Application.findByIdAndUpdate(
       req.params.id,
@@ -129,9 +127,9 @@ router.put("/admin/:id/reject", verifyToken, adminOnly, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-router.get('/:id/download/:fileType', verifyToken, adminOnly, downloadFile);
-router.get('/admin/all', adminMiddleware, getAllApplications);
-router.get('/admin/analytics', adminMiddleware, getApplicationAnalytics);
-router.put('/status', adminMiddleware, updateApplicationStatus);
+router.get('/:id/download/:fileType', protect, authorize('admin'), downloadFile);
+router.get('/admin/all', protect, authorize('admin'), getAllApplications);
+router.get('/admin/analytics', protect, authorize('admin'), getApplicationAnalytics);
+router.put('/status', protect, authorize('admin'), updateApplicationStatus);
 
 module.exports = router;

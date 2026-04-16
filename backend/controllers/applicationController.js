@@ -13,12 +13,13 @@ const cloudinary = require('../config/cloudinary');
 
 const AuditLog = require("../models/AuditLog");
 
-const logEvent = async ({ userId, action, details }) => {
+const logEvent = async ({ userId, action, resource = 'application', details }) => {
   try {
     await AuditLog.create({
       user_id: userId,
       action,
-      details,
+      resource,
+      description: details,
     });
   } catch (err) {
     console.error("Audit log failed:", err.message);

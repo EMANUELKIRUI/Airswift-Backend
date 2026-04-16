@@ -1,59 +1,70 @@
 const jwt = require('jsonwebtoken');
+const { getPermissions } = require('../config/roles');
+const User = require('../models/User');
 
-const authMiddleware = (req, res, next) => {
-  // ✅ Extract token from Authorization header with Bearer prefix
-  const authHeader = req.headers.authorization;
-
-  console.log('🔐 AUTH MIDDLEWARE CHECK:');
-  console.log("Auth header:", req.headers.authorization);
-  console.log('   Auth header:', authHeader);
-  console.log('   Authorization header exists:', !!authHeader);
-
-  if (!authHeader) {
-    console.warn('   ❌ Missing Authorization header');
-    return res.status(401).json({ 
-      message: 'No token provided',
-      error: 'MISSING_AUTH_HEADER'
-    });
-  }
-
-  if (!authHeader.startsWith('Bearer ')) {
-    console.warn('   ❌ Missing Bearer prefix. Format should be: "Bearer [token]"');
-    console.warn('   Received:', authHeader.substring(0, 50));
-    return res.status(401).json({ 
-      message: 'Invalid authorization format. Expected: Bearer [token]',
-      error: 'INVALID_AUTH_FORMAT'
-    });
-  }
-
-  // Split "Bearer <token>" and extract the actual token
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
-    console.warn('   ❌ Token is empty after Bearer prefix');
-    return res.status(401).json({ 
-      message: 'Token is empty',
-      error: 'EMPTY_TOKEN'
-    });
-  }
-
+// ✅ DYNAMIC RBAC: Fetch user with role and permissions from database
+const authMiddleware = async (req, res, next) => {
   try {
-    console.log('   📝 Verifying JWT token...');
+    const authHeader = req.headers.authorization;
+
+    // ✅ Check header exists
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // ✅ Prevent "undefined" or empty token
+    if (!token || token === 'undefined') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+
+    // ✅ Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('   ✅ Token verified. User ID:', decoded.id);
-    req.user = decoded;
+
+    // ✅ Fetch user from database with role and permissions populated
+    const user = await User.findById(decoded.id)
+      .populate({
+        path: 'role',
+        populate: { path: 'permissions' },
+      });
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // ✅ Extract permission names from populated role
+    let permissions = [];
+    if (user.role && user.role.permissions) {
+      permissions = user.role.permissions.map(p => p.name);
+    }
+
+    // ✅ Fallback to config-based permissions if no role in database
+    const roleName = user.role?.name || 'user';
+    if (permissions.length === 0) {
+      permissions = getPermissions(roleName);
+    }
+
+    // ✅ Attach user to request
+    req.user = {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: roleName,
+      roleId: user.role?._id || null,
+      permissions: permissions,
+      status: user.status,
+    };
+    
     next();
-  } catch (err) {
-    console.error('   ❌ Token verification failed:', err.message);
-    return res.status(401).json({ 
-      message: 'Invalid token',
-      error: err.message.includes('expired') ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
-    });
+  } catch (error) {
+    return res.status(401).json({ message: 'Token failed', error: error.message });
   }
 };
 
 const verifyToken = authMiddleware;
 
+// ✅ Verify specific role (works with both string role names and ObjectIds)
 const verifyRole = (role) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -64,6 +75,7 @@ const verifyRole = (role) => {
       return res.status(403).json({ message: 'User role not found' });
     }
 
+    // Compare role name (string from req.user.role)
     if (req.user.role !== role) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -72,8 +84,8 @@ const verifyRole = (role) => {
   };
 };
 
-// Alias for compatibility with different imports
-const authorizeRoles = (...roles) => {
+// ✅ Role authorization - accepts multiple roles
+const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ message: 'User not authenticated' });
@@ -84,11 +96,53 @@ const authorizeRoles = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({
+        message: `Access denied. Requires: ${roles.join(', ')}`,
+      });
     }
 
     next();
   };
 };
 
-module.exports = { authMiddleware, verifyToken, verifyRole, authorizeRoles };
+// ✅ Permission-based authorization
+const permit = (...requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const userPermissions = req.user.permissions || [];
+
+    // Check if user has all required permissions
+    const hasAllPermissions = requiredPermissions.every(p =>
+      userPermissions.includes(p)
+    );
+
+    if (!hasAllPermissions) {
+      return res.status(403).json({
+        message: 'Permission denied',
+        required: requiredPermissions,
+        current: userPermissions,
+      });
+    }
+
+    next();
+  };
+};
+
+// Alias for compatibility with different imports
+const authorizeRoles = authorize;
+
+// Clean exports
+const protect = authMiddleware;
+
+module.exports = { 
+  authMiddleware, 
+  verifyToken, 
+  protect,
+  verifyRole, 
+  authorize,
+  authorizeRoles,
+  permit
+};

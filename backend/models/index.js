@@ -15,6 +15,8 @@ const AuditLog = require('./AuditLog');
 const Notification = require('./Notification');
 const EmailTemplate = require('./EmailTemplate');
 const UserActivityAudit = require('./UserActivityAudit');
+const Permission = require('./Permission');
+const Role = require('./Role');
 
 // Associations (Note: User is now a Mongoose model, skip Sequelize associations for it)
 // For gradual migration, associations are preserved for Sequelize models only
@@ -71,4 +73,6 @@ module.exports = {
   Notification,
   EmailTemplate,
   UserActivityAudit,
+  Permission,
+  Role,
 };

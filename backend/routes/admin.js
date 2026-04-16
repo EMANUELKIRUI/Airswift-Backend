@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyToken } = require("../middleware/auth");
-const adminOnly = require("../middleware/admin");
+const { protect, authorize } = require("../middleware/auth");
 
 const User = require("../models/User");
 const Application = require("../models/ApplicationMongoose");
@@ -9,8 +8,8 @@ const Interview = require("../models/Interview");
 const Payment = require("../models/Payment");
 const AuditLog = require("../models/AuditLogMongo");
 
-// 🔐 Protect all admin routes
-router.use(verifyToken, adminOnly);
+// 🔐 Protect all admin routes - requires admin role
+router.use(protect, authorize('admin'));
 
 //
 // ✅ USERS

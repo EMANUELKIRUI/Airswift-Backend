@@ -73,26 +73,19 @@ const adminSessions = new Map(); // Track active admin connections for real-time
 const voiceInterviewSessions = new Map();
 
 io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-
-  console.log('🔌 SOCKET AUTH MIDDLEWARE:');
-  console.log('   Client IP:', socket.handshake.address);
-  console.log('   Token provided:', !!token);
-
-  if (!token) {
-    console.warn('   ❌ No token provided in socket handshake');
-    return next(new Error("Not authenticated"));
-  }
-
   try {
-    console.log('   📝 Verifying socket token...');
+    const token = socket.handshake.auth.token;
+
+    if (!token || token === 'undefined') {
+      return next(new Error('Not authenticated'));
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.user = decoded;
-    console.log('   ✅ Socket token verified. User ID:', decoded.id);
+
     next();
   } catch (err) {
-    console.error('   ❌ Socket token verification failed:', err.message);
-    next(new Error("Not authenticated"));
+    next(new Error('Not authenticated'));
   }
 });
 

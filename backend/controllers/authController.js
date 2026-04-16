@@ -16,12 +16,13 @@ const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = 
 
 const AuditLog = require("../models/AuditLog");
 
-const logEvent = async ({ userId, action, details }) => {
+const logEvent = async ({ userId, action, resource = 'auth', details }) => {
   try {
     await AuditLog.create({
       user_id: userId,
       action,
-      details,
+      resource,
+      description: details,
     });
   } catch (err) {
     console.error("Audit log failed:", err.message);
@@ -477,12 +478,18 @@ const loginUser = async (req, res) => {
     }
 
     try {
-      const token = jwt.sign(
-        { id: user._id, role: user.role, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-      );
+      // ✅ Generate short-lived access token (15m) and long-lived refresh token (7d)
+      const accessToken = generateAccessToken(user);
+      const refreshToken = generateRefreshToken(user);
 
+      // ✅ Store refresh token in user (for token rotation security)
+      user.refreshToken = refreshToken;
+      await user.save();
+
+      // ✅ Send refresh token as HTTP-only cookie (secure + not accessible to JavaScript)
+      res.cookie('refreshToken', refreshToken, buildCookieOptions(req));
+
+      // ✅ Audit logging
       await auditLog({
         action: "USER_LOGIN",
         userId: user._id,
@@ -494,10 +501,10 @@ const loginUser = async (req, res) => {
       await logEvent({
         userId: user._id,
         action: "LOGIN",
+        resource: 'auth',
         details: `User logged in`,
       });
 
-      // 🔥 New audit logging format
       const logAction = require('../utils/auditLogger');
       await logAction({
         userId: user._id,
@@ -507,10 +514,11 @@ const loginUser = async (req, res) => {
         metadata: { email: user.email, ip: req.ip }
       });
 
+      // ✅ Return clean response with access token and user info
       return res.json({
-        success: true,
-        token,
+        accessToken,  // Short-lived token for API requests
         user
+        // refreshToken NOT sent in JSON (it's in secure cookie)
       });
     } catch (err) {
       console.error("AUTH ERROR:", err);
@@ -931,31 +939,54 @@ const resetPassword = async (req, res) => {
 // ✅ REFRESH TOKEN
 const refreshToken = async (req, res) => {
   try {
+    // ✅ Get refresh token from HTTP-only cookie (more secure)
     const token = req.cookies.refreshToken || req.body.refreshToken;
 
     if (!token) {
-      return res.status(401).json({ error: "No refresh token" });
+      return res.status(401).json({ message: 'No refresh token' });
     }
 
-        const decoded = jwt.verify(
+    // ✅ Verify refresh token signature and expiry
+    const decoded = jwt.verify(
       token,
       process.env.JWT_REFRESH_SECRET || process.env.REFRESH_TOKEN_SECRET
     );
 
-    const userId = decoded.userId || decoded.id;
+    // ✅ Find user and validate token
+    const userId = decoded.id;
     const user = await findUserById(userId);
-    if (!user || user.refreshToken !== token) {
-      return res.status(401).json({ error: "Invalid token" });
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
+    // ✅ Token rotation: verify the refresh token matches what we stored
+    if (user.refreshToken !== token) {
+      // Possible token reuse attack - invalidate and return error
+      user.refreshToken = null;
+      await user.save();
+      return res.status(401).json({ message: 'Refresh token compromised' });
+    }
+
+    // ✅ Generate new access token (short-lived)
     const newAccessToken = generateAccessToken(user);
 
-    res.cookie("accessToken", newAccessToken, buildCookieOptions(req));
+    // ✅ Optionally generate new refresh token for rotation security
+    const newRefreshToken = generateRefreshToken(user);
+    user.refreshToken = newRefreshToken;
+    await user.save();
 
-    res.json({ accessToken: newAccessToken });
+    // ✅ Send new refresh token as HTTP-only cookie
+    res.cookie('refreshToken', newRefreshToken, buildCookieOptions(req));
+
+    // ✅ Return new access token
+    res.json({ 
+      accessToken: newAccessToken,
+      // refreshToken NOT sent in JSON (it's in secure cookie)
+    });
   } catch (err) {
     console.error("REFRESH TOKEN ERROR:", err);
-    res.status(401).json({ error: "Invalid token" });
+    res.status(401).json({ message: 'Invalid refresh token' });
   }
 };
 

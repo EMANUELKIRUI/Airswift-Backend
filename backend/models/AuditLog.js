@@ -15,6 +15,11 @@ const AuditLog = sequelize.define('AuditLog', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  resource: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'system',
+  },
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
