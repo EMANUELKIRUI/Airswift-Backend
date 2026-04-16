@@ -37,19 +37,16 @@ const extractToken = (req) => {
   const cookieToken = normalizeToken(req.cookies?.accessToken || req.cookies?.token || req.cookies?.authToken || null);
   const authHeader = req.headers?.authorization || req.headers?.Authorization || null;
   const headerToken = normalizeToken(authHeader);
-  const fallbackHeader = normalizeToken(req.headers?.['x-access-token'] || req.headers?.['x-auth-token'] || null);
   const bodyToken = normalizeToken(req.body?.accessToken || req.body?.token || req.body?.authToken || null);
   const queryToken = normalizeToken(req.query?.accessToken || req.query?.token || req.query?.authToken || null);
   const rawCookieToken = normalizeToken(parseCookieHeader(req.headers?.cookie));
 
-  const token = cookieToken || headerToken || fallbackHeader || bodyToken || queryToken || rawCookieToken;
+  const token = cookieToken || headerToken || bodyToken || queryToken || rawCookieToken;
 
   if (cookieToken) {
     console.log("👉 TOKEN from cookies: EXISTS");
   } else if (headerToken) {
     console.log("👉 TOKEN from Authorization header: EXISTS");
-  } else if (fallbackHeader) {
-    console.log("👉 TOKEN from x-access-token/x-auth-token: EXISTS");
   } else if (bodyToken) {
     console.log("👉 TOKEN from request body: EXISTS");
   } else if (queryToken) {

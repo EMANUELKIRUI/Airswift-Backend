@@ -26,6 +26,11 @@ const Login = () => {
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("user", JSON.stringify(response.data.user));
 
+        // 🔥 For admin users, also store as adminToken for admin pages
+        if (response.data.user && response.data.user.role === 'admin') {
+          localStorage.setItem("adminToken", response.data.token);
+        }
+
         console.log('✅ Token stored successfully');
         // Redirect to dashboard or home page
         window.location.href = '/dashboard';
