@@ -15,12 +15,13 @@ api.interceptors.request.use((config) => {
 
   console.log('📤 API REQUEST INTERCEPTOR:');
   console.log('   URL:', config.url);
+  console.log('   Method:', config.method?.toUpperCase());
   console.log('   Token in localStorage:', token ? '✓ EXISTS' : '✗ MISSING');
 
   // ✅ FIX: Add Authorization header if token exists
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('   Authorization header set: Bearer [token]');
+    console.log('   ✅ Authorization header set: Bearer [token]');
   } else {
     console.warn('   ⚠️ No token found - request may fail with 401');
   }

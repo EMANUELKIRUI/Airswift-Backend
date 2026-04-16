@@ -1,8 +1,9 @@
-// ✅ FIXED LOGIN COMPONENT - Stores Token Correctly
+// ✅ FIXED LOGIN COMPONENT - Stores Token Correctly & Reconnects Socket
 // Copy this to your frontend login page
 
 import React, { useState } from 'react';
 import api from './api'; // Your API configuration
+import { reconnectSocketConnection } from './socket'; // Import socket reconnect function
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -21,6 +22,8 @@ const Login = () => {
         password,
       });
 
+      console.log('LOGIN RESPONSE:', response.data);
+
       // 🔥 CRITICAL: Store token after successful login
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
@@ -31,9 +34,19 @@ const Login = () => {
           localStorage.setItem("adminToken", response.data.token);
         }
 
-        console.log('✅ Token stored successfully');
+        console.log('✅ Token stored successfully:', response.data.token.substring(0, 20) + '...');
+
+        // 🔥 NEW: Reconnect socket with new token
+        console.log('🔌 Reconnecting socket with token...');
+        const socket = reconnectSocketConnection();
+        if (socket) {
+          console.log('✅ Socket reconnected:', socket.id);
+        } else {
+          console.warn('⚠️ Socket connection deferred (will retry)');
+        }
+
         // Redirect to dashboard or home page
-        window.location.href = '/dashboard';
+        window.location.href = response.data.user.role === 'admin' ? '/admin' : '/dashboard';
       } else {
         setError('Login failed: No token received');
       }
