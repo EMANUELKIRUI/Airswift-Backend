@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import api from './api'; // Your API configuration
-import { reconnectSocketConnection } from './socket'; // Import socket reconnect function
+import { initSocket } from './lib/socket';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -36,24 +36,11 @@ const Login = () => {
 
         console.log('✅ Token stored successfully:', response.data.token.substring(0, 20) + '...');
 
-        // 🔥 NEW: Reconnect socket with new token
-        console.log('🔌 Reconnecting socket with token...');
-        const socket = reconnectSocketConnection();
-        if (socket) {
-          console.log('✅ Socket reconnected:', socket.id);
-        } else {
-          console.warn('⚠️ Socket connection deferred (will retry)');
-        }
-
-        // Redirect to dashboard or home page
-        window.location.href = response.data.user.role === 'admin' ? '/admin' : '/dashboard';
-      } else {
-        setError('Login failed: No token received');
-      }
-    } catch (err) {
-      console.error('Login error:', err);
-      if (err.response?.status === 401) {
-        alert("Session expired. Please login again.");
+          // 🔥 Initialize socket after login with auth token
+          console.log('🔌 Initializing socket with token...');
+          const socket = initSocket(response.data.token);
+          if (socket) {
+            console.log('✅ Socket initialized:', socket.id);
       } else {
         alert("Something went wrong");
         setError(err.response?.data?.message || 'Login failed');
