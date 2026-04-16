@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize, permit } = require("../middleware/auth");
 
 const User = require("../models/User");
 const Application = require("../models/ApplicationMongoose");
@@ -12,9 +12,9 @@ const AuditLog = require("../models/AuditLogMongo");
 router.use(protect, authorize('admin'));
 
 //
-// ✅ USERS
+// ✅ USERS - requires manage_users permission
 //
-router.get("/users", async (req, res) => {
+router.get("/users", permit('manage_users'), async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.json({ users });
@@ -24,9 +24,9 @@ router.get("/users", async (req, res) => {
 });
 
 //
-// ✅ APPLICATIONS
+// ✅ APPLICATIONS - requires view_all_applications permission
 //
-router.get("/applications", async (req, res) => {
+router.get("/applications", permit('view_all_applications'), async (req, res) => {
   try {
     const apps = await Application.find()
       .populate("userId", "name email")
@@ -39,9 +39,9 @@ router.get("/applications", async (req, res) => {
 });
 
 //
-// ✅ INTERVIEWS
+// ✅ INTERVIEWS - requires manage_interviews permission
 //
-router.get("/interviews", async (req, res) => {
+router.get("/interviews", permit('manage_interviews'), async (req, res) => {
   try {
     const interviews = await Interview.find()
       .populate("user", "name email")
@@ -54,9 +54,9 @@ router.get("/interviews", async (req, res) => {
 });
 
 //
-// ✅ PAYMENTS
+// ✅ PAYMENTS - requires view_analytics permission
 //
-router.get("/payments", async (req, res) => {
+router.get("/payments", permit('view_analytics'), async (req, res) => {
   try {
     const payments = await Payment.find()
       .populate("user", "name email")
@@ -69,9 +69,9 @@ router.get("/payments", async (req, res) => {
 });
 
 //
-// ✅ AUDIT LOGS
+// ✅ AUDIT LOGS - requires view_audit_logs permission
 //
-router.get("/audit", async (req, res) => {
+router.get("/audit", permit('view_audit_logs'), async (req, res) => {
   try {
     const logs = await AuditLog.find()
       .populate("user_id", "name email")

@@ -11,20 +11,33 @@ router.get('/categories', getJobCategories);
 router.get('/', getJobs);
 router.get('/:id', getJobById);
 
-// Admin category management
-router.post('/categories', verifyToken, adminOnly, createJobCategory);
-router.put('/categories/:id', verifyToken, adminOnly, updateJobCategory);
-router.delete('/categories/:id', verifyToken, adminOnly, deleteJobCategory);
+const express = require('express');
+const { getJobs, getJobById, createJob, updateJob, deleteJob, getAllJobsAdmin, getJobCategories, createJobCategory, updateJobCategory, deleteJobCategory, getJobCategoryDashboard, getInterviewPipeline } = require('../controllers/jobController');
+const { protect, permit } = require('../middleware/auth');
+const adminOnly = require('../middleware/admin');
+const User = require('../models/User');
 
-// Admin dashboards
-router.get('/dashboard/categories', verifyToken, adminOnly, getJobCategoryDashboard);
-router.get('/dashboard/interview-pipeline', verifyToken, adminOnly, getInterviewPipeline);
+const router = express.Router();
 
-// Admin routes
-router.post('/', verifyToken, adminOnly, createJob);
-router.put('/:id', verifyToken, adminOnly, updateJob);
-router.delete('/:id', verifyToken, adminOnly, deleteJob);
-router.get('/admin/all', verifyToken, adminOnly, getAllJobsAdmin);
+// Public routes
+router.get('/categories', getJobCategories);
+router.get('/', getJobs);
+router.get('/:id', getJobById);
+
+// Admin category management (requires manage_jobs permission)
+router.post('/categories', protect, permit('manage_jobs'), createJobCategory);
+router.put('/categories/:id', protect, permit('manage_jobs'), updateJobCategory);
+router.delete('/categories/:id', protect, permit('manage_jobs'), deleteJobCategory);
+
+// Admin dashboards (requires view_dashboard permission)
+router.get('/dashboard/categories', protect, permit('view_dashboard'), getJobCategoryDashboard);
+router.get('/dashboard/interview-pipeline', protect, permit('view_dashboard'), getInterviewPipeline);
+
+// Admin routes (requires manage_jobs permission)
+router.post('/', protect, permit('manage_jobs'), createJob);
+router.put('/:id', protect, permit('manage_jobs'), updateJob);
+router.delete('/:id', protect, permit('manage_jobs'), deleteJob);
+router.get('/admin/all', protect, permit('manage_jobs'), getAllJobsAdmin);
 
 // Job Search routes
 const JobMongoose = require("../models/JobMongoose");

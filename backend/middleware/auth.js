@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { getPermissions } = require('../config/roles');
 const User = require('../models/User');
 
-// ✅ DYNAMIC RBAC: Fetch user with role and permissions from database
+// ✅ SIMPLE RBAC: Use string roles with config-based permissions
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -22,28 +22,16 @@ const authMiddleware = async (req, res, next) => {
     // ✅ Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ✅ Fetch user from database with role and permissions populated
-    const user = await User.findById(decoded.id)
-      .populate({
-        path: 'role',
-        populate: { path: 'permissions' },
-      });
+    // ✅ Fetch user from database (no population needed for string roles)
+    const user = await User.findById(decoded.id);
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // ✅ Extract permission names from populated role
-    let permissions = [];
-    if (user.role && user.role.permissions) {
-      permissions = user.role.permissions.map(p => p.name);
-    }
-
-    // ✅ Fallback to config-based permissions if no role in database
-    const roleName = user.role?.name || 'user';
-    if (permissions.length === 0) {
-      permissions = getPermissions(roleName);
-    }
+    // ✅ Get permissions from config based on string role
+    const roleName = user.role || 'user';
+    const permissions = getPermissions(roleName);
 
     // ✅ Attach user to request
     req.user = {
@@ -51,7 +39,6 @@ const authMiddleware = async (req, res, next) => {
       email: user.email,
       name: user.name,
       role: roleName,
-      roleId: user.role?._id || null,
       permissions: permissions,
       status: user.status,
     };

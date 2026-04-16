@@ -13,6 +13,7 @@ const { logUserActivity, logRegistration, logLogin, logFailedLogin, logEmailVeri
 const { logAction } = require("../utils/logger");
 const auditLog = logAction;
 const { trackFailedLogin, checkLoginSecurity, detectNewIP, trackOTPRequests } = require("../services/securityService");
+const { getPermissions } = require("../config/roles");
 
 const AuditLog = require("../models/AuditLog");
 
@@ -514,10 +515,18 @@ const loginUser = async (req, res) => {
         metadata: { email: user.email, ip: req.ip }
       });
 
-      // ✅ Return clean response with access token and user info
+      // ✅ Return clean response with token and user info
       return res.json({
-        accessToken,  // Short-lived token for API requests
-        user
+        token: accessToken,        // JWT token (primary)
+        accessToken: accessToken,  // backup for compatibility
+        user: {
+          id: user._id,
+          email: user.email,
+          role: user.role,        // Now a string, not ObjectId
+          name: user.name,
+          isVerified: user.isVerified,
+          permissions: getPermissions(user.role)  // Include permissions from config
+        }
         // refreshToken NOT sent in JSON (it's in secure cookie)
       });
     } catch (err) {
@@ -526,6 +535,12 @@ const loginUser = async (req, res) => {
     }
   } catch (err) {
     console.error("LOGIN USER ERROR:", err);
+    console.error("LOGIN ERROR DETAILS:", {
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+      code: err.code
+    });
     if (isDatabaseError(err)) {
       return res.status(503).json({
         message: "Database temporarily unavailable. Please try again in a few moments.",

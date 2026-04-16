@@ -1,5 +1,6 @@
 const express = require('express');
 const adminMiddleware = require('../middleware/admin');
+const { protect, permit } = require('../middleware/auth');
 const {
   sendEmailToApplicant,
   sendBulkEmails,
@@ -28,8 +29,8 @@ router.get('/test-email', async (req, res) => {
   res.json({ success });
 });
 
-// All email routes require admin authentication
-router.use(adminMiddleware);
+// All email routes require admin authentication (manage_applications permission for sending emails)
+router.use(protect, permit('manage_applications'));
 
 // Send email to single applicant
 router.post('/send', sendEmailToApplicant);

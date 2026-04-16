@@ -20,7 +20,7 @@ const {
   verifyApplicationDocuments,
   shortlistApplication,
 } = require('../controllers/applicationController');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, protect, permit } = require('../middleware/auth');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { cloudUpload } = require('../middleware/cloudinaryUpload');
 const adminOnly = require('../middleware/admin');
@@ -64,8 +64,8 @@ const handleMulterError = (err, req, res, next) => {
 const router = express.Router();
 
 // User routes
-router.get('/', authMiddleware, getUserApplications);
-router.get("/check", authMiddleware, async (req, res) => {
+router.get('/', protect, getUserApplications);
+router.get("/check", protect, async (req, res) => {
   try {
     const existing = await Application.findOne({
       userId: req.user.id,
@@ -78,8 +78,8 @@ router.get("/check", authMiddleware, async (req, res) => {
 });
 router.get('/job-options', getApplicationJobs); // ✅ Application form job dropdown options
 
-// ✅ Main application submission route (local multer upload)
-router.post('/', authMiddleware, upload.fields([
+// ✅ Main application submission route (requires apply_jobs permission)
+router.post('/', protect, permit('apply_jobs'), upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
@@ -102,8 +102,8 @@ router.post('/', authMiddleware, upload.fields([
   }
 });
 
-// Alias route for backward compatibility
-router.post('/create', authMiddleware, upload.fields([
+// Alias route for backward compatibility (requires apply_jobs permission)
+router.post('/create', protect, permit('apply_jobs'), upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
@@ -146,8 +146,8 @@ router.post('/create', authMiddleware, upload.fields([
   }
 });
 
-// Existing local upload route for /apply with safe, no-crash logic
-router.post('/apply', authMiddleware, upload.fields([
+// Existing local upload route for /apply with safe, no-crash logic (requires apply_jobs permission)
+router.post('/apply', protect, permit('apply_jobs'), upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
@@ -181,8 +181,8 @@ router.post('/apply', authMiddleware, upload.fields([
     return res.status(500).json({ error: err.message });
   }
 });
-// 🔐 ADMIN - Get all applications
-router.get('/admin', verifyToken, adminOnly, async (req, res) => {
+// 🔐 ADMIN - Get all applications (requires view_all_applications permission)
+router.get('/admin', protect, permit('view_all_applications'), async (req, res) => {
   try {
     const applications = await Application.find()
       .populate('userId', 'name email')
@@ -194,9 +194,9 @@ router.get('/admin', verifyToken, adminOnly, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-router.put('/admin/application/:id/status', verifyToken, isAdmin, updateApplicationStatus);
-router.put('/admin/application/:id/notes', verifyToken, isAdmin, updateApplicationNotes);
-router.get('/admin/stats', verifyToken, isAdmin, getAdminStats);
+router.put('/admin/application/:id/status', protect, permit('manage_applications'), updateApplicationStatus);
+router.put('/admin/application/:id/notes', protect, permit('manage_applications'), updateApplicationNotes);
+router.get('/admin/stats', protect, permit('view_analytics'), getAdminStats);
 router.get('/user/applications', verifyToken, getMyApplications);
 // 🔐 USER - Get their applications
 router.get('/my', verifyToken, async (req, res) => {
