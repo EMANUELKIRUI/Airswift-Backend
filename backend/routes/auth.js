@@ -1,5 +1,7 @@
-const router = require("express").Router();
+const express = require('express');
 const jwt = require('jsonwebtoken');
+
+const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const {
   registerUser,

@@ -1,4 +1,6 @@
-const router = require('express').Router();
+const express = require('express');
+
+const router = express.Router();
 
 // Simple endpoint to check if authentication is properly configured
 router.get('/status', (req, res) => {
