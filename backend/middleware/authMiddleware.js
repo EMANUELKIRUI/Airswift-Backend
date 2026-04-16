@@ -66,7 +66,13 @@ const authMiddleware = (req, res, next) => {
     try {
       const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
+      console.log('🔐 AUTH MIDDLEWARE (alt):');
+      console.log('   Auth header:', req.headers.authorization);
+      console.log('   Cookie token exists:', !!req.cookies.token);
+      console.log('   Header token exists:', !!req.headers.authorization);
+
       if (!token) {
+        console.warn('   ❌ No token found');
         return res.status(401).json({ message: "No token" });
       }
 
