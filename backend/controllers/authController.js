@@ -61,7 +61,7 @@ const isSequelizeModel = Boolean(User.sequelize);
 // ✅ REGISTER - Send verification email
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     console.log("REGISTER BODY:", req.body);
 
@@ -111,7 +111,7 @@ const registerUser = async (req, res) => {
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role,
+      role: 'user',
       isVerified: false,
       otp,
       otpExpires: Date.now() + 10 * 60 * 1000
@@ -515,17 +515,18 @@ const loginUser = async (req, res) => {
         metadata: { email: user.email, ip: req.ip }
       });
 
+      const permissions = getPermissions(user.role || 'user');
+
       // ✅ Return clean response with token and user info
       return res.json({
-        token: accessToken,        // JWT token (primary)
-        accessToken: accessToken,  // backup for compatibility
+        token: accessToken,  // Short-lived token for API requests
         user: {
           id: user._id,
           email: user.email,
-          role: user.role,        // Now a string, not ObjectId
           name: user.name,
+          role: user.role,
           isVerified: user.isVerified,
-          permissions: getPermissions(user.role)  // Include permissions from config
+          permissions,
         }
         // refreshToken NOT sent in JSON (it's in secure cookie)
       });

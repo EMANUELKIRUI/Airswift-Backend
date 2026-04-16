@@ -1,18 +1,5 @@
 const express = require('express');
 const { getJobs, getJobById, createJob, updateJob, deleteJob, getAllJobsAdmin, getJobCategories, createJobCategory, updateJobCategory, deleteJobCategory, getJobCategoryDashboard, getInterviewPipeline } = require('../controllers/jobController');
-const { verifyToken } = require('../middleware/auth');
-const adminOnly = require('../middleware/admin');
-const User = require('../models/User');
-
-const router = express.Router();
-
-// Public routes
-router.get('/categories', getJobCategories);
-router.get('/', getJobs);
-router.get('/:id', getJobById);
-
-const express = require('express');
-const { getJobs, getJobById, createJob, updateJob, deleteJob, getAllJobsAdmin, getJobCategories, createJobCategory, updateJobCategory, deleteJobCategory, getJobCategoryDashboard, getInterviewPipeline } = require('../controllers/jobController');
 const { protect, permit } = require('../middleware/auth');
 const adminOnly = require('../middleware/admin');
 const User = require('../models/User');
