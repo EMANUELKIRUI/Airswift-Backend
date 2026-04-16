@@ -146,7 +146,7 @@ router.get("/smart-search", async (req, res) => {
 });
 
 // AI Job Ranking - Personalized recommendations
-router.get("/recommendations", verifyToken, async (req, res) => {
+router.get("/recommendations", protect, async (req, res) => {
   try {
     // ✅ FIX 5: Validate req.user exists before accessing properties
     if (!req.user || !req.user.id) {
