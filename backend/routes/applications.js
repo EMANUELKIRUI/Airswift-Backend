@@ -28,14 +28,19 @@ const isAdmin = adminOnly;
 
 const uploadDir = path.join(__dirname, '../uploads');
 fs.mkdirSync(uploadDir, { recursive: true });
-const upload = multer({ dest: uploadDir });
+const upload = multer({
+  dest: uploadDir,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});
 
 // Middleware to handle multer errors
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(413).json({ 
-        message: 'File too large. Maximum file size is 5MB.' 
+        message: 'File too large. Maximum file size is 10MB.' 
       });
     }
     if (err.code === 'LIMIT_FILE_COUNT') {
@@ -102,7 +107,7 @@ router.post('/create', authMiddleware, upload.fields([
   { name: 'cv', maxCount: 1 },
   { name: 'passport', maxCount: 1 },
   { name: 'nationalId', maxCount: 1 },
-]), async (req, res) => {
+]), handleMulterError, async (req, res) => {
   try {
     console.log("📦 BODY:", req.body);
     console.log("📁 FILES:", req.files);

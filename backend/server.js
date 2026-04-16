@@ -3,6 +3,7 @@ loadEnv();
 
 const express = require("express");
 const http = require("http");
+const path = require('path');
 const { Server } = require("socket.io");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
@@ -43,12 +44,16 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const io = new Server(server, {
+  path: '/socket.io',
+  transports: ["websocket", "polling"], // 👈 IMPORTANT
   cors: {
-    origin: FRONTEND_URL,
+    origin: [FRONTEND_URL, 'http://localhost:3000'],
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type'],
   },
-  transports: ["websocket", "polling"] // 👈 IMPORTANT
+  pingInterval: 25000,
+  pingTimeout: 20000,
 });
 
 // Expose socket.io globally for legacy emitters and services
@@ -473,7 +478,7 @@ io.on("connection", (socket) => {
 
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: [FRONTEND_URL, 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -481,11 +486,12 @@ app.use(
   })
 );
 app.options("*", cors({
-  origin: FRONTEND_URL,
+  origin: [FRONTEND_URL, 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+app.use(express.static(path.join(__dirname, 'public'))); // put favicon.ico here
 app.use(cookieParser());
 app.use(express.json());
 app.set('io', io);
@@ -548,6 +554,10 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date()
   });
+});
+
+app.get('/api/debug/headers', (req, res) => {
+  res.json({ authorization: req.headers.authorization });
 });
 
 app.use("/api/messages", require("./routes/messages"));
