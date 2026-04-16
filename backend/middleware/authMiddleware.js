@@ -67,6 +67,7 @@ const authMiddleware = (req, res, next) => {
       const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
 
       console.log('🔐 AUTH MIDDLEWARE (alt):');
+      console.log("Auth header:", req.headers.authorization);
       console.log('   Auth header:', req.headers.authorization);
       console.log('   Cookie token exists:', !!req.cookies.token);
       console.log('   Header token exists:', !!req.headers.authorization);
