@@ -22,7 +22,7 @@ const JobSelectionInput = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.get('/jobs');
+      const response = await api.get('/api/jobs');
       console.log('Jobs fetched:', response.data);
 
       const payload = response.data?.data || response.data || [];

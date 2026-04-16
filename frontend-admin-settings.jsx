@@ -39,7 +39,7 @@ const AdminSettings = () => {
 
   const createSetting = async () => {
     try {
-      await api.post('/settings', newSetting);
+      await api.post('/api/settings', newSetting);
       setNewSetting({ key: '', value: '', description: '', category: selectedCategory, isPublic: false });
       fetchSettings();
     } catch (err) {
@@ -52,7 +52,7 @@ const AdminSettings = () => {
     if (!confirm('Are you sure you want to delete this setting?')) return;
 
     try {
-      await api.delete(`/settings/${key}`);
+      await api.delete(`/api/settings/${key}`);
       fetchSettings();
     } catch (err) {
       console.error('Failed to delete setting:', err);
