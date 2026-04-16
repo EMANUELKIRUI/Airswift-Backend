@@ -479,12 +479,30 @@
 
         // Real-time updates via Socket.io
         if (typeof io !== 'undefined') {
-            const socket = io();
+            // ✅ Use authenticated socket connection
+            const token = localStorage.getItem('adminToken');
+            const socket = io(window.location.origin, {
+                path: '/socket.io',
+                transports: ['websocket', 'polling'],
+                auth: {
+                    token: token
+                },
+                pingInterval: 25000,
+                pingTimeout: 20000,
+            });
+
+            socket.on('connect', () => {
+                console.log('✅ Admin audit logs socket connected');
+            });
 
             socket.on('audit_log', function(data) {
                 // Add new log to the top and refresh display
                 loadAuditLogs();
                 showNotification(`New activity: ${data.user} ${data.action.toLowerCase()}`, 'info');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('❌ Admin audit logs socket error:', error);
             });
         }
 
