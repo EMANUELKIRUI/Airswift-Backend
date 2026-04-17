@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from './api'; // Your axios instance
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -21,6 +22,30 @@ const calculateProfileCompletion = (user) => {
 };
 
 const SafeApplicationForm = () => {
+  const navigate = useNavigate();
+
+  // ✅ APPLICATION PAGE GUARD - Protect application route
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    
+    // Check if user is logged in
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    // Check if user is admin - redirect to admin dashboard
+    if (user.role === "admin") {
+      navigate("/admin/dashboard");
+      return;
+    }
+
+    // Check if user has already submitted application - redirect to dashboard
+    if (user.hasSubmittedApplication) {
+      navigate("/dashboard");
+      return;
+    }
+  }, [navigate]);
   const [formData, setFormData] = useState({
     phone: '',
     nationalId: '',
