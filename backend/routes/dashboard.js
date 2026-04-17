@@ -23,6 +23,9 @@ const router = express.Router();
 router.use(verifyToken);
 router.use(adminMiddleware);
 
+// Get dashboard summary (root route)
+router.get('/', getDashboardSummary);
+
 // Get dashboard summary
 router.get('/summary', getDashboardSummary);
 router.get('/trends', getDashboardTrends);

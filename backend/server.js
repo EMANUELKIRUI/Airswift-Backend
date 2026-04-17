@@ -587,7 +587,7 @@ app.use("/api/audit", require("./routes/audit"));
 app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/system-health", require("./routes/systemHealth"));
-app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/admin/dashboard", require("./routes/dashboard"));
 app.use("/api/email", require("./routes/email"));
 
 // Global error handler for unexpected failures
