@@ -43,7 +43,7 @@ const logAction = async ({
     const device = parseDeviceFromUserAgent(userAgent);
 
     const logData = {
-      user_id: userId,
+      userId: userId || null,
       action: action ? action.toUpperCase() : undefined,
       entity,
       entity_id: entityId,

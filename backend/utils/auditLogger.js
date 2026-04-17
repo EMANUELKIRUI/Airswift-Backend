@@ -1,12 +1,15 @@
 const AuditLog = require("../models/AuditLogMongo");
 
-const logAction = async ({ userId, action, resource, description, metadata = {} }) => {
+const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
+  const resolvedUserId = userId || user_id || null;
+  const resolvedDescription = description || action || "No description";
+
   try {
     await AuditLog.create({
-      userId,
+      userId: resolvedUserId,
       action,
       resource,
-      description,
+      description: resolvedDescription,
       metadata,
     });
   } catch (error) {
