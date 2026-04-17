@@ -13,6 +13,7 @@ const {
   getAllApplications,
   getApplicationAnalytics,
   downloadFile,
+  scheduleInterview,
 } = require('../controllers/applicationMongooseController');
 
 const uploadDir = path.join(__dirname, '../uploads');
@@ -131,5 +132,6 @@ router.get('/:id/download/:fileType', protect, authorize('admin'), downloadFile)
 router.get('/admin/all', protect, authorize('admin'), getAllApplications);
 router.get('/admin/analytics', protect, authorize('admin'), getApplicationAnalytics);
 router.put('/status', protect, authorize('admin'), updateApplicationStatus);
+router.post('/:id/schedule-interview', protect, authorize('admin'), scheduleInterview);
 
 module.exports = router;

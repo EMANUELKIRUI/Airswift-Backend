@@ -98,7 +98,7 @@ const applyJob = async (req, res) => {
       resumeSnapshot: resumeSnapshot || cv || req.user.cv || '',
       timeline: [
         {
-          status: 'pending',
+          status: 'Application Submitted',
           date: new Date(),
         },
       ],
@@ -142,6 +142,7 @@ const updateApplicationStatus = async (req, res) => {
     const validStatuses = [
       'pending',
       'reviewed',
+      'shortlisted',
       'accepted',
       'rejected',
     ];
@@ -157,9 +158,18 @@ const updateApplicationStatus = async (req, res) => {
     const application = await Application.findById(id).populate('userId jobId');
     if (!application) return res.status(404).json({ error: 'Application not found' });
 
-    application.status = status;
+    // Map status to timeline message
+    const timelineMessages = {
+      'pending': 'Application Submitted',
+      'reviewed': 'Under Review',
+      'shortlisted': 'Shortlisted',
+      'accepted': 'Accepted',
+      'rejected': 'Rejected'
+    };
+
+    application.applicationStatus = status;
     application.timeline.push({
-      status,
+      status: timelineMessages[status] || status,
       date: new Date(),
     });
     application.updatedAt = Date.now();
@@ -336,6 +346,63 @@ const downloadFile = async (req, res) => {
   }
 };
 
+const scheduleInterview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, location, mode } = req.body;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid application ID' });
+    }
+
+    const application = await Application.findById(id).populate('userId jobId');
+    if (!application) return res.status(404).json({ error: 'Application not found' });
+
+    // Update interview details
+    application.interview = {
+      scheduled: true,
+      date: new Date(date),
+      location,
+      mode: mode || 'online'
+    };
+
+    // Add timeline entry
+    application.timeline.push({
+      status: 'Interview Scheduled',
+      date: new Date(),
+    });
+
+    application.updatedAt = Date.now();
+    await application.save();
+
+    // Emit socket event
+    emitApplicationStatusUpdate({
+      id: application._id,
+      applicantName: application.userId?.name || 'Applicant',
+      jobTitle: application.jobId?.title || '',
+      status: 'Interview Scheduled',
+      updatedBy: req.user.name || 'Admin',
+      email: application.userId?.email,
+      userId: application.userId?._id || application.userId
+    });
+
+    // Audit log
+    const logAction = require('../utils/auditLogger');
+    await logAction({
+      userId: req.user.id,
+      action: "SCHEDULE_INTERVIEW",
+      resource: "APPLICATION",
+      description: `Interview scheduled for application`,
+      metadata: { applicationId: application._id, interviewDate: date, location, mode }
+    });
+
+    res.json({ success: true, application });
+  } catch (err) {
+    console.error('scheduleInterview error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   STATUS_FLOW,
   applyJob,
@@ -345,4 +412,5 @@ module.exports = {
   getApplicationAnalytics,
   calculateAIScore,
   downloadFile,
+  scheduleInterview,
 };
