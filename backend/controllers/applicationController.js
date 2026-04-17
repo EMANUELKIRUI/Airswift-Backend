@@ -85,6 +85,14 @@ const resolveJobFromRequest = async (body) => {
 
 const applyForJob = async (req, res) => {
   try {
+    // 🔒 BACKEND SAFETY: Prevent duplicate applications
+    const existing = await Application.findOne({ where: { user_id: req.user.id } });
+    if (existing) {
+      return res.status(400).json({
+        message: "You have already applied for a job. You can only submit one application.",
+      });
+    }
+
     const rawJobInput = req.body.job || req.body.job_title || req.body.jobTitle || req.body.jobId || '';
     const parsedJobId = Number(req.body.job_id || req.body.jobId);
     const job_id = !Number.isNaN(parsedJobId) && (req.body.job_id || req.body.jobId) ? parsedJobId : undefined;

@@ -23,7 +23,15 @@ const applyJobSchema = Joi.object({
 
 const applyJob = async (req, res) => {
   try {
-    // 🔍 DEBUG: Log incoming request body
+    // � BACKEND SAFETY: Prevent duplicate applications
+    const existing = await Application.findOne({ userId: req.user.id });
+    if (existing) {
+      return res.status(400).json({
+        message: "You have already applied for a job. You can only submit one application.",
+      });
+    }
+
+    // �🔍 DEBUG: Log incoming request body
     console.log('APPLICATION BODY:', req.body);
     console.log('APPLICATION FILES:', req.files);
     console.log('APPLICATION USER:', req.user);
