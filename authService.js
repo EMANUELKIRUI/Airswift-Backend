@@ -317,7 +317,7 @@ class AuthService {
     try {
       console.log('🔐 Requesting password reset for:', email);
 
-      const response = await api.post('/api/auth/forgot-password', {
+      const response = await api.post('/auth/forgot-password', {
         email,
       });
 
@@ -342,7 +342,7 @@ class AuthService {
     try {
       console.log('🔐 Resetting password...');
 
-      const response = await api.post('/api/auth/reset-password', {
+      const response = await api.post('/auth/reset-password', {
         token,
         password: newPassword,
       });
