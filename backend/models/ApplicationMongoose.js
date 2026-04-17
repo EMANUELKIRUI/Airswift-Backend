@@ -31,10 +31,16 @@ const applicationSchema = new mongoose.Schema(
     coverLetter: {
       type: String,
     },
-    status: {
+    applicationStatus: {
       type: String,
-      enum: ['pending', 'reviewed', 'accepted', 'rejected'],
-      default: 'pending'
+      enum: ["pending", "reviewed", "shortlisted", "rejected"],
+      default: "pending"
+    },
+    interview: {
+      scheduled: { type: Boolean, default: false },
+      date: Date,
+      location: String,
+      mode: String // "online" | "physical"
     },
 
     timeline: [

@@ -7,6 +7,7 @@ const {
   getUserApplications,
   applyForJob,
   getMyApplications,
+  getMyApplication,
   getApplicationJobs,
   getAllApplicationsAdmin,
   downloadCV,
@@ -198,6 +199,8 @@ router.put('/admin/application/:id/status', protect, permit('manage_applications
 router.put('/admin/application/:id/notes', protect, permit('manage_applications'), updateApplicationNotes);
 router.get('/admin/stats', protect, permit('view_analytics'), getAdminStats);
 router.get('/user/applications', verifyToken, getMyApplications);
+// 🔐 USER - Get their single application
+router.get('/me', verifyToken, getMyApplication);
 // 🔐 USER - Get their applications
 router.get('/my', verifyToken, async (req, res) => {
   try {

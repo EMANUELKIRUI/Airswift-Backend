@@ -373,6 +373,21 @@ const getMyApplications = async (req, res) => {
   }
 };
 
+const getMyApplication = async (req, res) => {
+  try {
+    const application = await Application.findOne({ userId: req.user.id });
+
+    if (!application) {
+      return res.status(404).json({ message: "No application found" });
+    }
+
+    res.json(application);
+  } catch (error) {
+    console.error('Error fetching user application:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 const getApplicationJobs = async (req, res) => {
   try {
     // ✅ Fetch all active jobs with category information
@@ -899,6 +914,7 @@ module.exports = {
   getUserApplications,
   applyForJob,
   getMyApplications,
+  getMyApplication,
   getApplicationJobs,
   getAllApplicationsAdmin,
   downloadCV,
