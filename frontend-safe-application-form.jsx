@@ -278,8 +278,18 @@ const SafeApplicationForm = () => {
         if (ref.current) ref.current.value = '';
       });
 
-      // Show success message for 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
+      // ✅ UPDATE user in localStorage to mark application as submitted
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user) {
+        user.hasSubmittedApplication = true;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      // ✅ REDIRECT TO DASHBOARD after 2 seconds
+      setTimeout(() => {
+        console.log("🔄 Redirecting to dashboard...");
+        navigate("/dashboard", { replace: true });
+      }, 2000);
 
     } catch (err) {
       console.error('❌ Application submission error:', err);

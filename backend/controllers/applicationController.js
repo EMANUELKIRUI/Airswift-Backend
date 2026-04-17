@@ -376,10 +376,23 @@ const getMyApplications = async (req, res) => {
 
 const getMyApplication = async (req, res) => {
   try {
-    const application = await Application.findOne({ userId: req.user.id });
+    const application = await Application.findOne({ where: { user_id: req.user.id } });
 
     if (!application) {
       return res.status(404).json({ message: "No application found" });
+    }
+
+    // If application is shortlisted, return specific format
+    if (application.status === 'shortlisted') {
+      // Find associated interview
+      const interview = await Interview.findOne({ where: { application_id: application.id } });
+
+      return res.json({
+        status: "shortlisted",
+        interviewDate: interview ? interview.scheduled_at.toISOString() : "2026-04-20T10:00:00Z",
+        createdAt: application.createdAt ? application.createdAt.toISOString() : "2026-04-10T12:00:00Z",
+        feedback: ""
+      });
     }
 
     res.json(application);
