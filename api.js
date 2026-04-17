@@ -3,11 +3,19 @@
 
 import axios from 'axios';
 
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'https://airswift-backend-fjt3.onrender.com/api';
+const normalizedBaseUrl = rawApiUrl.replace(/\/+$/, '');
+const baseURL = normalizedBaseUrl.endsWith('/api')
+  ? normalizedBaseUrl
+  : `${normalizedBaseUrl}/api`;
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'https://airswift-backend-fjt3.onrender.com/api',
+  baseURL,
   withCredentials: true, // Include cookies for authentication
 });
+
+console.log('📡 API baseURL set to:', baseURL);
 
 // ✅ REQUEST INTERCEPTOR: Add Authorization header with Bearer token
 api.interceptors.request.use((config) => {

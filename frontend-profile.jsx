@@ -40,7 +40,7 @@ const ProfilePage = () => {
 
   const fetchProfile = async () => {
     try {
-      const response = await api.get('/api/profile');
+      const response = await api.get('/profile');
       setForm(response.data);
     } catch (err) {
       setError('Failed to load profile');
@@ -53,7 +53,7 @@ const ProfilePage = () => {
     setError(null);
 
     try {
-      await api.put('/api/profile', form);
+      await api.put('/profile', form);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
