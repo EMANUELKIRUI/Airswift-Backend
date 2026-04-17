@@ -1,4 +1,4 @@
-// ✅ ADMIN DASHBOARD COMPONENT
+// ✅ CLEAN ADMIN DASHBOARD COMPONENT (No Guards - Protected by Layout)
 // Main admin dashboard with overview and navigation
 
 import React, { useState, useEffect } from 'react';
@@ -9,30 +9,6 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [authLoading, setAuthLoading] = useState(true);
-
-  // ✅ ADMIN PAGE PROTECTION WITH LOADING STATE
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
-
-    console.log("TOKEN:", token);
-    console.log("USER:", user);
-
-    if (!token || !user) {
-      console.log("🔄 No token/user, redirecting to login");
-      navigate("/");
-      return;
-    }
-
-    if (user.role !== "admin") {
-      console.log("🔄 Non-admin user, redirecting to dashboard");
-      navigate("/");
-      return;
-    }
-
-    setAuthLoading(false);
-  }, [navigate]);
 
   const [stats, setStats] = useState({
     totalApplications: 0,
@@ -59,10 +35,6 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
-
-  if (authLoading) {
-    return <div className="p-6">Authenticating...</div>;
-  }
 
   if (loading) {
     return <div className="p-6">Loading dashboard...</div>;
