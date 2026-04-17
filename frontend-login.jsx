@@ -43,7 +43,7 @@ const Login = () => {
         } else if (user.hasSubmittedApplication) {
           navigate("/dashboard");
         } else {
-          navigate("/application-form");
+          navigate("/apply");
         }
 
         // 🔥 Initialize socket after login with auth token
