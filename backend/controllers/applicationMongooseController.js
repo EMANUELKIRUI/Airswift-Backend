@@ -93,6 +93,7 @@ const applyJob = async (req, res) => {
       passport,
       cv,
       coverLetter,
+      submittedAt: new Date(),
       status: 'pending',
       aiScore,
       resumeSnapshot: resumeSnapshot || cv || req.user.cv || '',

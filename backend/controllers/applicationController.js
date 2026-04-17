@@ -188,6 +188,7 @@ const applyForJob = async (req, res) => {
       phone: phoneValue,
       national_id: nationalIdValue,
       cover_letter: cover_letter || coverLetter,
+      submittedAt: new Date(),
       cvUrl,
       cv_url: cvUrl,
       cv_path: cvUrl,

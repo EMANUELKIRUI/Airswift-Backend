@@ -53,6 +53,10 @@ const applicationSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    submittedAt: {
+      type: Date,
+      default: Date.now,
+    },
     resumeSnapshot: {
       type: String,
     },

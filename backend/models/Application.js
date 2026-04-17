@@ -97,6 +97,10 @@ const Application = sequelize.define('Application', {
   certificate_urls: {
     type: DataTypes.JSON,
   },
+  submittedAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
   score: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
