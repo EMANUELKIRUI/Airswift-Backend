@@ -10,21 +10,24 @@ const {
   getDatabaseHealth,
   getServiceHealth,
 } = require('../controllers/systemHealthController');
-const adminMiddleware = require('../middleware/admin');
+const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
 // All health routes require admin access
-router.get('/', adminMiddleware, getSystemHealth);
-router.get('/server', adminMiddleware, getServerHealth);
-router.get('/db', adminMiddleware, getDatabaseHealth);
-router.get('/services', adminMiddleware, getServiceHealth);
-router.get('/history', adminMiddleware, getHealthHistory);
-router.get('/alerts', adminMiddleware, getHealthAlerts);
-router.get('/quick', adminMiddleware, quickHealthCheck);
+router.use(protect);
+router.use(authorize('admin'));
+
+router.get('/', getSystemHealth);
+router.get('/server', getServerHealth);
+router.get('/db', getDatabaseHealth);
+router.get('/services', getServiceHealth);
+router.get('/history', getHealthHistory);
+router.get('/alerts', getHealthAlerts);
+router.get('/quick', quickHealthCheck);
 
 // Control endpoints
-router.post('/start', adminMiddleware, startHealthMonitoring);
-router.post('/stop', adminMiddleware, stopHealthMonitoring);
+router.post('/start', startHealthMonitoring);
+router.post('/stop', stopHealthMonitoring);
 
 module.exports = router;
