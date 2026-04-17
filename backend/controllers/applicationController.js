@@ -202,9 +202,9 @@ const applyForJob = async (req, res) => {
 
     // mark the current user as having submitted an application
     if (isMongooseModel) {
-      await User.findByIdAndUpdate(req.user.id, { has_submitted: true, phone }, { new: true });
+      await User.findByIdAndUpdate(req.user.id, { hasSubmittedApplication: true, phone }, { new: true });
     } else if (isSequelizeModel) {
-      await User.update({ has_submitted: true, phone }, { where: { id: req.user.id } });
+      await User.update({ hasSubmittedApplication: true, phone }, { where: { id: req.user.id } });
     }
 
     // AI CV Analysis
