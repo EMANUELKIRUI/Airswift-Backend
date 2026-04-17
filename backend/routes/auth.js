@@ -58,6 +58,9 @@ router.post("/logout", logout);
 
 // Health-check/test route
 router.get("/me", verifyToken, getMe);
+router.get("/test", (req, res) => {
+  res.send('Auth route works');
+});
 
 // Debug endpoint to check authentication
 router.get("/debug", async (req, res) => {
