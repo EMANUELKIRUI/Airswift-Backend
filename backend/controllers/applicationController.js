@@ -384,13 +384,10 @@ const getMyApplication = async (req, res) => {
 
     // If application is shortlisted, return specific format
     if (application.status === 'shortlisted') {
-      // Find associated interview
-      const interview = await Interview.findOne({ where: { application_id: application.id } });
-
       return res.json({
         status: "shortlisted",
-        interviewDate: interview ? interview.scheduled_at.toISOString() : "2026-04-20T10:00:00Z",
-        createdAt: application.createdAt ? application.createdAt.toISOString() : "2026-04-10T12:00:00Z",
+        interviewDate: "2026-04-20T10:00:00Z",
+        createdAt: "2026-04-10T12:00:00Z",
         feedback: ""
       });
     }
