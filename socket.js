@@ -4,87 +4,78 @@
 import io from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'https://airswift-backend-fjt3.onrender.com';
-
 let socket = null;
+let currentToken = null;
 
-// Create authenticated socket connection
-const createSocket = () => {
-  const token = localStorage.getItem('token');
-
+const createSocketInstance = (token) => {
   if (!token) {
     console.warn('⚠️ No token found for Socket.IO connection - socket will be created after login');
     return null;
   }
 
-  if (socket && socket.connected) {
-    console.log('🔌 Socket already connected:', socket.id);
-    return socket;
-  }
-
-  console.log('🔌 Connecting to Socket.IO...');
-
-  socket = io(SOCKET_URL, {
+  const instance = io(SOCKET_URL, {
     path: '/socket.io',
-    transports: ['websocket', 'polling'],
-    auth: {
-      token: token // Send token for authentication
-    },
+    transports: ['polling', 'websocket'],
+    auth: { token },
     pingInterval: 25000,
     pingTimeout: 20000,
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5
+    reconnectionAttempts: 5,
   });
 
-  socket.on('connect', () => {
-    console.log('✅ Socket.IO connected:', socket.id);
+  instance.on('connect', () => {
+    console.log('✅ Socket.IO connected:', instance.id);
   });
 
-  socket.on('disconnect', (reason) => {
+  instance.on('disconnect', (reason) => {
     console.log('❌ Socket.IO disconnected:', reason);
   });
 
-  socket.on('connect_error', (error) => {
+  instance.on('connect_error', (error) => {
     console.error('❌ Socket.IO connection error:', error);
-    // Try to reconnect with fresh token on error
-    setTimeout(() => {
-      const freshToken = localStorage.getItem('token');
-      if (freshToken && socket) {
-        socket.auth.token = freshToken;
-        socket.connect();
-      }
-    }, 2000);
   });
 
+  return instance;
+};
+
+export const initSocket = (token) => {
+  const authToken = token || localStorage.getItem('token');
+
+  if (!authToken) {
+    console.warn('⚠️ No token found for Socket.IO initialization.');
+    return null;
+  }
+
+  if (socket) {
+    if (socket.connected && authToken === currentToken) {
+      return socket;
+    }
+
+    socket.disconnect();
+    socket = null;
+  }
+
+  socket = createSocketInstance(authToken);
+  currentToken = authToken;
   return socket;
 };
 
-// Disconnect socket
-const disconnectSocket = () => {
+export const disconnectSocketConnection = () => {
   if (socket) {
     socket.disconnect();
     socket = null;
+    currentToken = null;
     console.log('🔌 Socket disconnected');
   }
 };
 
-// Reconnect socket (useful after login)
-const reconnectSocket = () => {
-  disconnectSocket();
-  return createSocket();
+export const reconnectSocketConnection = (token) => {
+  disconnectSocketConnection();
+  return initSocket(token);
 };
 
-// Export socket instance getter
 export const getSocket = () => socket;
 
-// Export createSocket function for initial connection
-export const initSocket = createSocket;
-
-// Export reconnect function
-export const reconnectSocketConnection = reconnectSocket;
-
-// Export disconnect function
-export const disconnectSocketConnection = disconnectSocket;
-
-export default createSocket;
+export default initSocket;

@@ -1,7 +1,7 @@
 // ✅ FIXED LOGIN COMPONENT - Stores Token Correctly & Reconnects Socket
 // Copy this to your frontend login page
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from './api'; // Your API configuration
 import { initSocket } from './lib/socket';
@@ -12,6 +12,23 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+    if (!storedUser) return;
+
+    if (storedUser.role === 'admin') {
+      navigate('/admin/dashboard');
+      return;
+    }
+
+    if (storedUser.hasSubmittedApplication) {
+      navigate('/dashboard');
+      return;
+    }
+
+    navigate('/apply');
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,41 +43,37 @@ const Login = () => {
 
       console.log('LOGIN RESPONSE:', response.data);
 
-      // 🔥 CRITICAL: Store token after successful login
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-
-        // 🔥 For admin users, also store as adminToken for admin pages
-        if (response.data.user && response.data.user.role === 'admin') {
-          localStorage.setItem("adminToken", response.data.token);
-        }
-
-        // 🔥 ROLE-BASED REDIRECT - Prioritize role before application logic
-        const user = response.data.user;
-        if (user.role === "admin") {
-          console.log("🔄 Redirecting to:", "/admin/dashboard");
-          navigate("/admin/dashboard");
-        } else if (user.hasSubmittedApplication) {
-          console.log("🔄 Redirecting to:", "/dashboard");
-          navigate("/dashboard");
-        } else {
-          console.log("🔄 Redirecting to:", "/apply");
-          navigate("/apply");
-        }
-
-        // 🔥 Initialize socket after login with auth token
-        console.log('🔌 Initializing socket with token...');
-        const socket = initSocket(response.data.token);
-        if (socket) {
-          console.log('✅ Socket initialized:', socket.id);
-        }
-          if (socket) {
-            console.log('✅ Socket initialized:', socket.id);
-      } else {
-        alert("Something went wrong");
-        setError(err.response?.data?.message || 'Login failed');
+      if (!response.data.token || !response.data.user) {
+        throw new Error('Login response missing required authentication data');
       }
+
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      if (response.data.user.role === 'admin') {
+        localStorage.setItem('adminToken', response.data.token);
+      }
+
+      console.log('🔌 Initializing socket with token...');
+      const socket = initSocket(response.data.token);
+      if (socket) {
+        console.log('✅ Socket initialized:', socket.id);
+      }
+
+      const user = response.data.user;
+      if (user.role === 'admin') {
+        console.log('🔄 Redirecting to:', '/admin/dashboard');
+        navigate('/admin/dashboard');
+      } else if (user.hasSubmittedApplication) {
+        console.log('🔄 Redirecting to:', '/dashboard');
+        navigate('/dashboard');
+      } else {
+        console.log('🔄 Redirecting to:', '/apply');
+        navigate('/apply');
+      }
+    } catch (err) {
+      console.error('❌ Login failed:', err);
+      setError(err.response?.data?.message || err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
