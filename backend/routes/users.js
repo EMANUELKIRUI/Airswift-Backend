@@ -44,7 +44,7 @@ router.get('/status', verifyToken, async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        has_submitted: user.has_submitted,
+        hasSubmittedApplication: user.has_submitted,
         isVerified: user.isVerified
       },
       hasApplied: !!application,

@@ -2,6 +2,7 @@
 // Copy this to your frontend login page
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from './api'; // Your API configuration
 import { initSocket } from './lib/socket';
 
@@ -10,6 +11,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,11 +36,22 @@ const Login = () => {
           localStorage.setItem("adminToken", response.data.token);
         }
 
-        console.log('✅ Token stored successfully:', response.data.token.substring(0, 20) + '...');
+        // 🔥 ROLE-BASED REDIRECT - Prioritize role before application logic
+        const user = response.data.user;
+        if (user.role === "admin") {
+          navigate("/admin/dashboard");
+        } else if (user.hasSubmittedApplication) {
+          navigate("/dashboard");
+        } else {
+          navigate("/application-form");
+        }
 
-          // 🔥 Initialize socket after login with auth token
-          console.log('🔌 Initializing socket with token...');
-          const socket = initSocket(response.data.token);
+        // 🔥 Initialize socket after login with auth token
+        console.log('🔌 Initializing socket with token...');
+        const socket = initSocket(response.data.token);
+        if (socket) {
+          console.log('✅ Socket initialized:', socket.id);
+        }
           if (socket) {
             console.log('✅ Socket initialized:', socket.id);
       } else {

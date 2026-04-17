@@ -526,6 +526,7 @@ const loginUser = async (req, res) => {
           name: user.name,
           role: user.role,
           isVerified: user.isVerified,
+          hasSubmittedApplication: user.has_submitted,
           permissions,
         }
         // refreshToken NOT sent in JSON (it's in secure cookie)

@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from './api'; // Your axios instance
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminUsers = () => {
+  const navigate = useNavigate();
+
+  // ✅ ADMIN PAGE PROTECTION
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) {
+      navigate("/");
+      return;
+    }
+    if (user.role !== "admin") {
+      navigate("/");
+    }
+  }, [navigate]);
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
