@@ -11,10 +11,12 @@ const AdminInterviews = () => {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) {
+      console.log("🔄 Redirecting to:", "/");
       navigate("/");
       return;
     }
     if (user.role !== "admin") {
+      console.log("🔄 Redirecting to:", "/");
       navigate("/");
     }
   }, [navigate]);

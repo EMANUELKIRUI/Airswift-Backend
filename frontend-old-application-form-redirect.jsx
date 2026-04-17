@@ -9,7 +9,7 @@ const OldApplicationFormRedirect = () => {
 
   useEffect(() => {
     // ✅ Redirect from old route to new route
-    console.log('🔄 Redirecting from /application-form to /apply');
+    console.log("🔄 Redirecting to:", "/apply");
     navigate('/apply', { replace: true });
   }, [navigate]);
 

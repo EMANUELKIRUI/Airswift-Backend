@@ -30,18 +30,21 @@ const SafeApplicationForm = () => {
     
     // Check if user is logged in
     if (!user) {
+      console.log("🔄 Redirecting to:", "/");
       navigate("/");
       return;
     }
 
     // Check if user is admin - redirect to admin dashboard
     if (user.role === "admin") {
+      console.log("🔄 Redirecting to:", "/admin/dashboard");
       navigate("/admin/dashboard");
       return;
     }
 
     // Check if user has already submitted application - redirect to dashboard
     if (user.hasSubmittedApplication) {
+      console.log("🔄 Redirecting to:", "/dashboard");
       navigate("/dashboard");
       return;
     }

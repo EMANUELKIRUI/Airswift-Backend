@@ -39,10 +39,13 @@ const Login = () => {
         // 🔥 ROLE-BASED REDIRECT - Prioritize role before application logic
         const user = response.data.user;
         if (user.role === "admin") {
+          console.log("🔄 Redirecting to:", "/admin/dashboard");
           navigate("/admin/dashboard");
         } else if (user.hasSubmittedApplication) {
+          console.log("🔄 Redirecting to:", "/dashboard");
           navigate("/dashboard");
         } else {
+          console.log("🔄 Redirecting to:", "/apply");
           navigate("/apply");
         }
 
