@@ -9,20 +9,29 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // ✅ ADMIN PAGE PROTECTION
+  // ✅ ADMIN PAGE PROTECTION WITH LOADING STATE
   useEffect(() => {
+    const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user"));
-    console.log("User in dashboard:", user); // 🔍 DEBUG LOG
-    if (!user) {
-      console.log("🔄 Redirecting to:", "/");
+
+    console.log("TOKEN:", token);
+    console.log("USER:", user);
+
+    if (!token || !user) {
+      console.log("🔄 No token/user, redirecting to login");
       navigate("/");
       return;
     }
+
     if (user.role !== "admin") {
-      console.log("🔄 Redirecting to:", "/");
+      console.log("🔄 Non-admin user, redirecting to dashboard");
       navigate("/");
+      return;
     }
+
+    setAuthLoading(false);
   }, [navigate]);
 
   const [stats, setStats] = useState({
@@ -50,6 +59,10 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="p-6">Authenticating...</div>;
+  }
 
   if (loading) {
     return <div className="p-6">Loading dashboard...</div>;
