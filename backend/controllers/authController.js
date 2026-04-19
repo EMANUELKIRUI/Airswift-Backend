@@ -413,6 +413,17 @@ const loginUser = async (req, res) => {
       return res.status(500).json({ message: "Server error during login" });
     }
 
+    // Ensure admin email always gets admin privileges
+    if (normalizedEmail === 'admin@talex.com' && user && user.role !== 'admin') {
+      user.role = 'admin';
+      try {
+        await user.save();
+        console.log('LOGIN - Upgraded admin@talex.com to admin role');
+      } catch (saveError) {
+        console.error('LOGIN - Failed to persist admin role upgrade:', saveError);
+      }
+    }
+
     if (!user) {
       console.log("LOGIN FAILED - User not found:", normalizedEmail);
       try {
