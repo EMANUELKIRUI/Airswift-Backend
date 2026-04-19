@@ -26,7 +26,48 @@ router.put('/:id', protect, permit('manage_interviews'), updateInterview);
 
 // Public routes (with auth)
 router.get('/my', protect, getMyInterviews);
+router.get('/me', protect, getMyInterviews); // Alias for frontend compatibility
 router.get('/:id', protect, getInterview);
+
+// Interview submission
+router.post('/submit', protect, async (req, res) => {
+  try {
+    const { interviewId, answers } = req.body;
+    const userId = req.user.id;
+
+    // Find the interview
+    const Interview = require('../models/Interview');
+    const interview = await Interview.findOne({
+      _id: interviewId,
+      user: userId
+    });
+
+    if (!interview) {
+      return res.status(404).json({ message: 'Interview not found' });
+    }
+
+    // Save answers
+    interview.answers = answers;
+    interview.completed = true;
+    interview.completedAt = new Date();
+    await interview.save();
+
+    // Update user application status
+    const User = require('../models/User');
+    await User.findByIdAndUpdate(userId, {
+      applicationStatus: 'interview_completed'
+    });
+
+    // Emit real-time update
+    const io = require('../utils/socket').getIO();
+    io.to(userId).emit('statusUpdate', { status: 'interview_completed' });
+
+    res.json({ success: true, message: 'Interview submitted successfully' });
+  } catch (error) {
+    console.error('Interview submission error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // AI scoring endpoint
 router.post('/score', protect, scoreResponse);

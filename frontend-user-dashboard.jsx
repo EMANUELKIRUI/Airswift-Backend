@@ -12,34 +12,43 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ ROUTE PROTECTION: Only for authenticated non-admin users
+  const refreshUser = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      const freshUser = response.data.user;
+      setUser(freshUser);
+      localStorage.setItem('user', JSON.stringify(freshUser));
+      return freshUser;
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+      return null;
+    }
+  };
+
+  const loadUser = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const freshUser = await refreshUser();
+      if (!freshUser) return;
+
+      if (freshUser.role === 'admin') {
+        navigate('/admin/dashboard');
+        return;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
-    
-    if (!storedUser) {
-      console.log("🔄 Redirecting to: /");
-      navigate("/");
-      return;
-    }
-
-    // ✅ Admins should not access this dashboard
-    if (storedUser.role === "admin") {
-      console.log("🔄 Redirecting admin to: /admin/dashboard");
-      navigate("/admin/dashboard");
-      return;
-    }
-
-    // ✅ Users without application should go to apply page
-    if (!storedUser.hasSubmittedApplication) {
-      console.log("🔄 Redirecting to: /apply");
-      navigate("/apply");
-      return;
-    }
-
-    setUser(storedUser);
+    loadUser();
   }, [navigate]);
 
-  // ✅ FETCH USER APPLICATION STATUS
   useEffect(() => {
     if (user) {
       fetchApplicationStatus();
@@ -51,15 +60,15 @@ const UserDashboard = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch current application status
       const response = await api.get('/applications/me');
       setApplication(response.data);
+      await refreshUser();
     } catch (err) {
       console.error('Error fetching application:', err);
-      
+
       if (err.response?.status === 401) {
         setError('Session expired. Please login again.');
-        setTimeout(() => navigate('/'), 2000);
+        setTimeout(() => navigate('/login'), 2000);
       } else if (err.response?.status === 404) {
         setError('No application found. Please submit an application first.');
       } else {
@@ -70,13 +79,19 @@ const UserDashboard = () => {
     }
   };
 
+
   // ✅ GET STATUS BADGE COLOR & ICON
   const getStatusBadge = (status) => {
     const statusMap = {
+      not_started: { color: '#6C757D', icon: '📝', label: 'Start Application' },
+      submitted: { color: '#FFA500', icon: '⏳', label: 'Under Review' },
       pending: { color: '#FFA500', icon: '⏳', label: 'Under Review' },
+      reviewed: { color: '#17A2B8', icon: '🔍', label: 'Review In Progress' },
       shortlisted: { color: '#28A745', icon: '✅', label: 'Shortlisted' },
       interview: { color: '#0056B3', icon: '📅', label: 'Interview Scheduled' },
-      accepted: { color: '#20C997', icon: '🎉', label: 'Accepted' },
+      accepted: { color: '#20C997', icon: '🎉', label: 'Approved' },
+      approved: { color: '#20C997', icon: '🎉', label: 'Approved' },
+      paid: { color: '#007BFF', icon: '💳', label: 'Paid' },
       rejected: { color: '#DC3545', icon: '❌', label: 'Rejected' },
       hired: { color: '#6F42C1', icon: '🏆', label: 'Hired' },
     };
@@ -100,15 +115,84 @@ const UserDashboard = () => {
     }
   };
 
+  const getCurrentStatus = () => {
+    if (user?.applicationStatus) return user.applicationStatus;
+    if (application?.applicationStatus) return application.applicationStatus;
+    if (application?.status) return application.status;
+    return 'not_started';
+  };
+
+  const renderContent = () => {
+    const status = getCurrentStatus();
+
+    switch (status) {
+      case 'not_started':
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Start Your Application</h2>
+            <p>Take the first step toward your visa application.</p>
+            <button className="btn btn-primary" onClick={() => navigate('/apply')}>
+              Apply Now
+            </button>
+          </div>
+        );
+      case 'submitted':
+      case 'pending':
+      case 'reviewed':
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Application Submitted</h2>
+            <p>We are reviewing your application.</p>
+          </div>
+        );
+      case 'shortlisted':
+      case 'interview':
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Interview Stage</h2>
+            <p>Your interview has been scheduled. Please prepare and check your email.</p>
+            <button className="btn btn-primary" onClick={() => navigate('/dashboard/interview')}>
+              Start Interview
+            </button>
+          </div>
+        );
+      case 'accepted':
+      case 'approved':
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Approved 🎉</h2>
+            <p>Please proceed with payment.</p>
+            <button className="btn btn-primary" onClick={() => navigate('/dashboard/payment')}>
+              Pay KSh 30,000
+            </button>
+          </div>
+        );
+      case 'paid':
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Payment Successful ✅</h2>
+            <p>Your visa process is complete.</p>
+          </div>
+        );
+      default:
+        return (
+          <div style={{ textAlign: 'center', padding: '30px' }}>
+            <h2>Unknown status</h2>
+            <p>Please contact support for help.</p>
+          </div>
+        );
+    }
+  };
+
   // ✅ GET TIMELINE STEPS
   const getTimelineSteps = () => {
-    const currentStatus = application?.status || 'pending';
+    const currentStatus = getCurrentStatus();
     const steps = [
-      { status: 'pending', label: 'Application Submitted', completed: true },
-      { status: 'shortlisted', label: 'Shortlisted', completed: ['shortlisted', 'interview', 'accepted', 'hired'].includes(currentStatus) },
-      { status: 'interview', label: 'Interview Scheduled', completed: ['interview', 'accepted', 'hired'].includes(currentStatus) },
-      { status: 'accepted', label: 'Accepted', completed: ['accepted', 'hired'].includes(currentStatus) },
-      { status: 'hired', label: 'Hired', completed: currentStatus === 'hired' },
+      { status: 'pending', label: 'Application Submitted', completed: ['submitted', 'pending', 'reviewed', 'shortlisted', 'interview', 'accepted', 'approved', 'paid'].includes(currentStatus) },
+      { status: 'shortlisted', label: 'Shortlisted', completed: ['shortlisted', 'interview', 'accepted', 'approved', 'paid'].includes(currentStatus) },
+      { status: 'interview', label: 'Interview Scheduled', completed: ['interview', 'accepted', 'approved', 'paid'].includes(currentStatus) },
+      { status: 'accepted', label: 'Approved', completed: ['accepted', 'approved', 'paid'].includes(currentStatus) },
+      { status: 'paid', label: 'Payment Complete', completed: currentStatus === 'paid' },
     ];
 
     return steps;
@@ -169,20 +253,13 @@ const UserDashboard = () => {
     );
   }
 
-  if (!application) {
-    return (
-      <div className="user-dashboard-empty" style={{ textAlign: 'center', padding: '40px' }}>
-        <h2>No Application Found</h2>
-        <p>Please submit an application to view your status.</p>
-        <button onClick={() => navigate('/apply')} style={{ padding: '10px 20px', cursor: 'pointer' }}>
-          Go to Apply
-        </button>
-      </div>
-    );
-  }
+  const status = getCurrentStatus();
+  const statusInfo = getStatusBadge(status);
+  const interviewDate = application?.interviewDate || application?.interview?.date;
 
-  const statusInfo = getStatusBadge(application.status);
-  const interviewDate = application.interviewDate || application.interview?.date;
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="user-dashboard">
@@ -470,6 +547,8 @@ const UserDashboard = () => {
         <div className="welcome-text">Welcome, {user?.name || 'Applicant'}! 👋</div>
         <p style={{ color: '#666', margin: 0 }}>Track your application status</p>
       </div>
+
+      {renderContent()}
 
       {/* Current Status */}
       <div className="status-container">

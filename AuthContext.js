@@ -20,8 +20,9 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await api.get('/profile');
+      const response = await api.get('/auth/me');
       setUser(response.data.user);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
     } catch (error) {
       console.error('Failed to fetch user:', error);
       localStorage.removeItem("token");
