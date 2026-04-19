@@ -22,6 +22,7 @@ const {
   shortlistApplication,
 } = require('../controllers/applicationController');
 const { verifyToken, protect, permit } = require('../middleware/auth');
+const authorize = require('../middleware/authorize');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { cloudUpload } = require('../middleware/cloudinaryUpload');
 const adminOnly = require('../middleware/admin');
@@ -195,7 +196,7 @@ router.get('/admin', protect, permit('view_all_applications'), async (req, res) 
     res.status(500).json({ error: err.message });
   }
 });
-router.put('/admin/application/:id/status', protect, permit('manage_applications'), updateApplicationStatus);
+router.put('/admin/application/:id/status', protect, authorize('update_applications'), updateApplicationStatus);
 router.put('/admin/application/:id/notes', protect, permit('manage_applications'), updateApplicationNotes);
 router.get('/admin/stats', protect, permit('view_analytics'), getAdminStats);
 router.get('/user/applications', verifyToken, getMyApplications);

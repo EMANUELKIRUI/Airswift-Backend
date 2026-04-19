@@ -555,10 +555,10 @@ app.post('/api/tts', streamElevenLabsTTS);
 // app.use("/api/auth/login", loginLimiter);
 
 // routes
-// app.use("/api/auth/google", require("./routes/googleAuth"));
+app.use("/auth", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/admin/audit-logs", require("./routes/auditLogs"));
 app.use("/api/admin", require("./routes/admin"));
-app.use("/api/admin/audit-logs", require("./routes/audit"));
 app.use("/api/settings", require("./routes/settings"));
 
 app.get('/api/health', (req, res) => {

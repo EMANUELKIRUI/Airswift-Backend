@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const Application = require('../models/ApplicationMongoose');
 const Job = require('../models/JobMongoose');
 const User = require('../models/User');
-const { emitNewApplication, emitApplicationStatusUpdate } = require('../utils/socketEmitter');
-const { logAction } = require('../utils/auditLogger');
+const { emitNewApplication, emitApplicationStatusUpdate, emitApplicationPipelineUpdate } = require('../utils/socketEmitter');
+const { logAction, createAuditLog } = require('../utils/auditLogger');
 
 const STATUS_FLOW = {
   pending: 'reviewed',
@@ -189,7 +189,7 @@ const updateApplicationStatus = async (req, res) => {
     await application.save();
 
     const io = req.app?.get('io') || global.io;
-    const userId = application.userId?._id || application.userId;
+    const userId = application.userId?._id || application.userId || application.user;
     const userRoom = userId ? `user_${userId}` : null;
     if (io && userRoom) {
       io.to(userRoom).emit('applicationUpdated', {
@@ -221,13 +221,12 @@ const updateApplicationStatus = async (req, res) => {
     });
 
     // 🔥 Audit log for status update
-    const logAction = require('../utils/auditLogger');
-    await logAction({
-      userId: req.user.id,
+    await createAuditLog({
+      user: req.user,
       action: "UPDATE_APPLICATION",
-      resource: "APPLICATION",
+      resource: "Application",
       description: `Application status updated to: ${status}`,
-      metadata: { applicationId: application._id, previousStatus: application.status, newStatus: status }
+      metadata: { applicationId: application._id, newStatus: status }
     });
 
     res.json({ success: true, application });

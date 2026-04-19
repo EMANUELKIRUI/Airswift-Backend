@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const AuditLog = require("../models/AuditLogMongo");
-const { verifyToken } = require("../middleware/auth");
+const { verifyToken, permit } = require("../middleware/auth");
 
 // GET single audit log
 router.get("/:id", async (req, res) => {
@@ -20,7 +20,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // GET logs with filters
-router.get("/", verifyToken, async (req, res) => {
+router.get("/", verifyToken, permit("view_audit_logs"), async (req, res) => {
   try {
     const { search, action, resource } = req.query;
 
@@ -34,7 +34,7 @@ router.get("/", verifyToken, async (req, res) => {
     }
 
     const logs = await AuditLog.find(query)
-      .populate("userId", "email name")
+      .populate("user_id", "email name")
       .sort({ createdAt: -1 })
       .limit(100); // Limit to prevent large responses
 

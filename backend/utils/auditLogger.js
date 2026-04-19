@@ -1,20 +1,31 @@
 const AuditLog = require("../models/AuditLogMongo");
 
-const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
-  const resolvedUserId = userId || user_id || null;
+const createAuditLog = async ({ user = null, userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
+  const resolvedUserId = user?._id || user?.id || userId || user_id || null;
   const resolvedDescription = description || action || "No description";
 
   try {
-    await AuditLog.create({
-      userId: resolvedUserId,
+    const log = await AuditLog.create({
+      user_id: resolvedUserId,
       action,
       resource,
       description: resolvedDescription,
       metadata,
     });
+
+    const io = global.io;
+    if (io) {
+      io.to("admins").emit("auditLogCreated", log);
+    }
+
+    return log;
   } catch (error) {
     console.error("Audit log failed:", error.message);
   }
+};
+
+const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
+  return createAuditLog({ userId, user_id, action, resource, description, metadata });
 };
 
 const buildMetadata = (request, extra = {}) => ({
@@ -112,5 +123,6 @@ logAction.logEmailVerification = logEmailVerification;
 logAction.logPasswordReset = logPasswordReset;
 logAction.logAuditEvent = logAuditEvent;
 logAction.logAction = logAction;
+logAction.createAuditLog = createAuditLog;
 
 module.exports = logAction;

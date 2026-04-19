@@ -1,20 +1,8 @@
 const express = require('express');
 const { protect, authorize } = require('../middleware/auth');
-const {
-  getApplicationStats,
-  getApplicationsOverTime,
-  getCVScoreDistribution,
-  getJobApplicationDistribution,
-  getInterviewStats,
-  getHiringFunnel,
-  getPaymentStats,
-  getTopSkills,
-  getAverageTimeToHire,
-  getDashboardSummary,
-  getDashboardTrends,
-  getDashboardActivities,
-  getDashboardSettingsSummary
-} = require('../controllers/dashboardController');
+const User = require('../models/User');
+const Application = require('../models/ApplicationMongoose');
+const AuditLog = require('../models/AuditLogMongo');
 
 const router = express.Router();
 
@@ -23,33 +11,44 @@ router.use(protect);
 router.use(authorize('admin'));
 
 // Get dashboard summary (root route)
-router.get('/', getDashboardSummary);
+router.get('/', async (req, res) => {
+  try {
+    // Get basic counts from MongoDB
+    const totalUsers = await User.countDocuments();
+    const totalApplications = await Application.countDocuments();
+    const totalAuditLogs = await AuditLog.countDocuments();
 
-// Get dashboard summary
-router.get('/summary', getDashboardSummary);
-router.get('/trends', getDashboardTrends);
-router.get('/activities', getDashboardActivities);
-router.get('/settings-summary', getDashboardSettingsSummary);
+    // Get recent applications
+    const recentApplications = await Application.find()
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(5);
 
-// Application statistics
-router.get('/applications/stats', getApplicationStats);
-router.get('/applications/over-time', getApplicationsOverTime);
-router.get('/applications/by-job', getJobApplicationDistribution);
+    // Get recent audit logs
+    const recentAuditLogs = await AuditLog.find()
+      .populate('user_id', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(10);
 
-// CV scoring analytics
-router.get('/cv/score-distribution', getCVScoreDistribution);
-router.get('/cv/top-skills', getTopSkills);
-
-// Interview analytics
-router.get('/interviews/stats', getInterviewStats);
-
-// Hiring funnel
-router.get('/funnel', getHiringFunnel);
-
-// Revenue/Payment analytics
-router.get('/payments/stats', getPaymentStats);
+    res.json({
+      summary: {
+        totalUsers,
+        totalApplications,
+        totalAuditLogs
+      },
+      recentApplications,
+      recentAuditLogs,
+      message: 'Dashboard data loaded successfully'
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // Time to hire analytics
-router.get('/time-to-hire', getAverageTimeToHire);
+router.get('/time-to-hire', async (req, res) => {
+  res.json({ message: 'Time to hire analytics not implemented yet' });
+});
 
 module.exports = router;

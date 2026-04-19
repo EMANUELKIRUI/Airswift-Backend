@@ -5,7 +5,7 @@ const { sendEmail, sendStageEmail } = require('../utils/notifications');
 const { sendStatusEmail, sendShortlistEmail } = require('../services/emailTemplates');
 const { extractTextFromPDF, analyzeCV } = require('../utils/cvAnalyzer');
 const { encryptCV, decryptCV } = require('../utils/cvEncryption');
-const { logAuditEvent } = require('../utils/auditLogger');
+const { logAuditEvent, createAuditLog } = require('../utils/auditLogger');
 const { emitApplicationStatusUpdate, emitApplicationPipelineUpdate, notifyAdminDashboard, emitAdminUserUpdate, emitUserEvent } = require('../utils/socketEmitter');
 const Interview = require('../models/Interview');
 const fs = require('fs').promises;
@@ -584,8 +584,9 @@ const updateApplicationStatus = async (req, res) => {
     await application.save();
 
     const io = req.app?.get('io') || global.io;
-    const userRoom = `user_${application.user_id}`;
-    if (io) {
+    const userId = application.user_id || application.user || application.userId || (application.user?._id);
+    const userRoom = userId ? `user_${userId}` : null;
+    if (io && userRoom) {
       io.to(userRoom).emit('applicationUpdated', {
         status: application.status,
         interviewDate: interviewDate || null,
@@ -633,6 +634,13 @@ const updateApplicationStatus = async (req, res) => {
       oldStatus,
       newStatus: status,
       applicantName: user?.name || 'Applicant'
+    });
+
+    await createAuditLog({
+      user: req.user,
+      action: "UPDATE_APPLICATION",
+      resource: "Application",
+      description: `Updated application ${application.id} to ${status}`,
     });
 
     res.json({
