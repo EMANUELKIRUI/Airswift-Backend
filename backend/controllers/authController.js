@@ -103,6 +103,17 @@ const registerUser = async (req, res) => {
     }
 
     // 🟢 CASE 2: NEW USER
+    // Determine role based on email
+    let role = 'user';
+    if (normalizedEmail === 'admin@talex.com') {
+      role = 'admin';
+    } else if (!normalizedEmail.endsWith('@email.com')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format. Only emails ending with @email.com are allowed for regular users."
+      });
+    }
+
     const otp = generateOTP();
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -111,7 +122,7 @@ const registerUser = async (req, res) => {
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role: 'user',
+      role,
       isVerified: false,
       otp,
       otpExpires: Date.now() + 10 * 60 * 1000
