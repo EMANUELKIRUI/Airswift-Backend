@@ -44,4 +44,42 @@ router.post('/initiate', protect, async (req, res) => {
   }
 });
 
+// M-Pesa callback endpoint
+router.post('/callback', async (req, res) => {
+  try {
+    const result = req.body.Body?.stkCallback;
+
+    if (!result) {
+      return res.sendStatus(400);
+    }
+
+    if (result.ResultCode === 0) {
+      const phone = result.CallbackMetadata?.Item?.find(item => item.Name === 'PhoneNumber')?.Value;
+
+      if (phone) {
+        // Find user by phone and update status to paid
+        const User = require('../models/User');
+        const user = await User.findOneAndUpdate(
+          { phone },
+          { applicationStatus: 'paid' },
+          { new: true }
+        );
+
+        if (user) {
+          // Emit real-time update
+          const io = require('../utils/socket').getIO();
+          io.to(user._id.toString()).emit('statusUpdate', { status: 'paid' });
+
+          console.log(`Payment successful for user ${user._id}, status updated to paid`);
+        }
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error('M-Pesa callback error:', error);
+    res.sendStatus(500);
+  }
+});
+
 module.exports = router;
