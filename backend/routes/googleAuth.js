@@ -1,8 +1,10 @@
 const express = require("express");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const { OAuth2Client } = require("google-auth-library");
 const { findUserByEmail, createUser } = require("../utils/userHelpers");
 const { generateAccessToken } = require("../utils/tokenHelpers");
+const { getPermissions } = require("../config/roles");
 
 const router = express.Router();
 router.use(passport.initialize());
@@ -15,6 +17,12 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "https://airswift-frontend.verc
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
   console.warn("⚠️ Google OAuth is not configured: missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
   console.log("✅ Google OAuth routes will return 501 (Not Implemented)");
+}
+
+// Initialize Google OAuth client for token verification
+let googleClient = null;
+if (GOOGLE_CLIENT_ID) {
+  googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 }
 
 // Only initialize Google strategy if credentials are available
@@ -63,6 +71,86 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
     )
   );
 }
+
+// ✅ POST /auth/google - Verify Google token and return JWT
+router.post("/google", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Google token is required" });
+    }
+
+    if (!googleClient) {
+      return res.status(501).json({ message: "Google OAuth not configured" });
+    }
+
+    // Verify Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const email = payload.email?.toLowerCase().trim();
+    const name = payload.name || email;
+    const picture = payload.picture;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email not found in Google token" });
+    }
+
+    // Find or create user
+    let user = await findUserByEmail(email);
+
+    if (!user) {
+      user = await createUser({
+        name,
+        email,
+        role: "user",
+        isVerified: true,
+        authProvider: "google",
+        profilePicture: picture,
+      });
+    } else {
+      // Update user with Google info if it's the first time
+      if (!user.authProvider || user.authProvider !== "google") {
+        user.authProvider = "google";
+        user.isVerified = true;
+      }
+      if (!user.profilePicture && picture) {
+        user.profilePicture = picture;
+      }
+      await user.save();
+    }
+
+    // Generate JWT token
+    const jwtToken = generateAccessToken(user);
+    const permissions = getPermissions(user.role);
+
+    // Return JWT and user info
+    res.json({
+      success: true,
+      token: jwtToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        profilePicture: user.profilePicture,
+        permissions,
+      },
+    });
+  } catch (error) {
+    console.error("Google OAuth verification error:", error.message);
+
+    if (error.message.includes("Invalid token")) {
+      return res.status(401).json({ message: "Invalid Google token" });
+    }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
 
 router.get(
   "/google",
