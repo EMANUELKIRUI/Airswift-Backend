@@ -565,8 +565,8 @@ const getAllApplicationsAdmin = async (req, res) => {
 
 const updateApplicationStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    const validStatuses = ['pending', 'shortlisted', 'accepted', 'rejected'];
+    const { status, interviewDate } = req.body;
+    const validStatuses = ['pending', 'reviewed', 'shortlisted', 'accepted', 'rejected', 'interview'];
     if (!validStatuses.includes(status)) return res.status(400).json({ message: 'Invalid status' });
 
     const application = await Application.findByPk(req.params.id, { include: [{ model: Job }] });
@@ -578,10 +578,30 @@ const updateApplicationStatus = async (req, res) => {
 
     const oldStatus = application.status;
     application.status = status;
+    if (interviewDate) {
+      application.interviewDate = interviewDate;
+    }
     await application.save();
 
-    if (req.io && typeof req.io.emit === 'function') {
-      req.io.emit('applicationUpdated', application.toJSON());
+    const io = req.app?.get('io') || global.io;
+    const userRoom = `user_${application.user_id}`;
+    if (io) {
+      io.to(userRoom).emit('applicationUpdated', {
+        status: application.status,
+        interviewDate: interviewDate || null,
+      });
+      io.to(userRoom).emit('statusChanged', {
+        applicationId: application.id,
+        status: application.status,
+        updatedAt: new Date().toISOString(),
+      });
+      if (interviewDate) {
+        io.to(userRoom).emit('interviewScheduled', {
+          applicationId: application.id,
+          status: application.status,
+          interviewDate,
+        });
+      }
     }
 
     const user = application.user_id

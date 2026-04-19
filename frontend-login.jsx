@@ -2,7 +2,7 @@
 // Copy this to your frontend login page
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import api from './api'; // Your API configuration
 import { initSocket } from './lib/socket';
 
@@ -11,7 +11,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const router = useRouter();
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -50,7 +50,9 @@ const Login = () => {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
-      if (response.data.user.role === 'admin') {
+      console.log("Saved user:", response.data.user);
+
+      if (response.data.user.role.toLowerCase() === 'admin') {
         localStorage.setItem('adminToken', response.data.token);
       }
 
@@ -61,15 +63,15 @@ const Login = () => {
       }
 
       const user = response.data.user;
-      if (user.role === 'admin') {
+      if (user.role.toLowerCase() === 'admin') {
         console.log('🔄 Redirecting to:', '/admin/dashboard');
-        navigate('/admin/dashboard');
+        router.replace('/admin/dashboard');
       } else if (user.hasSubmittedApplication) {
         console.log('🔄 Redirecting to:', '/dashboard');
-        navigate('/dashboard');
+        router.replace('/dashboard');
       } else {
         console.log('🔄 Redirecting to:', '/apply');
-        navigate('/apply');
+        router.replace('/apply');
       }
     } catch (err) {
       console.error('❌ Login failed:', err);

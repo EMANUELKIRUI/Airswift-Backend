@@ -66,11 +66,22 @@ router.get('/profile', verifyToken, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const application = await Application.findOne({ userId: req.user.id });
+    const applicationResponse = application
+      ? {
+          status: application.applicationStatus || application.status || 'pending',
+          interviewDate: application.interview?.date
+            ? application.interview.date.toISOString()
+            : null,
+        }
+      : null;
+
     res.json({
       id: user._id,
       email: user.email,
       role: user.role,
       hasSubmittedApplication: user.hasSubmittedApplication,
+      application: applicationResponse,
     });
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);

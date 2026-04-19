@@ -147,7 +147,7 @@ const applyJob = async (req, res) => {
 
 const updateApplicationStatus = async (req, res) => {
   try {
-    const { id, status } = req.body;
+    const { id, status, interviewDate } = req.body;
     const validStatuses = [
       'pending',
       'reviewed',
@@ -177,12 +177,38 @@ const updateApplicationStatus = async (req, res) => {
     };
 
     application.applicationStatus = status;
+    if (interviewDate) {
+      application.interview = application.interview || {};
+      application.interview.date = new Date(interviewDate);
+    }
     application.timeline.push({
       status: timelineMessages[status] || status,
       date: new Date(),
     });
     application.updatedAt = Date.now();
     await application.save();
+
+    const io = req.app?.get('io') || global.io;
+    const userId = application.userId?._id || application.userId;
+    const userRoom = userId ? `user_${userId}` : null;
+    if (io && userRoom) {
+      io.to(userRoom).emit('applicationUpdated', {
+        status,
+        interviewDate: interviewDate || null,
+      });
+      io.to(userRoom).emit('statusChanged', {
+        applicationId: application._id.toString(),
+        status,
+        updatedAt: new Date().toISOString(),
+      });
+      if (interviewDate) {
+        io.to(userRoom).emit('interviewScheduled', {
+          applicationId: application._id.toString(),
+          status,
+          interviewDate,
+        });
+      }
+    }
 
     emitApplicationStatusUpdate({
       id: application._id,

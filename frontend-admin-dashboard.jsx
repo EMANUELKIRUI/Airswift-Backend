@@ -1,14 +1,30 @@
-// ✅ CLEAN ADMIN DASHBOARD COMPONENT (No Guards - Protected by Layout)
-// Main admin dashboard with overview and navigation
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import api from './api'; // Your axios instance
+import { useAuth } from './AuthContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return; // ⛔ wait until auth is ready
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user.role.toLowerCase() !== "admin") {
+      router.push("/unauthorized");
+    }
+  }, [user, loading]);
+
+  console.log("USER:", user);
+  console.log("ROLE:", user?.role);
+  console.log("LOADING:", loading);
 
   const [stats, setStats] = useState({
     totalApplications: 0,
@@ -16,7 +32,7 @@ const AdminDashboard = () => {
     totalJobs: 0,
     pendingApplications: 0
   });
-  const [loading, setLoading] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -25,18 +41,18 @@ const AdminDashboard = () => {
 
   const fetchDashboardStats = async () => {
     try {
-      setLoading(true);
+      setLoadingStats(true);
       const response = await api.get('/admin/dashboard');
       setStats(response.data.stats || {});
     } catch (err) {
       console.error('Dashboard fetch error:', err);
       setError('Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      setLoadingStats(false);
     }
   };
 
-  if (loading) {
+  if (loadingStats) {
     return <div className="p-6">Loading dashboard...</div>;
   }
 

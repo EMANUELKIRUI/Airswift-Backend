@@ -34,14 +34,17 @@ const parseCookieHeader = (cookieHeader) => {
 const extractToken = (req) => {
   if (!req) return null;
 
-  const cookieToken = normalizeToken(req.cookies?.accessToken || req.cookies?.token || req.cookies?.authToken || null);
-  const authHeader = req.headers?.authorization || req.headers?.Authorization || null;
-  const headerToken = normalizeToken(authHeader);
+  const token = req.cookies.get("token") || req.headers.get("authorization");
+
+  if (token) {
+    return normalizeToken(token);
+  }
+
+  // Fallbacks for other sources if needed
   const bodyToken = normalizeToken(req.body?.accessToken || req.body?.token || req.body?.authToken || null);
   const queryToken = normalizeToken(req.query?.accessToken || req.query?.token || req.query?.authToken || null);
-  const rawCookieToken = normalizeToken(parseCookieHeader(req.headers?.cookie));
 
-  const token = cookieToken || headerToken || bodyToken || queryToken || rawCookieToken;
+  return bodyToken || queryToken || null;
 
   if (cookieToken) {
     console.log("👉 TOKEN from cookies: EXISTS");

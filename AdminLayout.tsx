@@ -9,26 +9,25 @@ import { useRouter } from "next/navigation";
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (loading) return;
+    if (!user) router.push("/login");
+  }, [user, loading]);
 
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+  if (loading) return <p>Loading...</p>;
 
-    if (user.role !== "admin") {
-      router.replace("/dashboard");
-      return;
-    }
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
 
-    setReady(true);
-  }, []);
-
-  if (!ready) return <p>Loading...</p>;
+  if (user.role.toLowerCase() !== "admin") {
+    router.push("/unauthorized");
+    return null;
+  }
 
   return children;
 }

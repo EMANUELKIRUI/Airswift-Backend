@@ -58,6 +58,7 @@ const io = new Server(server, {
 
 // Expose socket.io globally for legacy emitters and services
 global.io = io;
+app.set('io', io);
 
 // Initialize Socket.io emitter utility
 initializeSocket(io);
@@ -91,6 +92,11 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+
+  if (socket.user?.id) {
+    socket.join(`user_${socket.user.id}`);
+    console.log(`Socket ${socket.id} auto-joined user room: user_${socket.user.id}`);
+  }
 
   // 🔥 USER-SPECIFIC ROOMS
   socket.on("join_user", (userId) => {
