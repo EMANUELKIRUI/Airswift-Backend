@@ -595,6 +595,7 @@ app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/system-health", require("./routes/systemHealth"));
 app.use("/api/admin/dashboard", require("./routes/dashboard"));
+app.use("/api/user/dashboard", require("./routes/userDashboard")); // ✅ User dashboard for regular users
 app.use("/api/email", require("./routes/email"));
 
 // Global error handler for unexpected failures
