@@ -603,6 +603,11 @@ const updateApplicationStatus = async (req, res) => {
           interviewDate,
         });
       }
+      // 🔥 NEW: Emit status:update for real-time notifications
+      io.to(userRoom).emit("status:update", {
+        status: application.status,
+        message: `Your application status has been updated to ${status}`,
+      });
     }
 
     const user = application.user_id

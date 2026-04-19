@@ -79,3 +79,35 @@ export const reconnectSocketConnection = (token) => {
 export const getSocket = () => socket;
 
 export default initSocket;
+
+  if (socket) {
+    if (socket.connected && authToken === currentToken) {
+      return socket;
+    }
+
+    socket.disconnect();
+    socket = null;
+  }
+
+  socket = createSocketInstance(authToken);
+  currentToken = authToken;
+  return socket;
+};
+
+export const disconnectSocketConnection = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+    currentToken = null;
+    console.log('🔌 Socket disconnected');
+  }
+};
+
+export const reconnectSocketConnection = (token) => {
+  disconnectSocketConnection();
+  return initSocket(token);
+};
+
+export const getSocket = () => socket;
+
+export default initSocket;

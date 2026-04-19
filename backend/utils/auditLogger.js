@@ -24,6 +24,15 @@ const createAuditLog = async ({ user = null, userId = null, user_id = null, acti
   }
 };
 
+// 🔥 NEW: Real-time audit streaming
+const logAudit = async (io, data) => {
+  const log = await AuditLog.create(data);
+
+  io.emit("audit:stream", log);
+
+  return log;
+};
+
 const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
   return createAuditLog({ userId, user_id, action, resource, description, metadata });
 };
@@ -124,5 +133,6 @@ logAction.logPasswordReset = logPasswordReset;
 logAction.logAuditEvent = logAuditEvent;
 logAction.logAction = logAction;
 logAction.createAuditLog = createAuditLog;
+logAction.logAudit = logAudit;
 
 module.exports = logAction;
