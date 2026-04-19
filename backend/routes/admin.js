@@ -23,6 +23,32 @@ router.get("/users", permit('manage_users'), async (req, res) => {
   }
 });
 
+router.put("/users/:id", permit('manage_users'), async (req, res) => {
+  try {
+    const { applicationStatus } = req.body;
+    const userId = req.params.id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { applicationStatus },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Emit real-time update to user
+    const io = require('../utils/socket').getIO();
+    io.to(userId).emit('statusUpdate', { status: applicationStatus });
+
+    res.json(user);
+  } catch (err) {
+    console.error('User update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 //
 // ✅ APPLICATIONS - requires view_all_applications permission
 //
