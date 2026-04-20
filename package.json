@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "clean": "rm -rf node_modules backend/node_modules",
+    "run": "cd backend && npm run dev",
+    "start": "cd backend && npm start"
+  },
   "dependencies": {
     "axios": "^1.15.0",
     "form-data": "^4.0.5",

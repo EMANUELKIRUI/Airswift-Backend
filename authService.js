@@ -14,10 +14,11 @@ class AuthService {
    */
   static storeToken(token, user) {
     try {
+      const normalizedUser = this.normalizeUser(user);
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
 
-      if (user.role === 'admin') {
+      if (normalizedUser?.role === 'admin') {
         localStorage.setItem('adminToken', token);
       }
 
@@ -39,6 +40,25 @@ class AuthService {
       console.error('❌ Error retrieving token:', error);
       return null;
     }
+  }
+
+  /**
+   * Normalize user object received from API responses
+   */
+  static normalizeUser(user) {
+    if (!user) return null;
+
+    const normalizedUser = { ...user };
+
+    if (!normalizedUser.role && normalizedUser.email === 'admin@talex.com') {
+      normalizedUser.role = 'admin';
+    }
+
+    if (!normalizedUser.id && normalizedUser._id) {
+      normalizedUser.id = normalizedUser._id;
+    }
+
+    return normalizedUser;
   }
 
   /**
@@ -88,8 +108,10 @@ class AuthService {
       console.log('✅ Login successful');
 
       if (response.data.token && response.data.user) {
-        // Store token and user
-        this.storeToken(response.data.token, response.data.user);
+        const normalizedUser = this.normalizeUser(response.data.user);
+
+        // Store token and normalized user
+        this.storeToken(response.data.token, normalizedUser);
 
         // Reconnect socket with new token
         console.log('🔌 Reconnecting socket with token...');
@@ -101,7 +123,7 @@ class AuthService {
         return {
           success: true,
           token: response.data.token,
-          user: response.data.user,
+          user: normalizedUser,
         };
       } else {
         throw new Error('Login response missing token or user data');
@@ -251,11 +273,13 @@ class AuthService {
       console.log('👤 Fetching user profile...');
 
       const response = await api.get('/auth/profile');
+      const data = response.data || {};
+      const profileUser = this.normalizeUser(data.user || data);
 
       console.log('✅ Profile fetched successfully');
       return {
         success: true,
-        user: response.data.user,
+        user: profileUser,
       };
     } catch (error) {
       console.error('❌ Error fetching profile:', error.message);
