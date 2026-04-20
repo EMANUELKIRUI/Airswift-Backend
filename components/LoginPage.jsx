@@ -25,13 +25,17 @@ const LoginPage = () => {
         console.log('✅ Login successful, redirecting...');
 
         // ✅ KEY: Call redirectAfterLogin after successful login
+        // It will route regular users to /dashboard if they already submitted an application,
+        // or to /apply if they still need to fill out the form.
         redirectAfterLogin(result.user, router);
 
         // Alternative: Manual redirect if you prefer
         // if (result.user.role === 'admin') {
         //   router.push('/admin/dashboard');
-        // } else {
+        // } else if (result.user.hasSubmittedApplication) {
         //   router.push('/dashboard');
+        // } else {
+        //   router.push('/apply');
         // }
       } else {
         setError(result.error || 'Login failed');
