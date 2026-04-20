@@ -19,13 +19,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const normalizeUser = (userData) => {
+    if (!userData) return null;
+    const normalizedUser = { ...userData };
+    if (!normalizedUser.role && normalizedUser.email === 'admin@talex.com') {
+      normalizedUser.role = 'admin';
+    }
+    if (!normalizedUser.id && normalizedUser._id) {
+      normalizedUser.id = normalizedUser._id;
+    }
+    return normalizedUser;
+  };
+
   const fetchUser = async (token) => {
     try {
       const response = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const responseUser = response.data.user || response.data;
+      const normalizedUser = normalizeUser(responseUser);
+      setUser(normalizedUser);
+      localStorage.setItem('user', JSON.stringify(normalizedUser));
       
       // Initialize Socket.IO connection with token
       if (token) {
@@ -47,8 +61,9 @@ export const AuthProvider = ({ children }) => {
    * @param {string} token - JWT token for authentication
    */
   const login = (userData, token) => {
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    const normalizedUser = normalizeUser(userData);
+    setUser(normalizedUser);
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
     localStorage.setItem("token", token);
     
     // Initialize Socket.IO connection for real-time updates
