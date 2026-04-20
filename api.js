@@ -44,20 +44,29 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url;
+    const message = error.response?.data?.message || error.message;
+
     console.error('❌ API ERROR:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.response?.data?.message || error.message
+      status,
+      url,
+      message
     });
 
-    // Handle different error types
-    if (error.response?.status === 401) {
+    // Only clear auth and redirect on explicit 401 UNAUTHORIZED responses
+    // Skip for profile/me endpoints to avoid redirect loops during session validation
+    if (status === 401 && url && !url.includes('/auth/me') && !url.includes('/auth/profile')) {
       console.warn('🔐 UNAUTHORIZED - Clearing token and redirecting to login');
       localStorage.removeItem('token');
       localStorage.removeItem('adminToken');
       localStorage.removeItem('user');
-      alert("Session expired. Please login again.");
-      window.location.href = '/login';
+      
+      // Show alert only if not already on login page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        alert("Session expired. Please login again.");
+        window.location.href = '/login';
+      }
     } else if (!error.response) {
       console.error('🌐 NETWORK ERROR - No response from server');
     }

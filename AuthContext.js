@@ -24,18 +24,27 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Initialize Socket.IO connection with token
-      if (token) {
-        initSocket(token);
+      if (response.data.user) {
+        setUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        // Initialize Socket.IO connection with token
+        if (token) {
+          initSocket(token);
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      disconnectSocketConnection();
+      console.error('Failed to fetch user during session validation:', error.message);
+      
+      // Only clear auth on 401/403 (unauthorized/forbidden)
+      // Don't clear on network errors or other 5xx errors
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        disconnectSocketConnection();
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -45,8 +54,9 @@ export const AuthProvider = ({ children }) => {
    * Login - Set user data and initialize socket connection
    * @param {Object} userData - User information from server
    * @param {string} token - JWT token for authentication
+   * @param {Function} onSuccess - Optional callback after successful login
    */
-  const login = (userData, token) => {
+  const login = (userData, token, onSuccess) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", token);
@@ -54,6 +64,20 @@ export const AuthProvider = ({ children }) => {
     // Initialize Socket.IO connection for real-time updates
     if (token) {
       initSocket(token);
+    }
+
+    // Redirect based on role if callback provided
+    if (typeof onSuccess === 'function') {
+      onSuccess(userData);
+    } else if (typeof window !== 'undefined') {
+      // Fallback: Redirect based on role
+      const redirectPath = userData?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+      const currentPath = window.location.pathname;
+      
+      // Only redirect if not already on the target page
+      if (currentPath !== redirectPath && currentPath !== '/') {
+        window.location.href = redirectPath;
+      }
     }
   };
 

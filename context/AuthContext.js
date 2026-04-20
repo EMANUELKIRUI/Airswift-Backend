@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import api from "../api";
-import { io } from "socket.io-client";
+import { initSocket, disconnectSocketConnection } from "../socket";
 import { useNotification } from "./NotificationContext";
 
 const AuthContext = createContext();
@@ -17,7 +17,8 @@ export const AuthProvider = ({ children }) => {
       const res = await api.get("/auth/me");
       setUser(res.data.user);
       return res.data.user;
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
       setUser(null);
       localStorage.removeItem("token");
     } finally {
@@ -27,21 +28,21 @@ export const AuthProvider = ({ children }) => {
 
   // 🔥 SOCKET CONNECTOR
   const connectSocket = (token) => {
-    if (socketRef.current) return;
+    if (!token) {
+      console.warn("⚠️ No token available for socket connection.");
+      return;
+    }
 
-    socketRef.current = io(process.env.REACT_APP_API_URL, {
-      auth: { token },
-    });
+    if (socketRef.current?.connected) {
+      return socketRef.current;
+    }
 
-    socketRef.current.on("connect", () => {
-      console.log("✅ Socket connected:", socketRef.current.id);
-    });
+    const socket = initSocket(token);
+    if (!socket) return;
 
-    socketRef.current.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
-    });
+    socketRef.current = socket;
 
-    socketRef.current.on("status:update", (data) => {
+    socket.on("status:update", (data) => {
       console.log("📡 Status update:", data);
 
       setUser((prev) => ({
@@ -51,6 +52,8 @@ export const AuthProvider = ({ children }) => {
 
       addNotification(data.message);
     });
+
+    return socket;
   };
 
   useEffect(() => {
@@ -62,11 +65,45 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
+
+    return () => {
+      disconnectSocketConnection();
+      socketRef.current = null;
+    };
   }, []);
+
+  const login = (userData, token, onSuccess) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", token);
+    connectSocket(token);
+
+    // Redirect based on role if callback provided
+    if (typeof onSuccess === 'function') {
+      onSuccess(userData);
+    } else if (typeof window !== 'undefined') {
+      // Fallback: Redirect based on role
+      const redirectPath = userData?.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+      const currentPath = window.location.pathname;
+      
+      // Only redirect if not already on the target page
+      if (currentPath !== redirectPath && currentPath !== '/') {
+        window.location.href = redirectPath;
+      }
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    disconnectSocketConnection();
+    socketRef.current = null;
+  };
 
   return (
     <AuthContext.Provider
-      value={{ user, setUser, loading, refreshUser: fetchUser, socket: socketRef.current }}
+      value={{ user, setUser, loading, refreshUser: fetchUser, socket: socketRef.current, login, logout }}
     >
       {children}
     </AuthContext.Provider>
