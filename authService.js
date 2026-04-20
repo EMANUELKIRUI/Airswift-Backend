@@ -120,11 +120,22 @@ class AuthService {
           console.log('✅ Socket reconnected:', socket.id);
         }
 
-        return {
+        const loginResult = {
           success: true,
           token: response.data.token,
           user: normalizedUser,
         };
+
+        // Fallback redirect for browser-based login flows
+        if (typeof window !== 'undefined') {
+          const redirectPath = normalizedUser.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+          if (window.location.pathname !== redirectPath) {
+            console.log('📍 Redirecting after login to:', redirectPath);
+            window.location.href = redirectPath;
+          }
+        }
+
+        return loginResult;
       } else {
         throw new Error('Login response missing token or user data');
       }
