@@ -94,9 +94,42 @@ router.post('/', protect, permit('apply_jobs'), upload.fields([
       return res.status(400).json({ message: "CV is required" });
     }
 
-    // continue saving...
+    if (!req.files.passport) {
+      return res.status(400).json({ message: "Passport is required" });
+    }
 
-    res.status(200).json({ message: "Application submitted successfully" });
+    if (!req.files.nationalId) {
+      return res.status(400).json({ message: "National ID is required" });
+    }
+
+    const { jobId, phone } = req.body;
+    if (!jobId) {
+      return res.status(400).json({ message: "Job ID is required" });
+    }
+    if (!phone) {
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Create new application document
+    const newApplication = new Application({
+      userId: req.user.id,
+      jobId: jobId,
+      phone: phone,
+      cv: req.files.cv[0].filename,
+      passport: req.files.passport[0].filename,
+      nationalId: req.files.nationalId[0].filename,
+      applicationStatus: 'pending',
+    });
+
+    // Save to database
+    const savedApplication = await newApplication.save();
+
+    console.log("✅ Application saved:", savedApplication._id);
+
+    res.status(201).json({ 
+      message: "Application submitted successfully",
+      application: savedApplication 
+    });
 
   } catch (err) {
     console.error("APPLICATION ERROR:", err);
@@ -127,16 +160,45 @@ router.post('/create', protect, permit('apply_jobs'), upload.fields([
       });
     }
 
+    if (!req.files.nationalId || req.files.nationalId.length === 0) {
+      return res.status(400).json({
+        error: "National ID file is required",
+      });
+    }
+
+    const { jobId, phone } = req.body;
+    if (!jobId) {
+      return res.status(400).json({ error: "Job ID is required" });
+    }
+    if (!phone) {
+      return res.status(400).json({ error: "Phone number is required" });
+    }
+
     const cv = req.files.cv[0];
     const passport = req.files.passport?.[0];
+    const nationalId = req.files.nationalId?.[0];
 
     console.log("✅ CV:", cv.filename);
     console.log("✅ Passport:", passport?.filename);
+    console.log("✅ National ID:", nationalId?.filename);
 
-    // 👉 simulate save
+    // Create and save new application
+    const newApplication = new Application({
+      userId: req.user.id,
+      jobId: jobId,
+      phone: phone,
+      cv: cv.filename,
+      passport: passport.filename,
+      nationalId: nationalId.filename,
+      applicationStatus: 'pending',
+    });
+
+    const savedApplication = await newApplication.save();
+
     res.json({
       success: true,
       message: "Application submitted successfully",
+      application: savedApplication,
     });
 
   } catch (err) {
@@ -168,15 +230,52 @@ router.post('/apply', protect, permit('apply_jobs'), upload.fields([
       });
     }
 
+    if (!req.files.passport || req.files.passport.length === 0) {
+      return res.status(400).json({
+        error: 'Passport file is required',
+      });
+    }
+
+    if (!req.files.nationalId || req.files.nationalId.length === 0) {
+      return res.status(400).json({
+        error: 'National ID file is required',
+      });
+    }
+
+    const { jobId, phone } = req.body;
+    if (!jobId) {
+      return res.status(400).json({ error: 'Job ID is required' });
+    }
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
     const cv = req.files.cv[0];
     const passport = req.files.passport?.[0];
+    const nationalId = req.files.nationalId?.[0];
 
     console.log('✅ CV:', cv.filename);
     console.log('✅ Passport:', passport?.filename);
+    console.log('✅ National ID:', nationalId?.filename);
 
-    return res.json({
+    // Create and save new application
+    const newApplication = new Application({
+      userId: req.user.id,
+      jobId: jobId,
+      phone: phone,
+      cv: cv.filename,
+      passport: passport.filename,
+      nationalId: nationalId.filename,
+      applicationStatus: 'pending',
+    });
+
+    const savedApplication = await newApplication.save();
+    console.log('✅ Application saved:', savedApplication._id);
+
+    return res.status(201).json({
       success: true,
-      message: 'Application submitted',
+      message: 'Application submitted successfully',
+      application: savedApplication,
     });
   } catch (err) {
     console.error('🔥 ERROR:', err);
@@ -187,13 +286,23 @@ router.post('/apply', protect, permit('apply_jobs'), upload.fields([
 router.get('/admin', protect, permit('view_all_applications'), async (req, res) => {
   try {
     const applications = await Application.find()
-      .populate('userId', 'name email')
-      .populate('jobId')
+      .populate('userId', 'name email phone location')
+      .populate('jobId', 'title description')
       .sort({ createdAt: -1 });
 
-    res.json(applications);
+    console.log('✅ Retrieved', applications.length, 'applications for admin');
+
+    res.json({
+      success: true,
+      count: applications.length,
+      applications: applications,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Admin fetch error:', err);
+    res.status(500).json({ 
+      error: err.message,
+      success: false 
+    });
   }
 });
 router.put('/admin/application/:id/status', protect, authorize('update_applications'), updateApplicationStatus);
@@ -246,12 +355,33 @@ router.put('/profile', verifyToken, async (req, res) => {
 });
 
 // Admin routes
-router.get('/admin/all', verifyToken, adminOnly, getAllApplicationsAdmin);
-router.get('/:id/download', verifyToken, adminOnly, downloadCV);
-router.put('/:id/status', verifyToken, adminOnly, updateApplicationStatus);
-router.patch('/admin/:id/verify-documents', verifyToken, adminOnly, verifyApplicationDocuments);
-router.patch('/admin/:id/shortlist', verifyToken, adminOnly, shortlistApplication);
-router.post('/admin/message-applicants', verifyToken, adminOnly, sendMessageToApplicants);
-router.post('/admin/:id/schedule-interview', verifyToken, adminOnly, scheduleInterview);
+router.get('/admin/all', protect, permit('view_all_applications'), async (req, res) => {
+  try {
+    const applications = await Application.find()
+      .populate('userId', 'name email phone location')
+      .populate('jobId', 'title description')
+      .sort({ createdAt: -1 });
+
+    console.log('✅ Retrieved', applications.length, 'applications for admin');
+
+    res.json({
+      success: true,
+      count: applications.length,
+      applications: applications,
+    });
+  } catch (err) {
+    console.error('❌ Admin fetch error:', err);
+    res.status(500).json({ 
+      error: err.message,
+      success: false 
+    });
+  }
+});
+router.get('/:id/download', protect, permit('view_applications'), downloadCV);
+router.put('/:id/status', protect, permit('manage_applications'), updateApplicationStatus);
+router.patch('/admin/:id/verify-documents', protect, permit('manage_applications'), verifyApplicationDocuments);
+router.patch('/admin/:id/shortlist', protect, permit('manage_applications'), shortlistApplication);
+router.post('/admin/message-applicants', protect, permit('manage_applications'), sendMessageToApplicants);
+router.post('/admin/:id/schedule-interview', protect, permit('manage_applications'), scheduleInterview);
 
 module.exports = router;

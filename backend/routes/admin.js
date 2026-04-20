@@ -99,13 +99,52 @@ router.get("/payments", permit('view_analytics'), async (req, res) => {
 //
 router.get("/audit", permit('view_audit_logs'), async (req, res) => {
   try {
-    const logs = await AuditLog.find()
-      .populate("user_id", "name email")
-      .sort({ createdAt: -1 });
+    const { search, action, page = 1, limit = 50 } = req.query;
 
-    res.json(logs);
+    let query = {};
+
+    // 🔍 Search (description)
+    if (search) {
+      query.description = { $regex: search, $options: "i" };
+    }
+
+    // 🎯 Filter by action
+    if (action && action !== "all") {
+      query.action = action;
+    }
+
+    // Calculate pagination
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Get total count for pagination
+    const total = await AuditLog.countDocuments(query);
+
+    const logs = await AuditLog.find(query)
+      .populate("user_id", "name email role")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    console.log(`✅ Admin fetched ${logs.length} audit logs (Total: ${total})`);
+
+    res.json({
+      success: true,
+      data: logs,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Admin audit logs fetch error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Failed to fetch audit logs" 
+    });
   }
 });
 

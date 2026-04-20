@@ -5,7 +5,7 @@ const { verifyToken, permit } = require("../middleware/auth");
 
 router.get("/", verifyToken, permit("view_audit_logs"), async (req, res) => {
   try {
-    const { search, action, user, startDate, endDate } = req.query;
+    const { search, action, user, startDate, endDate, page = 1, limit = 50 } = req.query;
 
     let query = {};
 
@@ -15,12 +15,12 @@ router.get("/", verifyToken, permit("view_audit_logs"), async (req, res) => {
     }
 
     // 🎯 Filter by action
-    if (action) {
+    if (action && action !== "all") {
       query.action = action;
     }
 
     // 👤 Filter by user
-    if (user) {
+    if (user && user !== "all") {
       query.user_id = user;
     }
 
@@ -31,15 +31,39 @@ router.get("/", verifyToken, permit("view_audit_logs"), async (req, res) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
 
-    const logs = await AuditLog.find(query)
-      .populate("user_id", "name email")
-      .sort({ createdAt: -1 })
-      .limit(200);
+    // Calculate pagination
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const skip = (pageNum - 1) * limitNum;
 
-    res.json(logs);
+    // Get total count for pagination
+    const total = await AuditLog.countDocuments(query);
+
+    const logs = await AuditLog.find(query)
+      .populate("user_id", "name email role")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    console.log(`✅ Fetched ${logs.length} audit logs (Total: ${total}, Page: ${pageNum})`);
+
+    res.json({
+      success: true,
+      data: logs,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
   } catch (err) {
-    console.error("Audit logs fetch error:", err);
-    res.status(500).json({ message: "Failed to fetch audit logs" });
+    console.error("❌ Audit logs fetch error:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to fetch audit logs",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -47,16 +71,26 @@ router.get("/", verifyToken, permit("view_audit_logs"), async (req, res) => {
 router.get("/:id", verifyToken, permit("view_audit_logs"), async (req, res) => {
   try {
     const log = await AuditLog.findById(req.params.id)
-      .populate("user_id", "name email");
+      .populate("user_id", "name email role");
 
     if (!log) {
-      return res.status(404).json({ message: "Audit log not found" });
+      return res.status(404).json({ 
+        success: false,
+        message: "Audit log not found" 
+      });
     }
 
-    res.json(log);
+    res.json({
+      success: true,
+      data: log,
+    });
   } catch (err) {
-    console.error("Audit log fetch error:", err);
-    res.status(500).json({ message: "Failed to fetch audit log" });
+    console.error("❌ Audit log fetch error:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to fetch audit log",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
