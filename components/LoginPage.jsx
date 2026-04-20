@@ -25,7 +25,7 @@ const LoginPage = () => {
         console.log('✅ Login successful, redirecting...');
 
         // ✅ KEY: Call redirectAfterLogin after successful login
-        // Admin users go straight to /dashboard.
+        // Admin users go straight to /admin/dashboard.
         // Regular users go to /dashboard if they already submitted an application,
         // or to /apply if they still need to fill out the form.
         await redirectAfterLogin(result.user, router);
