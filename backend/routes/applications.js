@@ -295,17 +295,17 @@ router.get('/admin', protect, permit('view_all_applications'), async (req, res) 
     res.json({
       success: true,
       count: applications.length,
-      applications: applications,
+      data: applications,
     });
   } catch (err) {
     console.error('❌ Admin fetch error:', err);
     res.status(500).json({ 
-      error: err.message,
-      success: false 
+      success: false,
+      error: err.message
     });
   }
 });
-router.put('/admin/application/:id/status', protect, authorize('update_applications'), updateApplicationStatus);
+router.put('/admin/application/:id/status', protect, permit('manage_applications'), updateApplicationStatus);
 router.put('/admin/application/:id/notes', protect, permit('manage_applications'), updateApplicationNotes);
 router.get('/admin/stats', protect, permit('view_analytics'), getAdminStats);
 router.get('/user/applications', verifyToken, getMyApplications);
@@ -354,29 +354,7 @@ router.put('/profile', verifyToken, async (req, res) => {
   }
 });
 
-// Admin routes
-router.get('/admin/all', protect, permit('view_all_applications'), async (req, res) => {
-  try {
-    const applications = await Application.find()
-      .populate('userId', 'name email phone location')
-      .populate('jobId', 'title description')
-      .sort({ createdAt: -1 });
-
-    console.log('✅ Retrieved', applications.length, 'applications for admin');
-
-    res.json({
-      success: true,
-      count: applications.length,
-      applications: applications,
-    });
-  } catch (err) {
-    console.error('❌ Admin fetch error:', err);
-    res.status(500).json({ 
-      error: err.message,
-      success: false 
-    });
-  }
-});
+// NOTE: CONSOLIDATED - Use /admin endpoint instead of /admin/all
 router.get('/:id/download', protect, permit('view_applications'), downloadCV);
 router.put('/:id/status', protect, permit('manage_applications'), updateApplicationStatus);
 router.patch('/admin/:id/verify-documents', protect, permit('manage_applications'), verifyApplicationDocuments);

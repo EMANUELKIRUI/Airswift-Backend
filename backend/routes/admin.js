@@ -55,12 +55,23 @@ router.put("/users/:id", permit('manage_users'), async (req, res) => {
 router.get("/applications", permit('view_all_applications'), async (req, res) => {
   try {
     const apps = await Application.find()
-      .populate("userId", "name email")
+      .populate("userId", "name email phone location")
+      .populate("jobId", "title description")
       .sort({ createdAt: -1 });
 
-    res.json(apps);
+    console.log('✅ Admin fetched', apps.length, 'applications');
+
+    res.json({
+      success: true,
+      count: apps.length,
+      data: apps,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Admin fetch error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 });
 
