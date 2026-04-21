@@ -24,23 +24,48 @@ function AdminApplications() {
     try {
       setLoading(true);
       setError(null);
-      console.log('📥 Fetching all applications...');
+      console.log('📥 Fetching all applications from admin endpoint...');
 
-      // Try MongoDB endpoint first
       let response;
+      let applications = [];
+
+      // Try primary admin endpoint (permission-based)
       try {
-        response = await api.get('/applications/mongo/admin');
-      } catch (err) {
-        // Fallback to applications endpoint
-        if (err.response?.status === 404) {
-          response = await api.get('/applications');
-        } else {
-          throw err;
+        console.log('🔄 Trying /applications/admin endpoint...');
+        response = await api.get('/applications/admin');
+        console.log('✅ Response from /applications/admin:', response.data);
+        
+        // Handle different response formats from this endpoint
+        if (response.data && response.data.data) {
+          applications = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          applications = response.data;
+        } else if (response.data && response.data.applications) {
+          applications = response.data.applications;
+        }
+      } catch (err1) {
+        console.warn('⚠️ /applications/admin failed, trying /applications/mongo/admin...');
+        
+        try {
+          // Fallback to MongoDB endpoint (role-based)
+          response = await api.get('/applications/mongo/admin');
+          console.log('✅ Response from /applications/mongo/admin:', response.data);
+          
+          if (Array.isArray(response.data)) {
+            applications = response.data;
+          } else if (response.data && response.data.data) {
+            applications = response.data.data;
+          } else if (response.data && response.data.applications) {
+            applications = response.data.applications;
+          }
+        } catch (err2) {
+          console.error('❌ Both endpoints failed');
+          throw err1; // Throw the first error
         }
       }
 
-      console.log('✅ Applications fetched:', response.data);
-      setApplications(Array.isArray(response.data) ? response.data : response.data.applications || []);
+      console.log('✅ Applications fetched:', applications);
+      setApplications(Array.isArray(applications) ? applications : []);
     } catch (err) {
       console.error('❌ Error fetching applications:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch applications';
