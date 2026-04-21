@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import EditModal from './EditModal';
 import '../styles/AdminApplications.css';
 
 function AdminApplications() {
@@ -11,6 +12,12 @@ function AdminApplications() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [applicationsPerPage] = useState(10);
+  
+  // Edit modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingApp, setEditingApp] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({});
 
   useEffect(() => {
     fetchApplications();
@@ -99,6 +106,82 @@ function AdminApplications() {
 
   const handleRefresh = () => {
     fetchApplications();
+  };
+
+  const handleEditApp = (app) => {
+    setEditingApp(app);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveApp = async (updatedData) => {
+    try {
+      setIsSaving(true);
+      console.log('💾 Saving application changes:', updatedData);
+      
+      const response = await api.put(`/admin/applications/${editingApp._id}`, updatedData);
+      
+      // Update local state
+      const updatedApps = applications.map(app => 
+        app._id === editingApp._id ? { ...app, ...updatedData, lastModifiedAt: new Date() } : app
+      );
+      setApplications(updatedApps);
+      
+      // Track save time
+      setSaveStatus(prev => ({
+        ...prev,
+        [editingApp._id]: new Date()
+      }));
+      
+      setIsEditModalOpen(false);
+      setEditingApp(null);
+      
+      // Show success notification
+      alert('✅ Application updated successfully!');
+    } catch (err) {
+      console.error('❌ Error saving application:', err);
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteApp = async (appId) => {
+    try {
+      const confirmDelete = window.confirm(
+        'Are you sure you want to delete this application? This action cannot be undone.'
+      );
+      
+      if (!confirmDelete) return;
+
+      console.log('🗑️ Deleting application:', appId);
+      await api.delete(`/admin/applications/${appId}`);
+      
+      // Update local state
+      setApplications(applications.filter(app => app._id !== appId));
+      
+      // Show success notification
+      alert('✅ Application deleted successfully!');
+    } catch (err) {
+      console.error('❌ Error deleting application:', err);
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const getEditFields = () => {
+    if (!editingApp) return [];
+    
+    return [
+      { name: 'status', label: 'Status', type: 'select', value: editingApp.status || 'pending', options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Shortlisted', value: 'shortlisted' },
+        { label: 'Interview', value: 'interview' },
+        { label: 'Hired', value: 'hired' },
+        { label: 'Rejected', value: 'rejected' }
+      ], required: true},
+      { name: 'score', label: 'Score', type: 'number', value: editingApp.score || 0 },
+      { name: 'skills', label: 'Skills (comma separated)', type: 'text', value: Array.isArray(editingApp.skills) ? editingApp.skills.join(', ') : '' },
+      { name: 'notes', label: 'Notes', type: 'textarea', value: editingApp.notes || '', rows: 4 },
+    ];
   };
 
   const handleExportCSV = () => {
@@ -272,6 +355,7 @@ function AdminApplications() {
                     <th>Status</th>
                     <th>Applied Date</th>
                     <th>Phone</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,9 +375,34 @@ function AdminApplications() {
                         </span>
                       </td>
                       <td className="date-cell">
-                        {new Date(app.createdAt).toLocaleDateString()}
+                        <div className="date-with-save">
+                          <span>{new Date(app.createdAt).toLocaleDateString()}</span>
+                          {saveStatus[app._id] && (
+                            <span className="last-saved-time" title={new Date(saveStatus[app._id]).toLocaleString()}>
+                              💾 {new Date(saveStatus[app._id]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="phone-cell">{app.phoneNumber || 'N/A'}</td>
+                      <td className="actions-cell">
+                        <div className="action-buttons-inline">
+                          <button
+                            className="btn-action btn-edit"
+                            onClick={() => handleEditApp(app)}
+                            title="Edit application"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className="btn-action btn-delete"
+                            onClick={() => handleDeleteApp(app._id)}
+                            title="Delete application"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -325,6 +434,20 @@ function AdminApplications() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <EditModal
+        isOpen={isEditModalOpen}
+        title="Edit Application"
+        fields={getEditFields()}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingApp(null);
+        }}
+        onSave={handleSaveApp}
+        loading={isSaving}
+        lastSaved={editingApp?._id ? saveStatus[editingApp._id] : null}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import EditModal from './EditModal';
 import '../styles/AdminUsers.css'; // You'll need to create this CSS file
 
 function AdminUsers() {
@@ -12,6 +13,13 @@ function AdminUsers() {
   const [verifiedFilter, setVerifiedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
+  
+  // Edit modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({});
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -70,6 +78,84 @@ function AdminUsers() {
 
   const handleRefresh = () => {
     fetchUsers();
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveUser = async (updatedData) => {
+    try {
+      setIsSaving(true);
+      console.log('💾 Saving user changes:', updatedData);
+      
+      const response = await api.put(`/admin/users/${editingUser._id}`, updatedData);
+      
+      // Update local state
+      const updatedUsers = users.map(u => 
+        u._id === editingUser._id ? { ...u, ...updatedData, lastModifiedAt: new Date() } : u
+      );
+      setUsers(updatedUsers);
+      
+      // Track save time
+      setSaveStatus(prev => ({
+        ...prev,
+        [editingUser._id]: new Date()
+      }));
+      
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+      
+      // Show success notification
+      alert('✅ User updated successfully!');
+    } catch (err) {
+      console.error('❌ Error saving user:', err);
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      const confirmDelete = window.confirm(
+        'Are you sure you want to delete this user? This action cannot be undone.'
+      );
+      
+      if (!confirmDelete) return;
+
+      console.log('🗑️ Deleting user:', userId);
+      await api.delete(`/admin/users/${userId}`);
+      
+      // Update local state
+      setUsers(users.filter(u => u._id !== userId));
+      setDeleteConfirm(null);
+      
+      // Show success notification
+      alert('✅ User deleted successfully!');
+    } catch (err) {
+      console.error('❌ Error deleting user:', err);
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const getEditFields = () => {
+    if (!editingUser) return [];
+    
+    return [
+      { name: 'name', label: 'Name', type: 'text', value: editingUser.name, required: true },
+      { name: 'email', label: 'Email', type: 'email', value: editingUser.email, required: true },
+      { name: 'phone', label: 'Phone', type: 'text', value: editingUser.phone || '' },
+      { name: 'location', label: 'Location', type: 'text', value: editingUser.location || '' },
+      { name: 'role', label: 'Role', type: 'select', value: editingUser.role || 'user', options: [
+        { label: 'User', value: 'user' },
+        { label: 'Recruiter', value: 'recruiter' },
+        { label: 'Admin', value: 'admin' }
+      ]},
+      { name: 'isVerified', label: 'Verified', type: 'checkbox', value: editingUser.isVerified },
+      { name: 'bio', label: 'Bio', type: 'textarea', value: editingUser.bio || '', rows: 3 }
+    ];
   };
 
   const handleExportCSV = () => {
@@ -213,6 +299,7 @@ function AdminUsers() {
                     <th>Verified</th>
                     <th>Joined</th>
                     <th>Last Updated</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,7 +323,32 @@ function AdminUsers() {
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                       <td className="date-cell">
-                        {new Date(user.updatedAt).toLocaleDateString()}
+                        <div className="date-with-save">
+                          <span>{new Date(user.updatedAt).toLocaleDateString()}</span>
+                          {saveStatus[user._id] && (
+                            <span className="last-saved-time" title={new Date(saveStatus[user._id]).toLocaleString()}>
+                              💾 {new Date(saveStatus[user._id]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="actions-cell">
+                        <div className="action-buttons-inline">
+                          <button
+                            className="btn-action btn-edit"
+                            onClick={() => handleEditUser(user)}
+                            title="Edit user"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className="btn-action btn-delete"
+                            onClick={() => handleDeleteUser(user._id)}
+                            title="Delete user"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -269,6 +381,20 @@ function AdminUsers() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <EditModal
+        isOpen={isEditModalOpen}
+        title="Edit User"
+        fields={getEditFields()}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingUser(null);
+        }}
+        onSave={handleSaveUser}
+        loading={isSaving}
+        lastSaved={editingUser?._id ? saveStatus[editingUser._id] : null}
+      />
     </div>
   );
 }
