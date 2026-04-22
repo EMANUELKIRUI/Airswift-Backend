@@ -239,12 +239,60 @@ router.delete("/applications/:id", permit('view_all_applications'), async (req, 
 //
 router.get("/interviews", permit('manage_interviews'), async (req, res) => {
   try {
-    const interviews = await Interview.find()
-      .populate("user", "name email")
-      .populate("application");
+    const { page = 1, limit = 100 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 100));
+    const offset = (pageNum - 1) * limitNum;
 
-    res.json(interviews);
+    const { count, rows } = await Interview.findAndCountAll({
+      include: [
+        { association: 'application', attributes: ['id', 'status'] },
+        { association: 'interviewer', attributes: ['id', 'name', 'email'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: limitNum,
+      offset: offset,
+      distinct: true
+    });
+
+    res.json({
+      success: true,
+      count: rows.length,
+      total: count,
+      page: pageNum,
+      pages: Math.ceil(count / limitNum),
+      interviews: rows
+    });
   } catch (err) {
+    console.error('Error fetching interviews:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get interview statistics
+router.get("/interviews/stats", permit('manage_interviews'), async (req, res) => {
+  try {
+    const { sequelize } = require('../config/database');
+    const { Op } = require('sequelize');
+    
+    const stats = await Interview.findAll({
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['status'],
+      raw: true
+    });
+
+    const totalInterviews = await Interview.count();
+    
+    res.json({
+      success: true,
+      totalInterviews,
+      statsByStatus: stats || []
+    });
+  } catch (err) {
+    console.error('Error fetching interview stats:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -254,12 +302,72 @@ router.get("/interviews", permit('manage_interviews'), async (req, res) => {
 //
 router.get("/payments", permit('view_analytics'), async (req, res) => {
   try {
-    const payments = await Payment.find()
-      .populate("user", "name email")
-      .sort({ createdAt: -1 });
+    const { page = 1, limit = 50, status } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
 
-    res.json(payments);
+    const where = {};
+    if (status) where.status = status;
+
+    const { count, rows } = await Payment.findAndCountAll({
+      where,
+      include: [
+        { association: 'user', attributes: ['id', 'name', 'email'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: limitNum,
+      offset: offset,
+      distinct: true
+    });
+
+    res.json({
+      success: true,
+      count: rows.length,
+      total: count,
+      page: pageNum,
+      pages: Math.ceil(count / limitNum),
+      payments: rows
+    });
   } catch (err) {
+    console.error('Error fetching payments:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+//
+// ✅ EMAIL LOGS - requires view_audit_logs permission
+//
+router.get("/email-logs", permit('view_audit_logs'), async (req, res) => {
+  try {
+    const EmailLog = require('../models/EmailLog');
+    const { page = 1, limit = 50, status, type } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
+
+    const where = {};
+    if (status) where.status = status;
+    if (type) where.type = type;
+
+    const { count, rows } = await EmailLog.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit: limitNum,
+      offset: offset,
+      distinct: true
+    });
+
+    res.json({
+      success: true,
+      count: rows.length,
+      total: count,
+      page: pageNum,
+      pages: Math.ceil(count / limitNum),
+      emailLogs: rows
+    });
+  } catch (err) {
+    console.error('Error fetching email logs:', err);
     res.status(500).json({ error: err.message });
   }
 });
