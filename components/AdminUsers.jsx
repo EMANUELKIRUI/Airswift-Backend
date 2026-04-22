@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import { getSocket } from '../socket';
 import EditModal from './EditModal';
 import '../styles/AdminUsers.css'; // You'll need to create this CSS file
 
@@ -28,6 +29,45 @@ function AdminUsers() {
   useEffect(() => {
     filterUsers();
   }, [users, searchTerm, roleFilter, verifiedFilter]);
+
+  // 🔴 Real-time Socket.IO listening for user updates
+  useEffect(() => {
+    const socket = getSocket();
+    
+    if (!socket) {
+      console.warn('Socket.IO is not connected');
+      return;
+    }
+
+    // Listen for user updates
+    const handleUserUpdated = (data) => {
+      console.log('📡 User updated via socket:', data);
+      
+      if (data.user && data.userId) {
+        setUsers(prevUsers =>
+          prevUsers.map(u => u._id === data.userId ? data.user : u)
+        );
+      }
+    };
+
+    // Listen for user deletions
+    const handleUserDeleted = (data) => {
+      console.log('📡 User deleted via socket:', data);
+      
+      if (data.userId) {
+        setUsers(prevUsers => prevUsers.filter(u => u._id !== data.userId));
+      }
+    };
+
+    socket.on('userUpdated', handleUserUpdated);
+    socket.on('userDeleted', handleUserDeleted);
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('userUpdated', handleUserUpdated);
+      socket.off('userDeleted', handleUserDeleted);
+    };
+  }, []);
 
   const fetchUsers = async () => {
     try {

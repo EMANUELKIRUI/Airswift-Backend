@@ -70,6 +70,21 @@ const applicationSchema = new mongoose.Schema(
     resumeVersion: {
       type: String,
     },
+    score: {
+      type: Number,
+      default: 0,
+    },
+    skills: [String],
+    status: {
+      type: String,
+      enum: ['pending', 'shortlisted', 'interview', 'hired', 'rejected'],
+      default: 'pending',
+    },
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    lastModifiedAt: Date,
   },
   {
     timestamps: true,

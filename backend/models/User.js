@@ -63,6 +63,12 @@ const userSchema = new mongoose.Schema(
     education: String,
     experience: String,
     draft: mongoose.Schema.Types.Mixed,
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    lastModifiedAt: Date,
+    bio: String,
   },
   { timestamps: true }
 );

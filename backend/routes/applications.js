@@ -124,11 +124,26 @@ router.post('/', protect, permit('apply_jobs'), upload.fields([
     // Save to database
     const savedApplication = await newApplication.save();
 
+    // Populate the application with full details for socket broadcast
+    const populatedApp = await Application.findById(savedApplication._id)
+      .populate('userId', 'name email phone location')
+      .populate('jobId', 'title description');
+
     console.log("✅ Application saved:", savedApplication._id);
+
+    // 🔴 BROADCAST to all admins via socket.io in real-time
+    const io = global.io;
+    if (io) {
+      io.emit('newApplicationSubmitted', {
+        message: `New application received from ${populatedApp.userId?.name || 'Unknown'}`,
+        application: populatedApp
+      });
+      console.log('📡 Broadcasting new application to admins');
+    }
 
     res.status(201).json({ 
       message: "Application submitted successfully",
-      application: savedApplication 
+      application: populatedApp 
     });
 
   } catch (err) {
@@ -195,10 +210,25 @@ router.post('/create', protect, permit('apply_jobs'), upload.fields([
 
     const savedApplication = await newApplication.save();
 
+    // Populate the application with full details for socket broadcast
+    const populatedApp = await Application.findById(savedApplication._id)
+      .populate('userId', 'name email phone location')
+      .populate('jobId', 'title description');
+
+    // 🔴 BROADCAST to all admins via socket.io in real-time
+    const io = global.io;
+    if (io) {
+      io.emit('newApplicationSubmitted', {
+        message: `New application received from ${populatedApp.userId?.name || 'Unknown'}`,
+        application: populatedApp
+      });
+      console.log('📡 Broadcasting new application to admins');
+    }
+
     res.json({
       success: true,
       message: "Application submitted successfully",
-      application: savedApplication,
+      application: populatedApp,
     });
 
   } catch (err) {
@@ -272,10 +302,25 @@ router.post('/apply', protect, permit('apply_jobs'), upload.fields([
     const savedApplication = await newApplication.save();
     console.log('✅ Application saved:', savedApplication._id);
 
+    // Populate the application with full details for socket broadcast
+    const populatedApp = await Application.findById(savedApplication._id)
+      .populate('userId', 'name email phone location')
+      .populate('jobId', 'title description');
+
+    // 🔴 BROADCAST to all admins via socket.io in real-time
+    const io = global.io;
+    if (io) {
+      io.emit('newApplicationSubmitted', {
+        message: `New application received from ${populatedApp.userId?.name || 'Unknown'}`,
+        application: populatedApp
+      });
+      console.log('📡 Broadcasting new application to admins');
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Application submitted successfully',
-      application: savedApplication,
+      application: populatedApp,
     });
   } catch (err) {
     console.error('🔥 ERROR:', err);

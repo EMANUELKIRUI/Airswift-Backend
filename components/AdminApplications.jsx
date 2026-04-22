@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import { getSocket } from '../socket';
 import EditModal from './EditModal';
 import '../styles/AdminApplications.css';
 
@@ -26,6 +27,61 @@ function AdminApplications() {
   useEffect(() => {
     filterApplications();
   }, [applications, searchTerm, statusFilter]);
+
+  // 🔴 Real-time Socket.IO listening for new applications
+  useEffect(() => {
+    const socket = getSocket();
+    
+    if (!socket) {
+      console.warn('Socket.IO is not connected');
+      return;
+    }
+
+    // Listen for new applications submitted by users
+    const handleNewApplication = (data) => {
+      console.log('📡 New application received via socket:', data);
+      
+      // Add the new application to the list
+      if (data.application) {
+        setApplications(prevApps => [data.application, ...prevApps]);
+        
+        // Show a notification
+        const notification = `✅ New application from ${data.application.userId?.name || 'Unknown'}`;
+        console.log(notification);
+      }
+    };
+
+    // Listen for application updates
+    const handleApplicationUpdate = (data) => {
+      console.log('📡 Application updated via socket:', data);
+      
+      if (data.app && data.appId) {
+        setApplications(prevApps => 
+          prevApps.map(app => app._id === data.appId ? data.app : app)
+        );
+      }
+    };
+
+    // Listen for application deletions
+    const handleApplicationDelete = (data) => {
+      console.log('📡 Application deleted via socket:', data);
+      
+      if (data.appId) {
+        setApplications(prevApps => prevApps.filter(app => app._id !== data.appId));
+      }
+    };
+
+    socket.on('newApplicationSubmitted', handleNewApplication);
+    socket.on('applicationUpdated', handleApplicationUpdate);
+    socket.on('applicationDeleted', handleApplicationDelete);
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('newApplicationSubmitted', handleNewApplication);
+      socket.off('applicationUpdated', handleApplicationUpdate);
+      socket.off('applicationDeleted', handleApplicationDelete);
+    };
+  }, []);
 
   const fetchApplications = async () => {
     try {

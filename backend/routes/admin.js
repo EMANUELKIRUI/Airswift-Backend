@@ -63,8 +63,11 @@ router.put("/users/:id", permit('manage_users'), async (req, res) => {
     });
 
     // Emit real-time update
-    const io = require('../utils/socket').getIO();
-    io.emit('userUpdated', { userId, user });
+    const io = global.io;
+    if (io) {
+      io.emit('userUpdated', { userId, user });
+      console.log('📡 Broadcasting user update via socket');
+    }
 
     res.json({ success: true, message: 'User updated successfully', user });
   } catch (err) {
@@ -107,8 +110,11 @@ router.delete("/users/:id", permit('manage_users'), async (req, res) => {
     await User.findByIdAndDelete(userId);
 
     // Emit real-time update
-    const io = require('../utils/socket').getIO();
-    io.emit('userDeleted', { userId });
+    const io = global.io;
+    if (io) {
+      io.emit('userDeleted', { userId });
+      console.log('📡 Broadcasting user deletion via socket');
+    }
 
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
@@ -180,8 +186,11 @@ router.put("/applications/:id", permit('view_all_applications'), async (req, res
     });
 
     // Emit real-time update
-    const io = require('../utils/socket').getIO();
-    io.emit('applicationUpdated', { appId, app });
+    const io = global.io;
+    if (io) {
+      io.emit('applicationUpdated', { appId, app });
+      console.log('📡 Broadcasting application update via socket');
+    }
 
     res.json({ success: true, message: 'Application updated successfully', data: app });
   } catch (err) {
@@ -212,8 +221,11 @@ router.delete("/applications/:id", permit('view_all_applications'), async (req, 
     await Application.findByIdAndDelete(appId);
 
     // Emit real-time update
-    const io = require('../utils/socket').getIO();
-    io.emit('applicationDeleted', { appId });
+    const io = global.io;
+    if (io) {
+      io.emit('applicationDeleted', { appId });
+      console.log('📡 Broadcasting application deletion via socket');
+    }
 
     res.json({ success: true, message: 'Application deleted successfully' });
   } catch (err) {
