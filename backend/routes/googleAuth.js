@@ -48,8 +48,6 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
             let role = 'user';
             if (normalizedEmail === 'admin@talex.com') {
               role = 'admin';
-            } else if (!normalizedEmail.endsWith('@email.com')) {
-              return done(new Error("Invalid email format. Only emails ending with @email.com are allowed for regular users."));
             }
 
             user = await createUser({

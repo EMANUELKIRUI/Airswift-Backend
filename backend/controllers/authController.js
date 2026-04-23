@@ -107,11 +107,6 @@ const registerUser = async (req, res) => {
     let role = 'user';
     if (normalizedEmail === 'admin@talex.com') {
       role = 'admin';
-    } else if (!normalizedEmail.endsWith('@email.com')) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid email format. Only emails ending with @email.com are allowed for regular users."
-      });
     }
 
     const otp = generateOTP();
