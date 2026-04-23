@@ -7,6 +7,7 @@ const {
   registerUser,
   verifyRegistrationOTP,
   verifyOtp,
+  verifyEmailToken,
   resendVerificationEmail,
   resendOTP,
   loginUser,
@@ -44,6 +45,7 @@ const otpRateLimiter = rateLimit({
 router.post("/register", registerUser);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/verify-otp", verifyOtp);
+router.get("/verify-email", verifyEmailToken);
 router.post("/resend-verification", otpRateLimiter, resendVerificationEmail);
 router.post("/send-registration-otp", otpRateLimiter, resendVerificationEmail); // Alias for frontend compatibility
 router.post("/resend-otp", otpRateLimiter, resendOTP);

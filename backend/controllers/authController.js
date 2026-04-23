@@ -30,6 +30,10 @@ const logEvent = async ({ userId, action, resource = 'auth', details }) => {
   }
 };
 
+const generateVerificationToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
 const buildCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
   const domain = isProduction ? "airswift-backend-fjt3.onrender.com" : undefined;
@@ -109,7 +113,7 @@ const registerUser = async (req, res) => {
       role = 'admin';
     }
 
-    const otp = generateOTP();
+    const verificationToken = generateVerificationToken();
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -119,20 +123,22 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       role,
       isVerified: false,
-      otp,
-      otpExpires: Date.now() + 10 * 60 * 1000
+      verificationToken,
+      verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
     });
+
+    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
 
     await sendEmail(
       user.email,
       "Verify your account",
-      `Your OTP is ${otp}`
+      `<p>Click the link below to verify your account:</p><p><a href="${verificationLink}">Verify Account</a></p><p>This link will expire in 24 hours.</p>`
     );
 
     return res.status(201).json({
       success: true,
-      message: "Account created. OTP sent.",
-      redirect: "/verify-otp",
+      message: "Account created. Verification email sent.",
+      redirect: "/verify-email",
       email: user.email
     });
   } catch (error) {
@@ -267,6 +273,36 @@ const verifyOtp = async (req, res) => {
   });
 };
 
+// ✅ VERIFY EMAIL TOKEN (for email activation link)
+const verifyEmailToken = async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ message: "Verification token is required" });
+  }
+
+  const user = await User.findOne({ verificationToken: token });
+
+  if (!user) {
+    return res.status(404).json({ message: "Invalid verification token" });
+  }
+
+  if (user.verificationTokenExpires < Date.now()) {
+    return res.status(400).json({ message: "Verification token expired" });
+  }
+
+  user.isVerified = true;
+  user.verificationToken = null;
+  user.verificationTokenExpires = null;
+
+  await user.save();
+
+  res.json({
+    success: true,
+    message: "Account verified successfully"
+  });
+};
+
 // ✅ RESEND VERIFICATION EMAIL (for registration)
 const resendVerificationEmail = async (req, res) => {
   try {
@@ -286,27 +322,31 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
-    trackOTPRequests(email);
-    const otp = generateOTP().toString();
-    const hashedOtp = await bcrypt.hash(otp, 10);
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
-    user.otp = hashedOtp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const verificationToken = generateVerificationToken();
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    user.otp = null;
+    user.otpExpires = null;
 
     await user.save();
 
+    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+
     let emailSent = false;
     try {
-      await sendOTP(user.email, otp);
+      await sendEmail(
+        user.email,
+        "Verify your account",
+        `<p>Click the link below to verify your account:</p><p><a href="${verificationLink}">Verify Account</a></p><p>This link will expire in 24 hours.</p>`
+      );
       emailSent = true;
     } catch (error) {
-      console.error(`RESEND VERIFICATION OTP ERROR for ${email}:`, error.response?.data || error.message);
+      console.error(`RESEND VERIFICATION EMAIL ERROR for ${email}:`, error.response?.data || error.message);
     }
 
     const responseMessage = emailSent
-      ? "Verification OTP resent successfully"
-      : "Verification OTP generated, but delivery failed";
+      ? "Verification email resent successfully"
+      : "Verification email generated, but delivery failed";
 
     res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
@@ -1091,6 +1131,7 @@ module.exports = {
   registerUser,
   verifyRegistrationOTP,
   verifyOtp,
+  verifyEmailToken,
   resendVerificationEmail,
   resendOTP,
   loginUser,
