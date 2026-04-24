@@ -30,10 +30,6 @@ const logEvent = async ({ userId, action, resource = 'auth', details }) => {
   }
 };
 
-const generateVerificationToken = () => {
-  return crypto.randomBytes(32).toString('hex');
-};
-
 const buildCookieOptions = (req) => {
   const isProduction = process.env.NODE_ENV === "production";
   const domain = isProduction ? "airswift-backend-fjt3.onrender.com" : undefined;
@@ -84,36 +80,44 @@ const registerUser = async (req, res) => {
         });
       }
 
-      // ⚠️ Not verified → RESEND OTP
-      const otp = generateOTP();
+      // ⚠️ Not verified → SEND ACTIVATION LINK
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
 
-      existingUser.otp = otp;
-      existingUser.otpExpires = Date.now() + 10 * 60 * 1000;
+      existingUser.verificationToken = hashedToken;
+      existingUser.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      existingUser.otp = null;
+      existingUser.otpExpires = null;
 
       await existingUser.save();
+
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://airswift.com'}/verify-email?token=${verificationToken}`;
 
       await sendEmail(
         existingUser.email,
         "Verify your account",
-        `Your OTP is ${otp}`
+        `<p>Please click the link below to verify your account:</p>
+        <a href="${verificationUrl}">Verify Account</a>
+        <p>This link will expire in 24 hours.</p>`
       );
 
       return res.status(200).json({
         success: true,
-        message: "Account not verified. OTP resent.",
-        redirect: "/verify-otp",
+        message: "Activation link sent for verifying account.",
+        redirect: "/verify-email",
         email: existingUser.email
       });
     }
 
     // 🟢 CASE 2: NEW USER
-    // Determine role based on email
-    let role = 'user';
-    if (normalizedEmail === 'admin@talex.com') {
-      role = 'admin';
-    }
-
-    const verificationToken = generateVerificationToken();
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -121,23 +125,27 @@ const registerUser = async (req, res) => {
       name,
       email: normalizedEmail,
       password: hashedPassword,
-      role,
+      role: 'user',
       isVerified: false,
-      verificationToken,
-      verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+      verificationToken: hashedToken,
+      verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      otp: null,
+      otpExpires: null
     });
 
-    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://airswift.com'}/verify-email?token=${verificationToken}`;
 
     await sendEmail(
       user.email,
       "Verify your account",
-      `<p>Click the link below to verify your account:</p><p><a href="${verificationLink}">Verify Account</a></p><p>This link will expire in 24 hours.</p>`
+      `<p>Please click the link below to verify your account:</p>
+      <a href="${verificationUrl}">Verify Account</a>
+      <p>This link will expire in 24 hours.</p>`
     );
 
     return res.status(201).json({
       success: true,
-      message: "Account created. Verification email sent.",
+      message: "Account created. Activation link sent.",
       redirect: "/verify-email",
       email: user.email
     });
@@ -273,36 +281,6 @@ const verifyOtp = async (req, res) => {
   });
 };
 
-// ✅ VERIFY EMAIL TOKEN (for email activation link)
-const verifyEmailToken = async (req, res) => {
-  const { token } = req.query;
-
-  if (!token) {
-    return res.status(400).json({ message: "Verification token is required" });
-  }
-
-  const user = await User.findOne({ verificationToken: token });
-
-  if (!user) {
-    return res.status(404).json({ message: "Invalid verification token" });
-  }
-
-  if (user.verificationTokenExpires < Date.now()) {
-    return res.status(400).json({ message: "Verification token expired" });
-  }
-
-  user.isVerified = true;
-  user.verificationToken = null;
-  user.verificationTokenExpires = null;
-
-  await user.save();
-
-  res.json({
-    success: true,
-    message: "Account verified successfully"
-  });
-};
-
 // ✅ RESEND VERIFICATION EMAIL (for registration)
 const resendVerificationEmail = async (req, res) => {
   try {
@@ -322,22 +300,30 @@ const resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: "Account already verified" });
     }
 
-    const verificationToken = generateVerificationToken();
-    user.verificationToken = verificationToken;
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+    user.verificationToken = hashedToken;
     user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     user.otp = null;
     user.otpExpires = null;
 
     await user.save();
 
-    const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://airswift.com'}/verify-email?token=${verificationToken}`;
 
     let emailSent = false;
     try {
       await sendEmail(
         user.email,
         "Verify your account",
-        `<p>Click the link below to verify your account:</p><p><a href="${verificationLink}">Verify Account</a></p><p>This link will expire in 24 hours.</p>`
+        `<p>Please click the link below to verify your account:</p>
+        <a href="${verificationUrl}">Verify Account</a>
+        <p>This link will expire in 24 hours.</p>`
       );
       emailSent = true;
     } catch (error) {
@@ -345,12 +331,62 @@ const resendVerificationEmail = async (req, res) => {
     }
 
     const responseMessage = emailSent
-      ? "Verification email resent successfully"
-      : "Verification email generated, but delivery failed";
+      ? "Verification link sent successfully"
+      : "Verification link generated, but delivery failed";
 
     res.status(emailSent ? 200 : 201).json({ message: responseMessage });
   } catch (err) {
     console.error("RESEND VERIFICATION EMAIL ERROR:", err);
+    return res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+
+const verifyEmailToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      verificationToken: hashedToken,
+      verificationTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    user.isVerified = true;
+    user.verificationToken = null;
+    user.verificationTokenExpires = null;
+    user.otp = null;
+    user.otpExpires = null;
+
+    await user.save();
+
+    // Audit logging
+    try {
+      await logEmailVerification(user._id, 'email_token');
+    } catch (auditError) {
+      console.error("VERIFY EMAIL TOKEN - Audit logging error:", auditError);
+    }
+
+    res.json({
+      success: true,
+      message: "Account verified successfully"
+    });
+  } catch (err) {
+    console.error("VERIFY EMAIL TOKEN ERROR:", err);
     return res.status(500).json({
       message: "Server error",
       error: err.message
@@ -448,17 +484,6 @@ const loginUser = async (req, res) => {
       return res.status(500).json({ message: "Server error during login" });
     }
 
-    // Ensure admin email always gets admin privileges
-    if (normalizedEmail === 'admin@talex.com' && user && user.role !== 'admin') {
-      user.role = 'admin';
-      try {
-        await user.save();
-        console.log('LOGIN - Upgraded admin@talex.com to admin role');
-      } catch (saveError) {
-        console.error('LOGIN - Failed to persist admin role upgrade:', saveError);
-      }
-    }
-
     if (!user) {
       console.log("LOGIN FAILED - User not found:", normalizedEmail);
       try {
@@ -495,42 +520,54 @@ const loginUser = async (req, res) => {
     if (!user.isVerified) {
       console.log("LOGIN ATTEMPT - User not verified, sending verification link:", user._id);
 
-      const otp = generateOTP().toString();
-      const hashedOtp = await bcrypt.hash(otp, 10);
-      user.verificationToken = null;
-      user.verificationTokenExpires = null;
-      user.otp = hashedOtp;
-      user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
+
+      user.verificationToken = hashedToken;
+      user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      user.otp = null;
+      user.otpExpires = null;
 
       try {
         await user.save();
       } catch (error) {
-        console.error("LOGIN USER DB SAVE ERROR (OTP):", error);
+        console.error("LOGIN USER DB SAVE ERROR (TOKEN):", error);
         if (isDatabaseError(error)) {
           return res.status(503).json({
             message: "Database temporarily unavailable. Please try again in a few moments.",
             error: "DATABASE_UNAVAILABLE"
           });
         }
-        return res.status(500).json({ message: "Server error during OTP generation" });
+        return res.status(500).json({ message: "Server error during token generation" });
       }
+
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://airswift.com'}/verify-email?token=${verificationToken}`;
 
       let emailSent = false;
       try {
-        await sendOTPEmail(user.email, otp);
+        await sendEmail(
+          user.email,
+          "Verify your account",
+          `<p>Please click the link below to verify your account:</p>
+          <a href="${verificationUrl}">Verify Account</a>
+          <p>This link will expire in 24 hours.</p>`
+        );
         emailSent = true;
-        console.log("LOGIN OTP SENT - OTP sent to:", user.email);
+        console.log("LOGIN VERIFICATION LINK SENT - Link sent to:", user.email);
       } catch (error) {
-        console.error(`LOGIN OTP EMAIL ERROR for ${user.email}:`, error.message);
+        console.error(`LOGIN VERIFICATION EMAIL ERROR for ${user.email}:`, error.message);
       }
 
       const responseMessage = emailSent
-        ? "Verification OTP sent to your email. Please verify your account to login."
-        : "Please verify your email first. Check your inbox for the verification OTP.";
+        ? "Verification link sent to your email. Please verify your account to login."
+        : "Please verify your email first. Check your inbox for the verification link.";
 
       return res.status(403).json({
         message: responseMessage,
-        redirect: "/verify-otp",
+        redirect: "/verify-email",
         email: user.email
       });
     }
@@ -1131,8 +1168,8 @@ module.exports = {
   registerUser,
   verifyRegistrationOTP,
   verifyOtp,
-  verifyEmailToken,
   resendVerificationEmail,
+  verifyEmailToken,
   resendOTP,
   loginUser,
   sendLoginOTP,

@@ -9,6 +9,7 @@ const {
   verifyOtp,
   verifyEmailToken,
   resendVerificationEmail,
+  verifyEmailToken,
   resendOTP,
   loginUser,
   sendLoginOTP,
