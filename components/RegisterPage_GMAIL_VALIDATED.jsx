@@ -22,6 +22,8 @@ function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [isConfirmationPage, setIsConfirmationPage] = useState(false);
 
   /**
    * ✅ Email validation function
@@ -222,18 +224,17 @@ function RegisterPage() {
 
       console.log('✅ Registration successful:', response.data);
       
-      setSuccessMessage('✅ Registration successful! Redirecting to dashboard...');
+      const emailToShow = response.data.email || formData.email;
+      setSuccessMessage('✅ Account created successfully! Please check your email to verify your account.');
+      setRegisteredEmail(emailToShow);
 
-      // Store token and user data
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      const confirmationPath = `/verify-email-sent?email=${encodeURIComponent(emailToShow)}`;
+      try {
+        await router.push(confirmationPath);
+      } catch (routeError) {
+        console.warn('Unable to navigate to confirmation page, using inline fallback:', routeError);
+        setIsConfirmationPage(true);
       }
-
-      // Redirect after short delay
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
     } catch (err) {
       console.error('❌ Registration error:', err);
       
@@ -248,6 +249,35 @@ function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (isConfirmationPage) {
+    return (
+      <div className="register-page">
+        <div className="register-container">
+          <div className="register-card confirmation-card">
+            <div className="confirmation-icon">✓</div>
+            <h1>Check Your Email</h1>
+            <p className="confirmation-text">
+              We sent an activation link to <strong>{registeredEmail}</strong>.
+              Please open your inbox and click the link to verify your account.
+            </p>
+            <div className="confirmation-tip">
+              <strong>Tip:</strong> Activation links expire after 24 hours. Use it promptly.
+            </div>
+            <div className="confirmation-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => router.push('/login')}
+              >
+                Back to login
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="register-page">
@@ -631,6 +661,56 @@ function RegisterPage() {
 
         .login-link a:hover {
           text-decoration: underline;
+        }
+
+        .confirmation-card {
+          text-align: center;
+          padding: 50px 35px;
+        }
+
+        .confirmation-icon {
+          width: 90px;
+          height: 90px;
+          border-radius: 50%;
+          background-color: #e6ffed;
+          color: #2f855a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 48px;
+          margin: 0 auto 20px;
+          border: 2px solid #9ae6b4;
+        }
+
+        .confirmation-card h1 {
+          font-size: 28px;
+          margin-bottom: 16px;
+          color: #2d3748;
+        }
+
+        .confirmation-text {
+          font-size: 16px;
+          color: #4a5568;
+          margin-bottom: 18px;
+          line-height: 1.7;
+        }
+
+        .confirmation-tip {
+          margin: 0 auto 28px;
+          padding: 16px;
+          max-width: 420px;
+          background-color: #ebf8ff;
+          border: 1px solid #bee3f8;
+          border-radius: 10px;
+          color: #2c5282;
+          font-size: 14px;
+        }
+
+        .confirmation-actions {
+          display: flex;
+          justify-content: center;
+          gap: 12px;
+          flex-wrap: wrap;
         }
       `}</style>
     </div>
