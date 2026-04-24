@@ -210,14 +210,44 @@ const getUserPayments = async (req, res) => {
   }
 };
 
-// Get all payments (admin only)
+// Get all payments (admin only) with pagination
 const getAllPayments = async (req, res) => {
   try {
-    const payments = await Payment.find({})
-      .populate('userId', 'name email')
-      .sort({ createdAt: -1 });
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
-    res.json(payments);
+    let query = {};
+    
+    // Add search functionality if needed
+    if (search) {
+      query = {
+        $or: [
+          { 'userId.name': { $regex: search, $options: 'i' } },
+          { 'userId.email': { $regex: search, $options: 'i' } },
+          { transactionId: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const payments = await Payment.find(query)
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    const total = await Payment.countDocuments(query);
+
+    res.json({
+      payments,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error fetching all payments:', error);
     res.status(500).json({ message: 'Failed to fetch payments' });

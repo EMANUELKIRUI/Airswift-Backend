@@ -13,6 +13,7 @@ const {
   autonomousRecruiter,
   rankApplicationsViaAI,
 } = require('../controllers/interviewController');
+const { getInterviewStats } = require('../controllers/dashboardController');
 const { protect, permit } = require('../middleware/auth');
 const adminOnly = require('../middleware/admin');
 
@@ -22,6 +23,8 @@ const router = express.Router();
 router.post('/', protect, permit('manage_interviews'), createInterview);
 router.post('/session', protect, createVoiceSession);
 router.get('/admin', protect, permit('manage_interviews'), getAdminInterviews);
+router.get('/admin/interviews', protect, permit('manage_interviews'), getAdminInterviews); // Alias for frontend compatibility
+router.get('/admin/interviews/stats', protect, permit('manage_interviews'), getInterviewStats); // Interview stats
 router.put('/:id', protect, permit('manage_interviews'), updateInterview);
 
 // Public routes (with auth)

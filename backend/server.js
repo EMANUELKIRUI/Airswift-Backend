@@ -558,7 +558,7 @@ app.post('/api/tts', streamElevenLabsTTS);
 app.use("/auth", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/googleAuth"));
 app.use("/api/auth", require("./routes/auth"));
-app.use("/api/admin/audit-logs", require("./routes/auditLogs"));
+app.use("/api/audit-logs", require("./routes/auditLogs"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/settings", require("./routes/settings"));
 

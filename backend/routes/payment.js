@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const { stkPush } = require('../controllers/paymentController');
-const { verifyToken, protect } = require('../middleware/auth');
+const { stkPush, getAllPayments } = require('../controllers/paymentController');
+const { verifyToken, protect, permit } = require('../middleware/auth');
 
 console.log("TYPE OF stkPush:", typeof stkPush);
 
 router.post('/pay', verifyToken, stkPush); // ✅ Protected with authentication
+
+// Get all payments (admin only)
+router.get('/', protect, permit('view_payments'), getAllPayments);
 
 // M-Pesa STK Push initiation
 router.post('/initiate', protect, async (req, res) => {

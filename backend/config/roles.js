@@ -25,6 +25,7 @@ const PERMISSIONS = {
   'view_analytics': 'View system analytics',
   'view_audit_logs': 'View audit logs',
   'manage_settings': 'Manage system settings',
+  'view_payments': 'View payment records',
   
   // Recruiter permissions (future)
   'recruit_users': 'Manage recruitment',
@@ -48,6 +49,7 @@ const ROLES = {
       'view_analytics',
       'view_audit_logs',
       'manage_settings',
+      'view_payments',
       'view_profile',
       'apply_jobs',
     ],
