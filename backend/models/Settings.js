@@ -17,6 +17,6 @@ const settingsSchema = new mongoose.Schema({
 
   emailNotifications: { type: Boolean, default: true },
   maintenanceMode: { type: Boolean, default: false },
-}, { timestamps: true });
+}, { timestamps: true, strict: false });
 
 module.exports = mongoose.model('Settings', settingsSchema);

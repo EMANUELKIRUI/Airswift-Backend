@@ -27,19 +27,17 @@ exports.saveSettings = async (req, res) => {
   try {
     const payload = { ...req.body, singleton: true };
 
-    let settings = await Settings.findOne({ singleton: true });
-
-    if (!settings) {
-      settings = await Settings.findOne();
-    }
-
-    if (settings) {
-      Object.assign(settings, payload);
-      settings.singleton = true;
-      await settings.save();
-    } else {
-      settings = await Settings.create(payload);
-    }
+    const settings = await Settings.findOneAndUpdate(
+      { singleton: true },
+      payload,
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+        strict: false,
+      }
+    );
 
     res.json({
       success: true,
