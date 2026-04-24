@@ -5,7 +5,8 @@
     "start": "cd backend && npm start"
   },
   "dependencies": {
-    "axios": "^1.15.0",
+    "axios": "^1.15.2",
+    "chalk": "^5.6.2",
     "form-data": "^4.0.5",
     "json2csv": "^6.0.0-alpha.2",
     "react-hot-toast": "^2.6.0",

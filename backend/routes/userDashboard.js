@@ -2,6 +2,8 @@ const express = require('express');
 const { protect, authorize } = require('../middleware/auth');
 const { User } = require('../models');
 const { Application } = require('../models');
+const Interview = require('../models/Interview');
+const Message = require('../models/Message');
 
 const router = express.Router();
 
@@ -35,6 +37,18 @@ router.get('/', protect, authorize('user', 'recruiter'), async (req, res) => {
       status: 'accepted',
     });
 
+    // Get interviews scheduled
+    const interviewsScheduled = await Interview.countDocuments({
+      user_id: userId,
+      status: 'scheduled',
+    });
+
+    // Get unread messages
+    const unreadMessages = await Message.countDocuments({
+      recipient_id: userId,
+      read: false,
+    });
+
     return res.json({
       success: true,
       user: {
@@ -48,6 +62,8 @@ router.get('/', protect, authorize('user', 'recruiter'), async (req, res) => {
         totalApplications: applicationsCount,
         pendingApplications: pendingApplications,
         acceptedApplications: acceptedApplications,
+        interviewsScheduled: interviewsScheduled,
+        unreadMessages: unreadMessages,
       },
     });
   } catch (error) {
