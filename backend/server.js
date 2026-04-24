@@ -64,10 +64,6 @@ app.set('io', io);
 initializeSocket(io);
 setSocketInstance(io);
 
-// Initialize System Health Monitor
-const healthMonitor = require('./services/systemHealthMonitor');
-healthMonitor.startMonitoring(5000); // Monitor every 5 seconds
-
 // Socket.io for WebRTC video interviews and applicant tracking
 const interviewRooms = new Map();
 const adminSessions = new Map(); // Track active admin connections for real-time updates
@@ -518,11 +514,6 @@ app.get('/', (req, res) => {
   res.status(200).json({ message: 'Server is healthy' });
 });
 
-// Health check route
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
 // API test route
 app.get('/', (req, res) => {
   res.send('API is running...');
@@ -562,14 +553,6 @@ app.use("/api/audit-logs", require("./routes/auditLogs"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/settings", require("./routes/settings"));
 
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: "OK",
-    uptime: process.uptime(),
-    timestamp: new Date()
-  });
-});
-
 app.get('/api/debug/headers', (req, res) => {
   res.json({ authorization: req.headers.authorization });
 });
@@ -592,7 +575,6 @@ app.use("/api/ai", require("./routes/ai"));
 app.use("/api/audit", require("./routes/audit"));
 app.use("/api/admin/audit", require("./routes/audit"));
 app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
-app.use("/api/system-health", require("./routes/systemHealth"));
 app.use("/api/admin/dashboard", require("./routes/dashboard"));
 app.use("/api/user/dashboard", require("./routes/userDashboard")); // ✅ User dashboard for regular users
 app.use("/api/email", require("./routes/email"));
