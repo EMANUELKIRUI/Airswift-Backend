@@ -27,7 +27,7 @@ function AdminSettings() {
       console.log('✅ Settings fetched:', response.data);
       
       // Store original settings for comparison
-      const settingsData = response.data.settings || response.data;
+      const settingsData = response.data.settings || response.data.data || response.data;
       setSettings(settingsData);
       setOriginalSettings(JSON.parse(JSON.stringify(settingsData)));
       setModifiedFields(new Set());
@@ -69,12 +69,13 @@ function AdminSettings() {
       setError(null);
       console.log('💾 Saving settings:', settings);
       
-      const response = await api.post('/settings', settings);
+      const response = await api.put('/settings', settings);
       
       console.log('✅ Settings saved:', response.data);
       
-      // Update original settings
-      setOriginalSettings(JSON.parse(JSON.stringify(settings)));
+      const savedSettings = response.data.settings || response.data.data || response.data;
+      setSettings(savedSettings);
+      setOriginalSettings(JSON.parse(JSON.stringify(savedSettings)));
       
       // Clear modified fields
       const now = new Date();

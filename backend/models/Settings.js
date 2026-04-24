@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const settingsSchema = new mongoose.Schema({
+  singleton: { type: Boolean, default: true, unique: true, sparse: true },
   platformName: { type: String, default: 'Talex' },
   currency: { type: String, default: 'USD' },
   maxJobsPerDay: { type: Number, default: 50 },

@@ -22,7 +22,7 @@ function AuditLogs() {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [currentPage, actionFilter, sortOrder]);
+  }, [currentPage, actionFilter, sortOrder, searchTerm]);
 
   const fetchAuditLogs = async () => {
     try {
@@ -30,7 +30,6 @@ function AuditLogs() {
       setError(null);
       console.log('📥 Fetching audit logs...');
 
-      // Determine the page number for API
       const pageNum = currentPage;
       const limit = logsPerPage;
 
@@ -47,13 +46,20 @@ function AuditLogs() {
         params.search = searchTerm;
       }
 
-      // Try the primary audit endpoint
       let response;
-      try {
-        response = await api.get('/admin/audit', { params });
-      } catch (err) {
-        console.warn('⚠️ /admin/audit failed, trying /auditLogs...');
-        response = await api.get('/auditLogs', { params });
+
+      const endpoints = ['/admin/audit-logs', '/admin/audit', '/audit-logs', '/auditLogs'];
+      for (const endpoint of endpoints) {
+        try {
+          response = await api.get(endpoint, { params });
+          break;
+        } catch (err) {
+          console.warn(`⚠️ ${endpoint} failed, trying next endpoint...`, err.response?.status);
+        }
+      }
+
+      if (!response) {
+        throw new Error('Unable to fetch audit logs from configured endpoints');
       }
 
       console.log('✅ Audit logs fetched:', response.data);
@@ -64,19 +70,22 @@ function AuditLogs() {
       let logsData = [];
       let pagination = { total: 0, pages: 1 };
 
-      if (data.data) {
+      if (data?.data) {
         logsData = Array.isArray(data.data) ? data.data : [];
         pagination = data.pagination || { total: logsData.length, pages: 1 };
       } else if (Array.isArray(data)) {
         logsData = data;
         pagination = { total: data.length, pages: 1 };
-      } else if (data.logs) {
-        logsData = data.logs;
-        pagination = data.pagination || { total: data.logs.length, pages: 1 };
+      } else if (data?.logs) {
+        logsData = Array.isArray(data.logs) ? data.logs : [];
+        pagination = data.pagination || { total: logsData.length, pages: 1 };
+      } else if (data?.records) {
+        logsData = Array.isArray(data.records) ? data.records : [];
+        pagination = data.pagination || { total: logsData.length, pages: 1 };
       }
 
       setLogs(logsData);
-      setTotalLogs(pagination.total);
+      setTotalLogs(pagination.total || logsData.length);
     } catch (err) {
       console.error('❌ Error fetching audit logs:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Unable to load audit logs. Please try again.';

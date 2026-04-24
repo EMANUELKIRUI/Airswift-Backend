@@ -3,13 +3,20 @@ const Settings = require('../models/Settings');
 // GET settings
 exports.getSettings = async (req, res) => {
   try {
-    let settings = await Settings.findOne();
+    let settings = await Settings.findOne({ singleton: true });
 
     if (!settings) {
-      settings = await Settings.create({});
+      settings = await Settings.findOne();
     }
 
-    res.json(settings);
+    if (!settings) {
+      settings = await Settings.create({ singleton: true });
+    } else if (!settings.singleton) {
+      settings.singleton = true;
+      await settings.save();
+    }
+
+    res.json({ success: true, settings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -18,23 +25,26 @@ exports.getSettings = async (req, res) => {
 // SAVE settings
 exports.saveSettings = async (req, res) => {
   try {
-    console.log('Incoming settings:', req.body);
-    console.log('User:', req.user);
+    const payload = { ...req.body, singleton: true };
 
-    let settings = await Settings.findOne();
+    let settings = await Settings.findOne({ singleton: true });
 
     if (!settings) {
-      settings = new Settings(req.body);
-    } else {
-      Object.assign(settings, req.body);
+      settings = await Settings.findOne();
     }
 
-    await settings.save();
+    if (settings) {
+      Object.assign(settings, payload);
+      settings.singleton = true;
+      await settings.save();
+    } else {
+      settings = await Settings.create(payload);
+    }
 
     res.json({
       success: true,
       message: 'Settings saved successfully',
-      settings
+      settings,
     });
   } catch (err) {
     console.error('❌ Save settings error:', err);
