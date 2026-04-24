@@ -70,17 +70,22 @@ function AuditLogs() {
       let logsData = [];
       let pagination = { total: 0, pages: 1 };
 
+      const getArray = (value) => {
+        if (Array.isArray(value)) return value;
+        if (value?.logs && Array.isArray(value.logs)) return value.logs;
+        if (value?.records && Array.isArray(value.records)) return value.records;
+        if (value?.auditLogs && Array.isArray(value.auditLogs)) return value.auditLogs;
+        return [];
+      };
+
       if (data?.data) {
-        logsData = Array.isArray(data.data) ? data.data : [];
-        pagination = data.pagination || { total: logsData.length, pages: 1 };
+        logsData = getArray(data.data);
+        pagination = data.data.pagination || data.pagination || { total: logsData.length, pages: 1 };
       } else if (Array.isArray(data)) {
         logsData = data;
         pagination = { total: data.length, pages: 1 };
-      } else if (data?.logs) {
-        logsData = Array.isArray(data.logs) ? data.logs : [];
-        pagination = data.pagination || { total: logsData.length, pages: 1 };
-      } else if (data?.records) {
-        logsData = Array.isArray(data.records) ? data.records : [];
+      } else {
+        logsData = getArray(data);
         pagination = data.pagination || { total: logsData.length, pages: 1 };
       }
 
