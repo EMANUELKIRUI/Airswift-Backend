@@ -1164,6 +1164,38 @@ const logout = async (req, res) => {
   }
 };
 
+// ✅ CHANGE PASSWORD
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current password and new password are required" });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("CHANGE PASSWORD ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   registerUser,
   verifyRegistrationOTP,
@@ -1177,6 +1209,7 @@ module.exports = {
   getMe,
   forgotPassword,
   resetPassword,
+  changePassword,
   refreshToken,
   logout,
   // adminLogin // Removed - admin uses regular login

@@ -32,7 +32,7 @@ const initializeSettings = async () => {
 };
 
 const { createAdminIfNotExists } = require("./utils/adminSetup");
-const initializeSocket = require("./utils/socket");
+const { initializeSocket } = require("./utils/socket");
 const { setSocketInstance } = require("./utils/logger");
 const maintenanceMode = require('./middleware/maintenanceMode');
 const seedJobsWithCategories = require('./scripts/seedJobsWithCategories');

@@ -48,7 +48,7 @@ function AuditLogs() {
 
       let response;
 
-      const endpoints = ['/admin/audit-logs', '/admin/audit', '/audit-logs', '/auditLogs'];
+      const endpoints = ['/admin/audit', '/admin/audit-logs', '/audit-logs', '/auditLogs'];
       for (const endpoint of endpoints) {
         try {
           response = await api.get(endpoint, { params });

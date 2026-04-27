@@ -115,49 +115,23 @@ router.get('/', protect, authorize('user', 'recruiter'), async (req, res) => {
 
     return res.json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        hasSubmittedApplication: user.hasSubmittedApplication,
+      data: {
+        stats: {
+          totalApplications: applicationsCount,
+          pendingApplications: pendingApplications,
+          interviewsScheduled: interviewsScheduled,
+          unreadMessages: unreadMessages,
+        },
+        recentActivity: recentActivity.map(activity => ({
+          id: activity._id,
+          type: 'notification',
+          title: activity.title,
+          description: activity.message,
+          timestamp: activity.createdAt.toISOString(),
+          icon: '🔔',
+        })),
+        profileCompletion: 75, // TODO: Calculate based on profile completeness
       },
-      stats: {
-        totalApplications: applicationsCount,
-        pendingApplications: pendingApplications,
-        approvedApplications: approvedApplications,
-        rejectedApplications: rejectedApplications,
-        interviewsScheduled: interviewsScheduled,
-        unreadMessages: unreadMessages,
-        unreadNotifications: unreadNotifications,
-      },
-      recentActivity: recentActivity.map(activity => ({
-        title: activity.title,
-        message: activity.message,
-        date: activity.createdAt,
-      })),
-      upcomingInterviews: upcomingInterviews.map(interview => ({
-        id: interview.id,
-        jobTitle: interview.Application?.Job?.title || 'Unknown Job',
-        scheduledAt: interview.scheduled_at,
-        meetingLink: interview.meeting_link,
-        status: interview.status,
-        type: interview.type,
-        mode: interview.mode,
-      })),
-      latestApplications: latestApplications.map(app => ({
-        id: app.id,
-        jobTitle: app.Job?.title || 'Unknown Job',
-        status: app.status,
-        appliedAt: app.created_at,
-      })),
-      recentMessages: recentMessages.map(msg => ({
-        id: msg._id,
-        text: msg.text,
-        senderName: msg.senderId?.name || 'Admin',
-        senderRole: msg.senderId?.role || 'admin',
-        date: msg.createdAt,
-      })),
     });
   } catch (error) {
     console.error('USER DASHBOARD ERROR:', error);

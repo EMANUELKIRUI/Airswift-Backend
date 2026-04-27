@@ -1,13 +1,50 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { getSocket } from '../socket';
 
 /**
  * useSocketNotifications - Integrates Socket.IO events with notification system
  * Listens for real-time events and automatically displays them as notifications
+ * Provides a subscribe function for custom event handling
  */
 export const useSocketNotifications = () => {
   const { addNotification } = useNotification();
+  const subscribersRef = useRef(new Map());
+
+  const subscribe = (event, callback) => {
+    const socket = getSocket();
+    if (!socket) {
+      console.warn('Socket.IO is not connected');
+      return () => {};
+    }
+
+    const handler = (data) => {
+      callback(data);
+    };
+
+    socket.on(event, handler);
+
+    // Store the handler for cleanup
+    if (!subscribersRef.current.has(event)) {
+      subscribersRef.current.set(event, []);
+    }
+    subscribersRef.current.get(event).push(handler);
+
+    // Return unsubscribe function
+    return () => {
+      socket.off(event, handler);
+      const handlers = subscribersRef.current.get(event);
+      if (handlers) {
+        const index = handlers.indexOf(handler);
+        if (index > -1) {
+          handlers.splice(index, 1);
+        }
+        if (handlers.length === 0) {
+          subscribersRef.current.delete(event);
+        }
+      }
+    };
+  };
 
   useEffect(() => {
     const socket = getSocket();
@@ -99,8 +136,18 @@ export const useSocketNotifications = () => {
       socket.off('payment:update');
       socket.off('Admin');
       socket.off('socket-error');
+
+      // Cleanup custom subscribers
+      subscribersRef.current.forEach((handlers, event) => {
+        handlers.forEach(handler => {
+          socket.off(event, handler);
+        });
+      });
+      subscribersRef.current.clear();
     };
   }, [addNotification]);
+
+  return { subscribe };
 };
 
 export default useSocketNotifications;

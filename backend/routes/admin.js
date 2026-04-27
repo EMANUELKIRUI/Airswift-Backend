@@ -23,6 +23,58 @@ router.get("/users", permit('manage_users'), async (req, res) => {
   }
 });
 
+router.post("/users", permit('manage_users'), async (req, res) => {
+  try {
+    const { name, email, role = 'user', isVerified = false, phone, location, bio } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'A user with this email already exists' });
+    }
+
+    const newUser = new User({
+      name,
+      email,
+      role,
+      isVerified,
+      phone,
+      location,
+      bio,
+      lastModifiedBy: req.user.id,
+      lastModifiedAt: new Date(),
+    });
+
+    await newUser.save();
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      action: 'CREATE_USER',
+      resource: 'User',
+      description: `Created user: ${newUser.name} (${newUser.email})`,
+      createdData: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+    });
+
+    const io = global.io;
+    if (io) {
+      io.emit('userCreated', { user: newUser });
+    }
+
+    res.status(201).json({ success: true, message: 'User created successfully', user: newUser });
+  } catch (err) {
+    console.error('User creation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.put("/users/:id", permit('manage_users'), async (req, res) => {
   try {
     const { applicationStatus, name, email, role, isVerified, phone, location, bio } = req.body;
@@ -426,6 +478,50 @@ router.get("/audit", permit('view_audit_logs'), async (req, res) => {
   }
 });
 
+router.get("/audit-logs", permit('view_audit_logs'), async (req, res) => {
+  try {
+    const { search, action, page = 1, limit = 50 } = req.query;
+
+    let query = {};
+    if (search) {
+      query.description = { $regex: search, $options: "i" };
+    }
+    if (action && action !== "all") {
+      query.action = action;
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await AuditLog.countDocuments(query);
+    const logs = await AuditLog.find(query)
+      .populate("user_id", "name email role")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    console.log(`✅ Admin fetched ${logs.length} audit logs via alias route (Total: ${total})`);
+
+    res.json({
+      success: true,
+      data: logs,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (err) {
+    console.error('❌ Admin audit alias fetch error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Failed to fetch audit logs" 
+    });
+  }
+});
+
 //
 // ✅ SETTINGS - requires manage_settings permission
 //
@@ -498,8 +594,10 @@ router.put("/settings", permit('manage_settings'), async (req, res) => {
     await settings.save();
 
     // Emit real-time update to all connected clients
-    const io = require('../utils/socket').getIO();
-    io.emit('settingsUpdated', { settings });
+    const io = global.io || req.app.get('io');
+    if (io) {
+      io.emit('settingsUpdated', { settings });
+    }
 
     console.log('✅ Settings saved successfully');
 

@@ -18,6 +18,7 @@ function AdminUsers() {
   // Edit modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -120,8 +121,23 @@ function AdminUsers() {
     fetchUsers();
   };
 
+  const handleAddUser = () => {
+    setEditingUser({
+      name: '',
+      email: '',
+      phone: '',
+      location: '',
+      role: 'user',
+      isVerified: false,
+      bio: ''
+    });
+    setIsCreateMode(true);
+    setIsEditModalOpen(true);
+  };
+
   const handleEditUser = (user) => {
     setEditingUser(user);
+    setIsCreateMode(false);
     setIsEditModalOpen(true);
   };
 
@@ -129,26 +145,34 @@ function AdminUsers() {
     try {
       setIsSaving(true);
       console.log('💾 Saving user changes:', updatedData);
-      
-      const response = await api.put(`/admin/users/${editingUser._id}`, updatedData);
-      
-      // Update local state
-      const updatedUsers = users.map(u => 
-        u._id === editingUser._id ? { ...u, ...updatedData, lastModifiedAt: new Date() } : u
-      );
-      setUsers(updatedUsers);
-      
-      // Track save time
-      setSaveStatus(prev => ({
-        ...prev,
-        [editingUser._id]: new Date()
-      }));
-      
+
+      let response;
+      if (isCreateMode) {
+        response = await api.post('/admin/users', updatedData);
+      } else {
+        response = await api.put(`/admin/users/${editingUser._id}`, updatedData);
+      }
+
+      const savedUser = response.data.user || response.data.data || response.data;
+
+      if (isCreateMode) {
+        setUsers(prev => [savedUser, ...prev]);
+        alert('✅ User created successfully!');
+      } else {
+        const updatedUsers = users.map(u => 
+          u._id === editingUser._id ? { ...u, ...updatedData, ...savedUser, lastModifiedAt: new Date() } : u
+        );
+        setUsers(updatedUsers);
+        setSaveStatus(prev => ({
+          ...prev,
+          [editingUser._id]: new Date()
+        }));
+        alert('✅ User updated successfully!');
+      }
+
       setIsEditModalOpen(false);
       setEditingUser(null);
-      
-      // Show success notification
-      alert('✅ User updated successfully!');
+      setIsCreateMode(false);
     } catch (err) {
       console.error('❌ Error saving user:', err);
       alert('❌ Error: ' + (err.response?.data?.message || err.message));
@@ -292,6 +316,9 @@ function AdminUsers() {
         </div>
 
         <div className="action-buttons">
+          <button onClick={handleAddUser} className="btn-create" title="Add new user">
+            ➕ Add User
+          </button>
           <button onClick={handleRefresh} className="btn-refresh" title="Refresh users">
             🔄 Refresh
           </button>
@@ -425,15 +452,16 @@ function AdminUsers() {
       {/* Edit Modal */}
       <EditModal
         isOpen={isEditModalOpen}
-        title="Edit User"
+        title={isCreateMode ? 'Add User' : 'Edit User'}
         fields={getEditFields()}
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingUser(null);
+          setIsCreateMode(false);
         }}
         onSave={handleSaveUser}
         loading={isSaving}
-        lastSaved={editingUser?._id ? saveStatus[editingUser._id] : null}
+        lastSaved={!isCreateMode && editingUser?._id ? saveStatus[editingUser._id] : null}
       />
     </div>
   );

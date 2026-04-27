@@ -1,4 +1,8 @@
+let ioInstance = null;
+
 const initializeSocket = (io) => {
+  ioInstance = io;
+
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
 
@@ -12,4 +16,9 @@ const initializeSocket = (io) => {
   });
 };
 
-module.exports = initializeSocket;
+const getIO = () => ioInstance;
+
+module.exports = {
+  initializeSocket,
+  getIO,
+};

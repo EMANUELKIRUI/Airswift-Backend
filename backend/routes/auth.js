@@ -16,6 +16,7 @@ const {
   getMe,
   forgotPassword,
   resetPassword,
+  changePassword,
   refreshToken,
   logout,
   // adminLogin // Removed - admin uses regular login
@@ -54,6 +55,7 @@ router.post("/login", loginLimiter, loginUser);
 router.post("/send-login-otp", sendLoginOTP);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);
+router.put("/change-password", verifyToken, changePassword);
 router.post("/reset-password/:token?", resetPassword);
 router.post("/refresh", refreshToken);
 router.post("/logout", logout);

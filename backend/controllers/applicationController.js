@@ -658,6 +658,55 @@ const updateApplicationStatus = async (req, res) => {
   }
 };
 
+const cancelApplication = async (req, res) => {
+  try {
+    const application = await Application.findByPk(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    // Check if user owns this application
+    if (application.user_id !== req.user.id && application.userId !== req.user.id) {
+      return res.status(403).json({ message: 'You can only cancel your own applications' });
+    }
+
+    // Check if application can be cancelled (not already accepted/rejected)
+    if (['accepted', 'rejected', 'hired'].includes(application.status)) {
+      return res.status(400).json({ message: 'Cannot cancel application with current status' });
+    }
+
+    const oldStatus = application.status;
+    application.status = 'cancelled';
+    await application.save();
+
+    // Emit real-time update
+    const io = req.app?.get('io') || global.io;
+    const userRoom = `user_${req.user.id}`;
+    if (io && userRoom) {
+      io.to(userRoom).emit('applicationUpdated', {
+        status: 'cancelled',
+        applicationId: application.id,
+      });
+    }
+
+    // Log audit event
+    await createAuditLog({
+      user: req.user,
+      action: "CANCEL_APPLICATION",
+      resource: "Application",
+      description: `User cancelled application ${application.id}`,
+    });
+
+    res.json({
+      message: 'Application cancelled successfully',
+      application,
+    });
+  } catch (error) {
+    console.error('cancelApplication error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 const sendMessageToApplicants = async (req, res) => {
   try {
     const schema = Joi.object({

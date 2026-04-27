@@ -4,11 +4,7 @@ const { emitDirectMessage } = require('../utils/socketEmitter');
 
 const sendMessage = async (req, res) => {
   try {
-    // Only admin can send messages
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admin can send messages' });
-    }
-
+    // Allow both admin and users to send messages
     const {
       receiverId,
       user_id,
@@ -33,6 +29,11 @@ const sendMessage = async (req, res) => {
       return res.status(404).json({ message: 'Receiver not found' });
     }
 
+    // If sender is not admin, they can only send to admin
+    if (req.user.role !== 'admin' && receiver.role !== 'admin') {
+      return res.status(403).json({ message: 'Users can only send messages to admin' });
+    }
+
     const message = await Message.create({
       senderId: req.user.id,
       receiverId: finalReceiverId,
@@ -51,7 +52,7 @@ const sendMessage = async (req, res) => {
 
     emitDirectMessage(populatedMessage);
 
-    res.status(201).json(populatedMessage);
+    res.status(201).json({ success: true, message: populatedMessage });
   } catch (err) {
     console.error('sendMessage error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -81,9 +82,20 @@ const getMessages = async (req, res) => {
       .populate('senderId', 'name email role')
       .populate('receiverId', 'name email role');
 
-    const unreadCount = messages.filter((m) => !m.is_read).length;
+    // Transform messages to match frontend expectations
+    const transformedMessages = messages.map(msg => ({
+      id: msg._id,
+      content: msg.text,
+      sender: msg.senderId?.role === 'admin' ? 'admin' : 'user',
+      timestamp: msg.createdAt,
+      read: msg.is_read,
+      attachment: msg.attachment_path ? {
+        name: msg.attachment_path.split('/').pop(),
+        url: msg.attachment_path,
+      } : null,
+    }));
 
-    res.json({ messages, unreadCount });
+    res.json({ success: true, messages: transformedMessages });
   } catch (err) {
     console.error('getMessages error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -111,8 +123,49 @@ const markMessageRead = async (req, res) => {
   }
 };
 
+const getRecentMessages = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    const messages = await Message.find({
+      $or: [
+        { senderId: req.user.id },
+        { receiverId: req.user.id },
+      ],
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('senderId', 'name email role')
+      .populate('receiverId', 'name email role');
+
+    res.json({ messages });
+  } catch (err) {
+    console.error('getRecentMessages error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+const markMessagesAsRead = async (req, res) => {
+  try {
+    const result = await Message.updateMany(
+      {
+        receiverId: req.user.id,
+        is_read: false,
+      },
+      { is_read: true }
+    );
+
+    res.json({ success: true, updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error('markMessagesAsRead error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
 module.exports = {
   sendMessage,
   getMessages,
   markMessageRead,
+  getRecentMessages,
+  markMessagesAsRead,
 };
