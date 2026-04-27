@@ -1,12 +1,51 @@
 const express = require("express");
 const router = express.Router();
 const { protect, authorize, permit } = require("../middleware/auth");
+const mongoose = require("mongoose");
 
-const User = require("../models/User");
-const Application = require("../models/ApplicationMongoose");
+// Conditionally import models based on database connection
+let User, Application, AuditLog, Settings, EmailLog;
+
+if (mongoose.connection.readyState === 1) {
+  // MongoDB is connected
+  User = require("../models/User");
+  Application = require("../models/ApplicationMongoose");
+  AuditLog = require("../models/AuditLogMongo");
+  Settings = require("../models/Settings");
+  EmailLog = require("../models/EmailLog");
+} else {
+  // Fallback to Sequelize models
+  const sequelize = require("../config/database");
+  User = require("../models/User"); // This might need to be converted to Sequelize
+  Application = require("../models/Application");
+  AuditLog = require("../models/AuditLog");
+  // Create Sequelize versions of Settings and EmailLog
+  Settings = sequelize.define('Settings', {
+    platformName: { type: require('sequelize').DataTypes.STRING, defaultValue: 'Talex' },
+    currency: { type: require('sequelize').DataTypes.STRING, defaultValue: 'USD' },
+    maxJobsPerDay: { type: require('sequelize').DataTypes.INTEGER, defaultValue: 50 },
+    maxApplicationsPerDay: { type: require('sequelize').DataTypes.INTEGER, defaultValue: 100 },
+    companyEmail: require('sequelize').DataTypes.STRING,
+    companyPhone: require('sequelize').DataTypes.STRING,
+    termsUrl: require('sequelize').DataTypes.STRING,
+    privacyUrl: require('sequelize').DataTypes.STRING,
+    paymentApiKey: require('sequelize').DataTypes.STRING,
+    emailNotifications: { type: require('sequelize').DataTypes.BOOLEAN, defaultValue: true },
+    maintenanceMode: { type: require('sequelize').DataTypes.BOOLEAN, defaultValue: false },
+  }, { timestamps: true });
+
+  EmailLog = sequelize.define('EmailLog', {
+    to: { type: require('sequelize').DataTypes.STRING, allowNull: false },
+    subject: { type: require('sequelize').DataTypes.STRING, allowNull: false },
+    status: { type: require('sequelize').DataTypes.ENUM('sent', 'failed'), defaultValue: 'sent' },
+    type: { type: require('sequelize').DataTypes.ENUM('ban', 'suspend', 'welcome', 'other'), defaultValue: 'other' },
+    error: require('sequelize').DataTypes.TEXT,
+    sentBy: require('sequelize').DataTypes.STRING,
+  }, { timestamps: true });
+}
+
 const Interview = require("../models/Interview");
 const Payment = require("../models/Payment");
-const AuditLog = require("../models/AuditLogMongo");
 
 // 🔐 Protect all admin routes - requires admin role
 router.use(protect, authorize('admin'));
@@ -392,31 +431,44 @@ router.get("/payments", permit('view_analytics'), async (req, res) => {
 //
 router.get("/email-logs", permit('view_audit_logs'), async (req, res) => {
   try {
-    const EmailLog = require('../models/EmailLog');
     const { page = 1, limit = 50, status, type } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 50));
     const offset = (pageNum - 1) * limitNum;
 
-    const where = {};
+    let where = {};
     if (status) where.status = status;
     if (type) where.type = type;
 
-    const { count, rows } = await EmailLog.findAndCountAll({
-      where,
-      order: [['createdAt', 'DESC']],
-      limit: limitNum,
-      offset: offset,
-      distinct: true
-    });
+    let emailLogs, total;
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB
+      const query = EmailLog.find(where);
+      total = await EmailLog.countDocuments(where);
+      emailLogs = await query
+        .sort({ createdAt: -1 })
+        .skip(offset)
+        .limit(limitNum);
+    } else {
+      // SQLite
+      const result = await EmailLog.findAndCountAll({
+        where,
+        order: [['createdAt', 'DESC']],
+        limit: limitNum,
+        offset: offset,
+        distinct: true
+      });
+      emailLogs = result.rows;
+      total = result.count;
+    }
 
     res.json({
       success: true,
-      count: rows.length,
-      total: count,
+      count: emailLogs.length,
+      total: total,
       page: pageNum,
-      pages: Math.ceil(count / limitNum),
-      emailLogs: rows
+      pages: Math.ceil(total / limitNum),
+      emailLogs: emailLogs
     });
   } catch (err) {
     console.error('Error fetching email logs:', err);
@@ -431,31 +483,47 @@ router.get("/audit", permit('view_audit_logs'), async (req, res) => {
   try {
     const { search, action, page = 1, limit = 50 } = req.query;
 
-    let query = {};
-
-    // 🔍 Search (description)
-    if (search) {
-      query.description = { $regex: search, $options: "i" };
-    }
-
-    // 🎯 Filter by action
-    if (action && action !== "all") {
-      query.action = action;
-    }
-
-    // Calculate pagination
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
     const skip = (pageNum - 1) * limitNum;
 
-    // Get total count for pagination
-    const total = await AuditLog.countDocuments(query);
+    let logs, total;
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB
+      let query = {};
+      if (search) {
+        query.description = { $regex: search, $options: "i" };
+      }
+      if (action && action !== "all") {
+        query.action = action;
+      }
 
-    const logs = await AuditLog.find(query)
-      .populate("user_id", "name email role")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum);
+      total = await AuditLog.countDocuments(query);
+      logs = await AuditLog.find(query)
+        .populate("user_id", "name email role")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+    } else {
+      // SQLite
+      let where = {};
+      if (search) {
+        where.description = { [require('sequelize').Op.like]: `%${search}%` };
+      }
+      if (action && action !== "all") {
+        where.action = action;
+      }
+
+      const result = await AuditLog.findAndCountAll({
+        where,
+        order: [['created_at', 'DESC']],
+        limit: limitNum,
+        offset: skip,
+        distinct: true
+      });
+      logs = result.rows;
+      total = result.count;
+    }
 
     console.log(`✅ Admin fetched ${logs.length} audit logs (Total: ${total})`);
 
@@ -471,9 +539,9 @@ router.get("/audit", permit('view_audit_logs'), async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Admin audit logs fetch error:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: err.message || "Failed to fetch audit logs" 
+      error: err.message || "Failed to fetch audit logs"
     });
   }
 });
@@ -482,24 +550,47 @@ router.get("/audit-logs", permit('view_audit_logs'), async (req, res) => {
   try {
     const { search, action, page = 1, limit = 50 } = req.query;
 
-    let query = {};
-    if (search) {
-      query.description = { $regex: search, $options: "i" };
-    }
-    if (action && action !== "all") {
-      query.action = action;
-    }
-
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
     const skip = (pageNum - 1) * limitNum;
 
-    const total = await AuditLog.countDocuments(query);
-    const logs = await AuditLog.find(query)
-      .populate("user_id", "name email role")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum);
+    let logs, total;
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB
+      let query = {};
+      if (search) {
+        query.description = { $regex: search, $options: "i" };
+      }
+      if (action && action !== "all") {
+        query.action = action;
+      }
+
+      total = await AuditLog.countDocuments(query);
+      logs = await AuditLog.find(query)
+        .populate("user_id", "name email role")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum);
+    } else {
+      // SQLite
+      let where = {};
+      if (search) {
+        where.description = { [require('sequelize').Op.like]: `%${search}%` };
+      }
+      if (action && action !== "all") {
+        where.action = action;
+      }
+
+      const result = await AuditLog.findAndCountAll({
+        where,
+        order: [['created_at', 'DESC']],
+        limit: limitNum,
+        offset: skip,
+        distinct: true
+      });
+      logs = result.rows;
+      total = result.count;
+    }
 
     console.log(`✅ Admin fetched ${logs.length} audit logs via alias route (Total: ${total})`);
 
@@ -528,14 +619,20 @@ router.get("/audit-logs", permit('view_audit_logs'), async (req, res) => {
 router.get("/settings", permit('manage_settings'), async (req, res) => {
   try {
     console.log('📥 Admin fetching settings...');
-    
-    // Import Settings model
-    const Settings = require('../models/Settings');
-    
-    let settings = await Settings.findOne();
-    
-    if (!settings) {
-      settings = await Settings.create({});
+
+    let settings;
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB
+      settings = await Settings.findOne();
+      if (!settings) {
+        settings = await Settings.create({});
+      }
+    } else {
+      // SQLite
+      settings = await Settings.findOne();
+      if (!settings) {
+        settings = await Settings.create({});
+      }
     }
 
     console.log('✅ Settings fetched successfully');
@@ -546,9 +643,9 @@ router.get("/settings", permit('manage_settings'), async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error fetching settings:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: err.message 
+      error: err.message
     });
   }
 });
@@ -556,42 +653,74 @@ router.get("/settings", permit('manage_settings'), async (req, res) => {
 // Update settings
 router.put("/settings", permit('manage_settings'), async (req, res) => {
   try {
-    const Settings = require('../models/Settings');
-    
     console.log('💾 Admin updating settings:', req.body);
-    
-    let settings = await Settings.findOne();
-    
-    if (!settings) {
-      settings = new Settings(req.body);
-    } else {
-      // Track changes for audit log
-      const changes = {};
-      Object.keys(req.body).forEach(key => {
-        if (JSON.stringify(settings[key]) !== JSON.stringify(req.body[key])) {
-          changes[key] = {
-            old: settings[key],
-            new: req.body[key]
-          };
-        }
-      });
-      
-      // Update settings
-      Object.assign(settings, req.body);
-      
-      // Log the changes
-      if (Object.keys(changes).length > 0) {
-        await AuditLog.create({
-          user_id: req.user.id,
-          action: 'UPDATE_SETTINGS',
-          resource: 'Settings',
-          description: `Updated system settings: ${Object.keys(changes).join(', ')}`,
-          changes: changes,
+
+    let settings;
+    if (mongoose.connection.readyState === 1) {
+      // MongoDB
+      settings = await Settings.findOne();
+      if (!settings) {
+        settings = new Settings(req.body);
+      } else {
+        // Track changes for audit log
+        const changes = {};
+        Object.keys(req.body).forEach(key => {
+          if (JSON.stringify(settings[key]) !== JSON.stringify(req.body[key])) {
+            changes[key] = {
+              old: settings[key],
+              new: req.body[key]
+            };
+          }
         });
+
+        // Update settings
+        Object.assign(settings, req.body);
+
+        // Log the changes
+        if (Object.keys(changes).length > 0) {
+          await AuditLog.create({
+            user_id: req.user.id,
+            action: 'UPDATE_SETTINGS',
+            resource: 'Settings',
+            description: `Updated system settings: ${Object.keys(changes).join(', ')}`,
+            changes: changes,
+          });
+        }
+      }
+
+      await settings.save();
+    } else {
+      // SQLite
+      settings = await Settings.findOne();
+      if (!settings) {
+        settings = await Settings.create(req.body);
+      } else {
+        // Track changes for audit log
+        const changes = {};
+        Object.keys(req.body).forEach(key => {
+          if (JSON.stringify(settings[key]) !== JSON.stringify(req.body[key])) {
+            changes[key] = {
+              old: settings[key],
+              new: req.body[key]
+            };
+          }
+        });
+
+        // Update settings
+        await settings.update(req.body);
+
+        // Log the changes
+        if (Object.keys(changes).length > 0) {
+          await AuditLog.create({
+            user_id: req.user.id,
+            action: 'UPDATE_SETTINGS',
+            resource: 'Settings',
+            description: `Updated system settings: ${Object.keys(changes).join(', ')}`,
+            metadata: changes,
+          });
+        }
       }
     }
-
-    await settings.save();
 
     // Emit real-time update to all connected clients
     const io = global.io || req.app.get('io');
@@ -608,9 +737,9 @@ router.put("/settings", permit('manage_settings'), async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Error saving settings:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: err.message 
+      error: err.message
     });
   }
 });
