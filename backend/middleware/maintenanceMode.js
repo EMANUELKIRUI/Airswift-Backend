@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const Settings = require('../models/Settings');
+const SettingsModels = require('../models/Settings');
+const mongoose = require('mongoose');
 
 const allowedPaths = [
   /^\/$/,
@@ -30,7 +31,10 @@ const maintenanceMode = async (req, res, next) => {
   }
 
   try {
-    const singletonSettings = await Settings.findOne({ singleton: true });
+    const Settings = SettingsModels.getModel();
+    const singletonSettings = mongoose.connection.readyState === 1 
+      ? await Settings.findOne({ singleton: true })
+      : await Settings.findOne();
     const maintenanceEnabled = singletonSettings ? singletonSettings.maintenanceMode : undefined;
     if (maintenanceEnabled === undefined) {
       const setting = await Settings.findOne({ key: 'maintenance_mode' });

@@ -621,6 +621,5 @@ const startServer = async () => {
 startServer();
 
 // Export io for use in controllers
-
-// Export io for use in controllers
 module.exports = { app, server, io };
+

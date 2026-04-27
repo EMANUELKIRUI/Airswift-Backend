@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import storageManager from '../utils/storageManager';
 import '../styles/AuditLogs.css';
 
 function AuditLogs() {
@@ -12,11 +13,17 @@ function AuditLogs() {
   const [logsPerPage] = useState(15);
   const [totalLogs, setTotalLogs] = useState(0);
   const [sortOrder, setSortOrder] = useState('desc');
+  const [isCachedData, setIsCachedData] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchAuditLogs();
-    // Refresh audit logs every 10 seconds for real-time updates
-    const interval = setInterval(fetchAuditLogs, 10000);
+    // Refresh audit logs every 10 seconds for real-time updates (but skip heavily on failures)
+    const interval = setInterval(() => {
+      if (retryCount < 5) {
+        fetchAuditLogs();
+      }
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -28,7 +35,7 @@ function AuditLogs() {
     try {
       setLoading(true);
       setError(null);
-      console.log('📥 Fetching audit logs...');
+      console.log('📥 Fetching audit logs (Attempt', retryCount + 1, ')...');
 
       const pageNum = currentPage;
       const limit = logsPerPage;
@@ -89,17 +96,45 @@ function AuditLogs() {
         pagination = data.pagination || { total: logsData.length, pages: 1 };
       }
 
+      // ✅ Save to localStorage for persistence
+      storageManager.save('auditLogs', {
+        logs: logsData,
+        pagination,
+        timestamp: new Date().toISOString()
+      }, { expiresIn: 24 * 60 * 60 * 1000 }); // 24 hours
+
       setLogs(logsData);
       setTotalLogs(pagination.total || logsData.length);
+      setIsCachedData(false);
+      setRetryCount(0);
     } catch (err) {
       console.error('❌ Error fetching audit logs:', err);
-      const errorMessage = err.response?.data?.message || err.message || 'Unable to load audit logs. Please try again.';
-      setError(errorMessage);
+      
+      // 🔄 Fallback: Try to load from localStorage
+      const cachedData = storageManager.get('auditLogs');
+      if (cachedData && cachedData.logs) {
+        console.log('💾 Using cached audit logs from localStorage');
+        setLogs(cachedData.logs);
+        setTotalLogs(cachedData.pagination?.total || cachedData.logs.length);
+        setIsCachedData(true);
+        
+        // Show informative error instead of blocking error
+        const errorMessage = `⚠️ Could not refresh audit logs (${err.response?.status || 'Network Error'}). Showing cached data from ${new Date(cachedData.timestamp).toLocaleTimeString()}.`;
+        setError(errorMessage);
+        setRetryCount(prev => prev + 1);
+      } else {
+        // No cached data available
+        const errorMessage = err.response?.data?.message || err.message || 'Unable to load audit logs. Please try again.';
+        setError(errorMessage);
 
-      if (err.response?.status === 401) {
-        setError('Unauthorized - Please login again');
-      } else if (err.response?.status === 403) {
-        setError('Forbidden - You do not have permission to view audit logs');
+        if (err.response?.status === 401) {
+          setError('Unauthorized - Please login again');
+        } else if (err.response?.status === 403) {
+          setError('Forbidden - You do not have permission to view audit logs');
+        } else if (err.response?.status === 500) {
+          setError('🔧 Server error (500) - The backend is experiencing issues. Please try again in a few moments.');
+        }
+        setRetryCount(prev => prev + 1);
       }
     } finally {
       setLoading(false);
@@ -157,7 +192,8 @@ function AuditLogs() {
     );
   }
 
-  if (error && logs.length === 0) {
+  // Show error but allow viewing cached data if available
+  if (error && !isCachedData && logs.length === 0) {
     return (
       <div className="audit-logs-container error">
         <div className="error-message">
@@ -192,10 +228,15 @@ function AuditLogs() {
       <div className="audit-logs-header">
         <h2>📋 Audit Logs</h2>
         <p>Track all system activities and changes</p>
+        {isCachedData && (
+          <span className="cache-indicator" title="This data is cached locally">
+            💾 Cached Data (Server Unavailable)
+          </span>
+        )}
       </div>
 
       {error && (
-        <div className="error-banner">
+        <div className={`error-banner ${isCachedData ? 'warning' : 'error'}`}>
           <span>{error}</span>
           <button onClick={handleRefresh} className="btn-dismiss">✕</button>
         </div>
