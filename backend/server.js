@@ -452,6 +452,9 @@ io.on("connection", (socket) => {
         }
       }
     });
+  });
+});
+
 app.use(
   cors({
     origin: [FRONTEND_URL, 'http://localhost:3000'],
