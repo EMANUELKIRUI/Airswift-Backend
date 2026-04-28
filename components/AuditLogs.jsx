@@ -4,6 +4,9 @@ import storageManager from '../utils/storageManager';
 import '../styles/AuditLogs.css';
 
 function AuditLogs() {
+  // Helper function for consistent API data extraction
+  const getData = (res) => res.data.data;
+
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,6 +73,7 @@ function AuditLogs() {
       }
 
       console.log('✅ Audit logs fetched:', response.data);
+      console.log("AUDIT LOGS:", response.data);
 
       const data = response.data;
       
@@ -159,7 +163,7 @@ function AuditLogs() {
   const handleExportCSV = () => {
     const csvContent = [
       ['Timestamp', 'Action', 'User', 'Resource', 'Description'],
-      ...logs.map(log => [
+      ...(Array.isArray(logs) ? logs : []).map(log => [
         new Date(log.createdAt).toLocaleString(),
         log.action || 'N/A',
         log.user_id?.name || 'Unknown User',
@@ -299,7 +303,7 @@ function AuditLogs() {
                 </tr>
               </thead>
               <tbody>
-                {currentLogs.map((log, index) => (
+                {(Array.isArray(currentLogs) ? currentLogs : []).map((log, index) => (
                   <tr key={log._id || index} className={`log-row ${getActionBadgeClass(log.action)}`}>
                     <td className="timestamp">
                       {new Date(log.createdAt).toLocaleString()}

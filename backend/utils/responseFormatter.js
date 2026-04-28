@@ -25,7 +25,7 @@
  * @returns {Object}
  */
 const list = (data = [], count = null) => {
-  const response = { data };
+  const response = { success: true, data };
   if (count !== null) {
     response.count = count;
   }
@@ -38,7 +38,7 @@ const list = (data = [], count = null) => {
  * @returns {Object}
  */
 const single = (data = null) => {
-  return { data };
+  return { success: true, data };
 };
 
 /**
@@ -61,7 +61,7 @@ const created = (data = null, message = null) => {
  * @returns {Object}
  */
 const deleted = (message = "Resource deleted successfully") => {
-  return { message };
+  return { success: true, message };
 };
 
 /**
@@ -70,7 +70,7 @@ const deleted = (message = "Resource deleted successfully") => {
  * @returns {Object}
  */
 const success = (message = "Operation successful") => {
-  return { message };
+  return { success: true, message };
 };
 
 /**

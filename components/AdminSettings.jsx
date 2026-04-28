@@ -27,7 +27,7 @@ function AdminSettings() {
       console.log('✅ Settings fetched:', response.data);
       
       // Store original settings for comparison
-      const settingsData = response.data.settings || response.data.data || response.data;
+      const settingsData = response.data.data || response.data;
       setSettings(settingsData);
       setOriginalSettings(JSON.parse(JSON.stringify(settingsData)));
       setModifiedFields(new Set());
@@ -73,7 +73,7 @@ function AdminSettings() {
       
       console.log('✅ Settings saved:', response.data);
       
-      const savedSettings = response.data.settings || response.data.data || response.data;
+      const savedSettings = response.data.data || response.data;
       setSettings(savedSettings);
       setOriginalSettings(JSON.parse(JSON.stringify(savedSettings)));
       

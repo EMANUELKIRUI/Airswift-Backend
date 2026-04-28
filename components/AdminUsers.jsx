@@ -79,7 +79,7 @@ function AdminUsers() {
       const response = await api.get('/admin/users');
       console.log('✅ Users fetched successfully:', response.data);
       
-      setUsers(response.data.users || []);
+      setUsers(response.data.data || []);
     } catch (err) {
       console.error('❌ Error fetching users:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch users';
@@ -225,7 +225,7 @@ function AdminUsers() {
   const handleExportCSV = () => {
     const csvContent = [
       ['ID', 'Name', 'Email', 'Role', 'Verified', 'Created Date'],
-      ...filteredUsers.map(user => [
+      ...(Array.isArray(filteredUsers) ? filteredUsers : []).map(user => [
         user._id,
         user.name,
         user.email,
@@ -370,7 +370,7 @@ function AdminUsers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentUsers.map((user) => (
+                  {(Array.isArray(currentUsers) ? currentUsers : []).map((user) => (
                     <tr key={user._id} className={`user-row role-${user.role}`}>
                       <td className="name-cell">
                         <span className="user-name">{user.name || 'N/A'}</span>

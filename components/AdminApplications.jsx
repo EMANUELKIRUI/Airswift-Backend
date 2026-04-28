@@ -243,7 +243,7 @@ function AdminApplications() {
   const handleExportCSV = () => {
     const csvContent = [
       ['Applicant Name', 'Email', 'Job Title', 'Status', 'Applied Date', 'Phone'],
-      ...filteredApplications.map(app => [
+      ...(filteredApplications || []).map(app => [
         app.userId?.name || 'N/A',
         app.userId?.email || 'N/A',
         app.jobId?.title || 'N/A',
@@ -415,7 +415,7 @@ function AdminApplications() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentApplications.map((app) => (
+                  {(Array.isArray(currentApplications) ? currentApplications : []).map((app) => (
                     <tr key={app._id} className={`application-row status-${app.status?.toLowerCase()}`}>
                       <td className="name-cell">
                         <span className="applicant-name">{app.userId?.name || 'N/A'}</span>
