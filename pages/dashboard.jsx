@@ -15,7 +15,10 @@ const Dashboard = () => {
       unreadNotifications: 0,
     },
     user: null,
-    recentActivity: [],
+    recentActivity: {
+      applications: [],
+      notifications: [],
+    },
     upcomingInterviews: [],
     latestApplications: [],
     recentMessages: [],
@@ -106,12 +109,18 @@ const Dashboard = () => {
         {/* 3. Recent Activity Feed */}
         <div className="recent-activity">
           <h2>📢 Recent Activity</h2>
-          {recentActivity.length > 0 ? (
+          {recentActivity && (recentActivity.applications?.length > 0 || recentActivity.notifications?.length > 0) ? (
             <ul>
-              {recentActivity.map((activity, index) => (
-                <li key={index}>
-                  <strong>{activity.title}</strong>: {activity.message}
-                  <span className="activity-date">{formatDate(activity.date)}</span>
+              {recentActivity.applications?.map((activity, index) => (
+                <li key={`app-${index}`}>
+                  <strong>{activity.jobTitle}</strong>: Application status is {activity.status}
+                  <span className="activity-date">{formatDate(activity.submittedAt)}</span>
+                </li>
+              ))}
+              {recentActivity.notifications?.map((notif, index) => (
+                <li key={`notif-${index}`}>
+                  <strong>{notif.title}</strong>: {notif.message}
+                  <span className="activity-date">{formatDate(notif.createdAt)}</span>
                 </li>
               ))}
             </ul>
