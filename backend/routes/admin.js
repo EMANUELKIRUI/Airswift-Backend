@@ -522,6 +522,8 @@ router.get("/audit", permit('view_audit_logs'), async (req, res) => {
     res.json({
       success: true,
       data: logs,
+      auditLogs: logs,
+      logs,
       pagination: {
         total,
         page: pageNum,
@@ -598,6 +600,8 @@ router.get("/audit-logs", permit('view_audit_logs'), async (req, res) => {
     res.json({
       success: true,
       data: logs,
+      auditLogs: logs,
+      logs,
       pagination: {
         total,
         page: pageNum,

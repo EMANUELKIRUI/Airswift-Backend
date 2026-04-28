@@ -30,15 +30,21 @@ router.get('/', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    const summary = {
+      totalUsers,
+      totalApplications,
+      totalAuditLogs,
+    };
+
     res.json({
-      summary: {
-        totalUsers,
-        totalApplications,
-        totalAuditLogs
-      },
-      recentApplications,
-      recentAuditLogs,
-      message: 'Dashboard data loaded successfully'
+      success: true,
+      summary,
+      stats: summary,
+      recentApplications: Array.isArray(recentApplications) ? recentApplications : [],
+      applications: Array.isArray(recentApplications) ? recentApplications : [],
+      recentAuditLogs: Array.isArray(recentAuditLogs) ? recentAuditLogs : [],
+      auditLogs: Array.isArray(recentAuditLogs) ? recentAuditLogs : [],
+      message: 'Dashboard data loaded successfully',
     });
   } catch (error) {
     console.error('Dashboard error:', error);
