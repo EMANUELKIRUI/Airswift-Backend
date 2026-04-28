@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /**
  * ✅ STANDARDIZED RESPONSE FORMAT
  * 
