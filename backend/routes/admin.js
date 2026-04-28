@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { protect, authorize, permit } = require("../middleware/auth");
 const mongoose = require("mongoose");
+const { list, single, created, success, error: errorFormatter } = require("../utils/responseFormatter");
 
 // Import both model types
 const SettingsModels = require("../models/Settings");
@@ -200,17 +201,10 @@ router.get("/applications", permit('view_all_applications'), async (req, res) =>
 
     console.log('✅ Admin fetched', apps.length, 'applications');
 
-    res.json({
-      success: true,
-      count: apps.length,
-      data: apps,
-    });
+    res.json(list(apps, apps.length));
   } catch (err) {
     console.error('❌ Admin fetch error:', err);
-    res.status(500).json({ 
-      success: false,
-      error: err.message 
-    });
+    res.status(500).json(errorFormatter(err.message));
   }
 });
 
