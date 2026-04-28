@@ -1,15 +1,13 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
-<<<<<<< HEAD
-const { getNotifications, markNotificationRead, getUnreadCount, markAllNotificationsAsRead, deleteNotification } = require('../controllers/notificationController');
-=======
 const {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  markAllNotificationsAsRead,
   getUnreadCount,
+  deleteNotification,
 } = require('../controllers/notificationController');
->>>>>>> 697b595 (upgrade)
 
 const router = express.Router();
 

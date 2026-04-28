@@ -5,7 +5,7 @@ const cloudinary = require('../config/cloudinary');
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'airswift_uploads',
+    folder: 'user_documents',
     resource_type: 'auto',
   },
 });
@@ -13,13 +13,14 @@ const storage = new CloudinaryStorage({
 const cloudUpload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype !== 'application/pdf') {
-      return cb(new Error('Only PDF allowed'), false);
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type. Only PDF, JPG, and PNG are allowed.'), false);
     }
     cb(null, true);
   },
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit
   },
 });
 
