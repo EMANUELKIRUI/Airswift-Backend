@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { verifyToken, protect, authorize } = require("../middleware/auth");
 const { permit } = require("../middleware/permission");
-const upload = require("../middleware/cloudinaryUpload");
+const { cloudUpload } = require("../middleware/cloudinaryUpload");
 const {
   uploadDocument,
   getDocuments,
@@ -15,7 +15,7 @@ const {
 router.use(verifyToken);
 
 // Upload document - POST /api/documents/upload
-router.post("/upload", upload.single("file"), uploadDocument);
+router.post("/upload", cloudUpload.single("file"), uploadDocument);
 
 // Get all user's documents - GET /api/documents
 router.get("/", getDocuments);
