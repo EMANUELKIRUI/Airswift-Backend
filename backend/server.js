@@ -473,6 +473,8 @@ app.options("*", cors({
 app.use(express.static(path.join(__dirname, 'public'))); // put favicon.ico here
 app.use(cookieParser());
 app.use(express.json());
+const { wrapJsonResponse } = require("./utils/responseFormatter");
+app.use(wrapJsonResponse);
 app.set('io', io);
 app.use((req, res, next) => {
   req.io = io;

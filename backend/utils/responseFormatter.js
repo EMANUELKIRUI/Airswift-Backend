@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * ✅ STANDARDIZED RESPONSE FORMAT
  * 
@@ -100,6 +101,39 @@ const getPagination = (page = 1, limit = 10) => {
   return { skip, limit: limitNum, page: pageNum };
 };
 
+function wrapJsonResponse(req, res, next) {
+  const originalJson = res.json.bind(res);
+
+  res.json = function (payload) {
+    if (res.headersSent) {
+      return originalJson(payload);
+    }
+
+    const statusCode = res.statusCode || 200;
+    const isObject = payload && typeof payload === "object";
+
+    if (statusCode >= 400) {
+      if (isObject && payload.success !== undefined) {
+        return originalJson(payload);
+      }
+
+      const errorBody = isObject ? { ...payload } : { error: payload };
+      if (errorBody.success === undefined) {
+        errorBody.success = false;
+      }
+      return originalJson(errorBody);
+    }
+
+    if (isObject && payload.success !== undefined && payload.data !== undefined) {
+      return originalJson(payload);
+    }
+
+    return originalJson({ success: true, data: payload });
+  };
+
+  next();
+}
+
 module.exports = {
   list,
   single,
@@ -108,4 +142,5 @@ module.exports = {
   success,
   error,
   getPagination,
+  wrapJsonResponse,
 };
