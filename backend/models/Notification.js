@@ -15,6 +15,11 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    type: {
+      type: String,
+      enum: ['document', 'interview', 'system'],
+      default: 'system',
+    },
     link: {
       type: String,
       default: null,
@@ -28,5 +33,9 @@ const notificationSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Index for efficient querying
+notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, is_read: 1 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

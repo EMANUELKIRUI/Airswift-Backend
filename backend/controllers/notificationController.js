@@ -6,27 +6,21 @@ const getNotifications = async (req, res) => {
     const notifications = await Notification.find({ userId: req.user.id })
       .sort({ createdAt: -1 });
 
-    // Transform notifications to match frontend expectations
-    const transformedNotifications = notifications.map(notif => ({
-      id: notif._id,
-      title: notif.title,
-      message: notif.message,
-      type: notif.type || 'system',
-      read: notif.is_read,
-      createdAt: notif.createdAt,
-    }));
+    const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-    res.json({ success: true, notifications: transformedNotifications });
+    res.json({ notifications, unreadCount });
   } catch (error) {
     console.error('getNotifications error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
 const markNotificationRead = async (req, res) => {
   try {
+    const { id } = req.params;
+
     const notification = await Notification.findOne({
-      _id: req.params.id,
+      _id: id,
       userId: req.user.id,
     });
 
@@ -37,10 +31,28 @@ const markNotificationRead = async (req, res) => {
     notification.is_read = true;
     await notification.save();
 
-    res.json({ success: true });
+    res.json({ success: true, notification });
   } catch (error) {
     console.error('markNotificationRead error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const markAllNotificationsRead = async (req, res) => {
+  try {
+    const result = await Notification.updateMany(
+      { userId: req.user.id, is_read: false },
+      { is_read: true }
+    );
+
+    res.json({
+      success: true,
+      message: 'All notifications marked as read',
+      modified: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error('markAllNotificationsRead error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -51,10 +63,13 @@ const getUnreadCount = async (req, res) => {
       is_read: false,
     });
 
-    res.json({ unreadCount: count });
+    res.json({
+      message: 'Unread count retrieved successfully',
+      unreadCount: count,
+    });
   } catch (error) {
     console.error('getUnreadCount error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -93,6 +108,7 @@ const deleteNotification = async (req, res) => {
 module.exports = {
   getNotifications,
   markNotificationRead,
+  markAllNotificationsRead,
   getUnreadCount,
   markAllNotificationsAsRead,
   deleteNotification,

@@ -537,6 +537,8 @@ app.use("/api/jobs", require("./routes/jobs"));
 app.use("/api/job-search", require("./routes/jobSearch"));
 app.use("/api/applications", require("./routes/applications"));
 app.use("/api/applications/mongo", require("./routes/applicationMongoose"));
+app.use("/api/documents", require("./routes/documents"));
+app.use("/api/admin/documents", require("./routes/adminDocuments"));
 app.use("/api/payment", require("./routes/payment"));
 app.use("/api/profile", require("./routes/profile"));
 app.use("/api/drafts", require("./routes/drafts"));
