@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { verifyToken, protect, authorize } = require("../middleware/auth");
-const { permit } = require("../middleware/permission");
+const permit = require("../middleware/permission");
 const { cloudUpload } = require("../middleware/cloudinaryUpload");
 const {
   uploadDocument,
