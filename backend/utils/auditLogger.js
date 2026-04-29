@@ -1,8 +1,33 @@
 const AuditLog = require("../models/AuditLogMongo");
 
-const createAuditLog = async ({ user = null, userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
+const buildRequestMetadata = (request) => {
+  const ip =
+    request?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    request?.ip ||
+    request?.connection?.remoteAddress ||
+    request?.socket?.remoteAddress ||
+    "";
+  const userAgent = request?.headers?.["user-agent"] || "";
+
+  return {
+    ip,
+    ip_address: ip,
+    userAgent,
+    user_agent: userAgent,
+    method: request?.method || "",
+    endpoint: request?.originalUrl || request?.url || "",
+  };
+};
+
+const buildMetadata = (request, extra = {}) => ({
+  ...buildRequestMetadata(request),
+  ...extra,
+});
+
+const createAuditLog = async ({ user = null, userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {}, request = null }) => {
   const resolvedUserId = user?._id || user?.id || userId || user_id || null;
   const resolvedDescription = description || action || "No description";
+  const requestFields = request ? buildRequestMetadata(request) : {};
 
   try {
     const log = await AuditLog.create({
@@ -10,7 +35,8 @@ const createAuditLog = async ({ user = null, userId = null, user_id = null, acti
       action,
       resource,
       description: resolvedDescription,
-      metadata,
+      metadata: { ...requestFields, ...metadata },
+      ...requestFields,
     });
 
     const io = global.io;
@@ -33,19 +59,9 @@ const logAudit = async (io, data) => {
   return log;
 };
 
-const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {} }) => {
-  return createAuditLog({ userId, user_id, action, resource, description, metadata });
+const logAction = async ({ userId = null, user_id = null, action = "UNKNOWN", resource = "SYSTEM", description, metadata = {}, request = null }) => {
+  return createAuditLog({ userId, user_id, action, resource, description, metadata, request });
 };
-
-const buildMetadata = (request, extra = {}) => ({
-  ip:
-    request?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    request?.ip ||
-    request?.connection?.remoteAddress ||
-    "",
-  userAgent: request?.headers?.["user-agent"] || "",
-  ...extra,
-});
 
 const logUserActivity = async (userId, action, request, details = {}) => {
   return logAction({
@@ -54,6 +70,7 @@ const logUserActivity = async (userId, action, request, details = {}) => {
     resource: "AUTH",
     description: details.description || action,
     metadata: buildMetadata(request, details),
+    request,
   });
 };
 

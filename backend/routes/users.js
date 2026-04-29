@@ -8,7 +8,10 @@ const { parseCVWithAI } = require('../utils/aiParser');
 
 const router = express.Router();
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 router.post('/parse-cv', verifyToken, upload.single('cv'), async (req, res) => {
   try {

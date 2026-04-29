@@ -8,6 +8,7 @@ const { list, single, created, success, error: errorFormatter } = require("../ut
 const SettingsModels = require("../models/Settings");
 const AuditLogMongo = require("../models/AuditLogMongo");
 const AuditLogSequelize = require("../models/AuditLog");
+const User = require("../models/User");
 
 // Helper function to get the correct models at runtime
 const getModels = () => {
@@ -18,6 +19,15 @@ const getModels = () => {
     isMongoConnected
   };
 };
+
+const getAuditLogModel = () => getModels().AuditLog;
+const AuditLog = new Proxy({}, {
+  get(_, prop) {
+    const model = getAuditLogModel();
+    const value = model[prop];
+    return typeof value === "function" ? value.bind(model) : value;
+  },
+});
 
 const Interview = require("../models/Interview");
 const Payment = require("../models/Payment");
@@ -30,7 +40,7 @@ router.use(protect, authorize('admin'));
 //
 router.get("/users", permit('manage_users'), async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find().select("-password").lean();
     res.json({ success: true, data: users });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -91,12 +101,12 @@ router.post("/users", permit('manage_users'), async (req, res) => {
 
 router.put("/users/:id", permit('manage_users'), async (req, res) => {
   try {
-    const { applicationStatus, name, email, role, isVerified, phone, location, bio } = req.body;
+    const { status, name, email, role, isVerified, phone, location, bio } = req.body;
     const userId = req.params.id;
 
     // Build update object with only provided fields
     const updateData = {};
-    if (applicationStatus !== undefined) updateData.applicationStatus = applicationStatus;
+    if (status !== undefined) updateData.status = status;
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
     if (role !== undefined) updateData.role = role;
@@ -303,25 +313,44 @@ router.get("/interviews", permit('manage_interviews'), async (req, res) => {
     const limitNum = Math.min(500, Math.max(1, parseInt(limit) || 100));
     const offset = (pageNum - 1) * limitNum;
 
-    const { count, rows } = await Interview.findAndCountAll({
-      include: [
-        { association: 'application', attributes: ['id', 'status'] },
-        { association: 'interviewer', attributes: ['id', 'name', 'email'] }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: limitNum,
-      offset: offset,
-      distinct: true
-    });
+    try {
+      const { count, rows } = await Interview.findAndCountAll({
+        include: [
+          { association: 'application', attributes: ['id', 'status'] },
+          { association: 'interviewer', attributes: ['id', 'name', 'email'] }
+        ],
+        order: [['createdAt', 'DESC']],
+        limit: limitNum,
+        offset: offset,
+        distinct: true
+      });
 
-    res.json({
-      success: true,
-      count: rows.length,
-      total: count,
-      page: pageNum,
-      pages: Math.ceil(count / limitNum),
-      interviews: rows
-    });
+      return res.json({
+        success: true,
+        count: rows.length,
+        total: count,
+        page: pageNum,
+        pages: Math.ceil(count / limitNum),
+        interviews: rows
+      });
+    } catch (innerError) {
+      console.error('Interview query failed, using safe fallback:', innerError);
+      const rows = await Interview.findAll({
+        order: [['createdAt', 'DESC']],
+        limit: limitNum,
+        offset: offset,
+      });
+      const count = await Interview.count();
+
+      return res.json({
+        success: true,
+        count: rows.length,
+        total: count,
+        page: pageNum,
+        pages: Math.ceil(count / limitNum),
+        interviews: rows
+      });
+    }
   } catch (err) {
     console.error('Error fetching interviews:', err);
     res.status(500).json({ error: err.message });
@@ -332,24 +361,43 @@ router.get("/interviews", permit('manage_interviews'), async (req, res) => {
 router.get("/interviews/stats", permit('manage_interviews'), async (req, res) => {
   try {
     const { sequelize } = require('../config/database');
-    const { Op } = require('sequelize');
     
-    const stats = await Interview.findAll({
-      attributes: [
-        'status',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-      ],
-      group: ['status'],
-      raw: true
-    });
+    try {
+      const stats = await Interview.findAll({
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        ],
+        group: ['status'],
+        raw: true
+      });
 
-    const totalInterviews = await Interview.count();
-    
-    res.json({
-      success: true,
-      totalInterviews,
-      statsByStatus: stats || []
-    });
+      const totalInterviews = await Interview.count();
+      
+      return res.json({
+        success: true,
+        totalInterviews,
+        statsByStatus: stats || []
+      });
+    } catch (innerError) {
+      console.error('Interview stats fallback:', innerError);
+      const totalInterviews = await Interview.count();
+      const stats = await Interview.findAll({
+        attributes: ['status'],
+        raw: true
+      });
+      const statsByStatus = stats.reduce((acc, row) => {
+        const status = row.status || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+
+      return res.json({
+        success: true,
+        totalInterviews,
+        statsByStatus: Object.entries(statsByStatus).map(([status, count]) => ({ status, count }))
+      });
+    }
   } catch (err) {
     console.error('Error fetching interview stats:', err);
     res.status(500).json({ error: err.message });

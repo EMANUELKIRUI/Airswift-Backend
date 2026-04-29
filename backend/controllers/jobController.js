@@ -1,6 +1,8 @@
 const Joi = require('joi');
+const mongoose = require('mongoose');
 const { Op } = require('sequelize');
 const { Job, JobCategory, Application, User } = require('../models');
+const JobMongoose = require('../models/JobMongoose');
 
 const jobSchema = Joi.object({
   title: Joi.string().required(),
@@ -35,8 +37,36 @@ const getJobCategories = async (req, res) => {
 const getJobs = async (req, res) => {
   try {
     const { category, search, sort } = req.query;
-    const where = { status: 'active' };
+    const orderDirection = sort?.toLowerCase() === 'za' ? -1 : 1;
 
+    if (mongoose.connection.readyState === 1) {
+      const filter = { status: 'active' };
+      if (category) {
+        filter.category = { $regex: category, $options: 'i' };
+      }
+      if (search) {
+        filter.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { skills: { $in: [new RegExp(search, 'i')] } },
+        ];
+      }
+
+      const jobs = await JobMongoose.find(filter)
+        .sort({ title: orderDirection })
+        .select('title location')
+        .lean();
+
+      const formattedJobs = jobs.map((job) => ({
+        _id: job._id.toString(),
+        title: job.title,
+        location: job.location,
+      }));
+
+      return res.json({ success: true, data: formattedJobs });
+    }
+
+    const where = { status: 'active' };
     if (category) {
       if (!Number.isNaN(Number(category))) {
         where.category_id = Number(category);
@@ -57,7 +87,6 @@ const getJobs = async (req, res) => {
     if (sort?.toLowerCase() === 'za') {
       order.push(['title', 'DESC']);
     } else {
-      // Default ordering for application form dropdown: A to Z
       order.push(['title', 'ASC']);
     }
 
@@ -67,23 +96,16 @@ const getJobs = async (req, res) => {
       attributes: ['id', 'title', 'location'],
     });
 
-    // Map output to _id for frontend compatibility
     const formattedJobs = jobs.map((job) => ({
       _id: job.id.toString(),
       title: job.title,
       location: job.location,
     }));
 
-    res.json({
-      success: true,
-      data: formattedJobs,
-    });
+    res.json({ success: true, data: formattedJobs });
   } catch (error) {
     console.error('getJobs error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 

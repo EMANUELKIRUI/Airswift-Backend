@@ -66,7 +66,7 @@ const registerUser = async (req, res) => {
     console.log("REGISTER BODY:", req.body);
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required" });
+      return res.status(400).json({ success: false, message: "Name, email and password are required" });
     }
 
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
@@ -191,6 +191,7 @@ const registerUser = async (req, res) => {
       }
 
       return res.status(400).json({
+        success: false,
         message: "Email already registered",
         redirect: "login",
         email: duplicateEmail,
@@ -198,6 +199,7 @@ const registerUser = async (req, res) => {
     }
 
     res.status(500).json({
+      success: false,
       message: "Server error",
     });
   }

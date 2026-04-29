@@ -482,17 +482,9 @@ app.use((req, res, next) => {
 });
 app.use(maintenanceMode);
 
-// Serve static files from root directory
-app.use(express.static('../'));
-
 // Root route
 app.get('/', (req, res) => {
   res.status(200).json({ message: 'Server is healthy' });
-});
-
-// API test route
-app.get('/', (req, res) => {
-  res.send('API is running...');
 });
 
 app.get('/api/test', (req, res) => {
@@ -556,6 +548,18 @@ app.use("/api/user-activity-audit", require("./routes/userActivityAudit"));
 app.use("/api/admin/dashboard", require("./routes/dashboard"));
 app.use("/api/user/dashboard", require("./routes/userDashboard")); // ✅ User dashboard for regular users
 app.use("/api/email", require("./routes/email"));
+
+// API guard: return JSON for any unknown /api route, not HTML
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'API route not found',
+    path: req.originalUrl,
+  });
+});
+
+// Serve frontend static assets after API route registration so API paths are not shadowed
+app.use(express.static('../'));
 
 // Global error handler for unexpected failures
 app.use((err, req, res, next) => {

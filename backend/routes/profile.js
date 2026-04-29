@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get('/', protect, permit('view_profile'), getProfile);
 router.put('/', protect, permit('edit_profile'), updateProfile);
+router.post('/', protect, permit('edit_profile'), updateProfile);
 router.post('/cv-upload', protect, permit('edit_profile'), upload.single('cv'), handleMulterError, uploadCV);
 router.post('/upload-cv', protect, permit('edit_profile'), upload.single('cv'), handleMulterError, uploadCV);
 router.post('/setup-profile', protect, permit('edit_profile'), upload.single('cv'), handleMulterError, setupProfile);
