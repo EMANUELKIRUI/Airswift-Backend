@@ -5,6 +5,9 @@ const mpesaService = require('../utils/mpesaService');
 const auditLogger = require('../utils/auditLogger');
 const { sendEmail } = require('../utils/sendEmail');
 const { paymentReceiptTemplate } = require('../utils/emailTemplates');
+const stripe = require('../config/stripe');
+const StripePayment = require('../models/StripePayment');
+const AuditLog = require('../models/AuditLog');
 
 // Initiate M-Pesa STK Push payment
 const stkPush = async (req, res) => {
@@ -478,7 +481,508 @@ module.exports = {
   getUserPayments,
   getAllPayments,
   updatePaymentStatus,
+<<<<<<< HEAD
   createStripePaymentIntent,
   confirmStripePayment,
   getStripePaymentDetails,
+=======
+  // Stripe payment functions
+  createPaymentIntent,
+  getPayment,
+  getPaymentHistory,
+  handleWebhook,
+  cancelPayment,
+  generateInvoice,
+>>>>>>> 24736de (🚀 feat: Add enterprise features - AI Ranking, JWT Refresh, Stripe Payments, RBAC, Redis Scaling, Mobile Support)
 };
+
+// ============================================
+// STRIPE PAYMENT FUNCTIONS
+// ============================================
+
+/**
+ * Create a payment intent for Stripe
+ * @route POST /api/payments/stripe/create-intent
+ */
+async function createPaymentIntent(req, res) {
+  try {
+    const { amount, type, description } = req.body;
+    const userId = req.user.id || req.user._id;
+
+    // Validate input
+    if (!amount || !type) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount and type are required",
+      });
+    }
+
+    // Validate amount (at least $0.50 for Stripe)
+    if (amount < 0.5) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be at least $0.50",
+      });
+    }
+
+    // Valid payment types
+    const validTypes = ["interview_fee", "visa_fee", "service_fee"];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid payment type. Must be one of: ${validTypes.join(", ")}`,
+      });
+    }
+
+    // Create payment intent with Stripe
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: "usd",
+      description: description || `${type} - ${userId}`,
+      metadata: {
+        userId: userId.toString(),
+        type: type,
+        paymentType: type,
+      },
+    });
+
+    // Save payment record to database
+    const payment = await StripePayment.create({
+      user: userId,
+      amount: amount,
+      type: type,
+      status: "pending",
+      stripePaymentIntentId: paymentIntent.id,
+      description: description,
+      metadata: {
+        createdAt: new Date(),
+        intentStatus: paymentIntent.status,
+      },
+    });
+
+    // Log the action
+    await AuditLog.create({
+      user_id: userId,
+      action: "create_payment_intent",
+      resource: "payment",
+      description: `Created payment intent for ${type}: $${amount}`,
+      metadata: {
+        paymentId: payment._id,
+        intentId: paymentIntent.id,
+      },
+    }).catch(err => console.error("Audit log error:", err));
+
+    return res.status(201).json({
+      success: true,
+      message: "Payment intent created successfully",
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentId: payment._id,
+        amount: amount,
+        type: type,
+      },
+    });
+  } catch (error) {
+    console.error("Payment intent creation error:", error);
+
+    // Log error to database
+    try {
+      const userId = req.user?.id || req.user?._id;
+      if (userId) {
+        await AuditLog.create({
+          user_id: userId,
+          action: "payment_intent_error",
+          resource: "payment",
+          description: error.message,
+        }).catch(err => console.error("Audit log error:", err));
+      }
+    } catch (auditErr) {
+      console.error("Failed to log audit entry:", auditErr);
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create payment intent",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+}
+
+/**
+ * Get payment details
+ * @route GET /api/payments/stripe/:paymentId
+ */
+async function getPayment(req, res) {
+  try {
+    const { paymentId } = req.params;
+    const userId = req.user.id || req.user._id;
+
+    const payment = await StripePayment.findById(paymentId).populate(
+      "user",
+      "name email"
+    );
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Check if user owns this payment
+    if (payment.user._id.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: cannot access this payment",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Get payment error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve payment",
+    });
+  }
+}
+
+/**
+ * Get user's payment history
+ * @route GET /api/payments/stripe/history
+ */
+async function getPaymentHistory(req, res) {
+  try {
+    const userId = req.user.id || req.user._id;
+    const { limit = 10, skip = 0 } = req.query;
+
+    const payments = await StripePayment.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
+
+    const total = await StripePayment.countDocuments({ user: userId });
+
+    return res.json({
+      success: true,
+      data: {
+        payments,
+        total,
+        limit: parseInt(limit),
+        skip: parseInt(skip),
+      },
+    });
+  } catch (error) {
+    console.error("Get payment history error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve payment history",
+    });
+  }
+}
+
+/**
+ * Handle Stripe webhook events
+ * @route POST /api/payments/stripe/webhook
+ */
+async function handleWebhook(req, res) {
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody, // Must be raw body, not parsed JSON
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error("Webhook signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        await handlePaymentSucceeded(event.data.object);
+        break;
+
+      case "payment_intent.payment_failed":
+        await handlePaymentFailed(event.data.object);
+        break;
+
+      case "payment_intent.canceled":
+        await handlePaymentCanceled(event.data.object);
+        break;
+
+      case "charge.refunded":
+        await handleChargeRefunded(event.data.object);
+        break;
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook handler error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Webhook processing error",
+    });
+  }
+}
+
+/**
+ * Handle successful payment
+ */
+async function handlePaymentSucceeded(paymentIntent) {
+  try {
+    const payment = await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      {
+        status: "completed",
+        completedAt: new Date(),
+        last4Digits: paymentIntent.charges.data[0]?.payment_method_details?.card?.last4,
+        paymentMethod: paymentIntent.charges.data[0]?.payment_method,
+      },
+      { new: true }
+    );
+
+    if (!payment) {
+      console.warn(`Payment not found for intent: ${paymentIntent.id}`);
+      return;
+    }
+
+    // Log successful payment
+    await AuditLog.create({
+      user_id: payment.user,
+      action: "payment_completed",
+      resource: "payment",
+      description: `Payment completed: ${payment.type} - $${payment.amount}`,
+      metadata: {
+        paymentId: payment._id,
+        intentId: paymentIntent.id,
+        amount: payment.amount,
+      },
+    }).catch(err => console.error("Audit log error:", err));
+
+    console.log(`Payment succeeded: ${paymentIntent.id}`);
+  } catch (error) {
+    console.error("Error handling payment success:", error);
+    throw error;
+  }
+}
+
+/**
+ * Handle failed payment
+ */
+async function handlePaymentFailed(paymentIntent) {
+  try {
+    const payment = await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      {
+        status: "failed",
+        failedAt: new Date(),
+        failureReason: paymentIntent.last_payment_error?.message,
+        failureCode: paymentIntent.last_payment_error?.code,
+      },
+      { new: true }
+    );
+
+    if (!payment) return;
+
+    // Log failed payment
+    await AuditLog.create({
+      user_id: payment.user,
+      action: "payment_failed",
+      resource: "payment",
+      description: `Payment failed: ${payment.type} - ${paymentIntent.last_payment_error?.message}`,
+    }).catch(err => console.error("Audit log error:", err));
+
+    console.log(`Payment failed: ${paymentIntent.id}`);
+  } catch (error) {
+    console.error("Error handling payment failure:", error);
+  }
+}
+
+/**
+ * Handle canceled payment
+ */
+async function handlePaymentCanceled(paymentIntent) {
+  try {
+    await StripePayment.findOneAndUpdate(
+      { stripePaymentIntentId: paymentIntent.id },
+      {
+        status: "canceled",
+      },
+      { new: true }
+    );
+
+    console.log(`Payment canceled: ${paymentIntent.id}`);
+  } catch (error) {
+    console.error("Error handling payment cancellation:", error);
+  }
+}
+
+/**
+ * Handle charge refunded
+ */
+async function handleChargeRefunded(charge) {
+  try {
+    if (charge.payment_intent) {
+      await StripePayment.findOneAndUpdate(
+        { stripePaymentIntentId: charge.payment_intent },
+        {
+          status: "failed",
+          failureReason: "Payment refunded",
+        },
+        { new: true }
+      );
+
+      console.log(`Charge refunded: ${charge.id}`);
+    }
+  } catch (error) {
+    console.error("Error handling charge refund:", error);
+  }
+}
+
+/**
+ * Cancel a payment intent
+ * @route POST /api/payments/stripe/:paymentId/cancel
+ */
+async function cancelPayment(req, res) {
+  try {
+    const { paymentId } = req.params;
+    const userId = req.user.id || req.user._id;
+
+    const payment = await StripePayment.findById(paymentId);
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Check ownership
+    if (payment.user.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: cannot cancel this payment",
+      });
+    }
+
+    // Only pending payments can be canceled
+    if (payment.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel ${payment.status} payment`,
+      });
+    }
+
+    // Cancel the Stripe payment intent
+    await stripe.paymentIntents.cancel(payment.stripePaymentIntentId);
+
+    // Update payment status
+    payment.status = "canceled";
+    await payment.save();
+
+    return res.json({
+      success: true,
+      message: "Payment canceled successfully",
+      data: payment,
+    });
+  } catch (error) {
+    console.error("Cancel payment error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel payment",
+    });
+  }
+}
+
+/**
+ * Generate invoice for a payment
+ * @route POST /api/payments/stripe/:paymentId/invoice
+ */
+async function generateInvoice(req, res) {
+  try {
+    const { paymentId } = req.params;
+    const userId = req.user.id || req.user._id;
+
+    const payment = await StripePayment.findById(paymentId).populate("user");
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    // Check ownership
+    if (payment.user._id.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: cannot access this payment",
+      });
+    }
+
+    // Only completed payments have invoices
+    if (payment.status !== "completed") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot generate invoice for ${payment.status} payment`,
+      });
+    }
+
+    // Generate invoice data
+    const invoice = {
+      invoiceId: `INV-${payment._id.toString().slice(-8).toUpperCase()}`,
+      invoiceNumber: `INV-${Date.now()}`,
+      date: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      status: payment.status,
+      billTo: {
+        name: payment.user.name,
+        email: payment.user.email,
+      },
+      items: [
+        {
+          description: payment.description || payment.type.replace(/_/g, ' ').toUpperCase(),
+          amount: payment.amount,
+          quantity: 1,
+          total: payment.amount,
+        }
+      ],
+      subtotal: payment.amount,
+      tax: 0,
+      total: payment.amount,
+      paymentMethod: payment.paymentMethod,
+      last4: payment.last4Digits,
+      transactionId: payment.stripePaymentIntentId,
+      companyInfo: {
+        name: "Airswift",
+        address: "Kenya",
+        email: process.env.COMPANY_EMAIL || "support@airswift.com",
+      }
+    };
+
+    payment.invoiceId = invoice.invoiceId;
+    await payment.save();
+
+    return res.json({
+      success: true,
+      data: invoice,
+    });
+  } catch (error) {
+    console.error("Generate invoice error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate invoice",
+    });
+  }
+}

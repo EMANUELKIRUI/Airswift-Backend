@@ -17,10 +17,17 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     role: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      default: null, // Will be set to 'user' role during registration
+    },
+    roleString: {
+      // Keep for backward compatibility
       type: String,
       enum: ["user", "admin", "recruiter"],
       default: "user"
     },
+    permissions: [String], // Denormalized permissions for fast JWT encoding
     status: {
       type: String,
       default: "active",

@@ -1,8 +1,18 @@
 const express = require('express');
 const router = express.Router();
 
-const { stkPush, getAllPayments } = require('../controllers/paymentController');
+const {
+  stkPush,
+  getAllPayments,
+  createPaymentIntent,
+  getPayment,
+  getPaymentHistory,
+  handleWebhook,
+  cancelPayment,
+  generateInvoice,
+} = require('../controllers/paymentController');
 const { verifyToken, protect, permit } = require('../middleware/auth');
+const auth = require('../middleware/auth');
 
 console.log("TYPE OF stkPush:", typeof stkPush);
 
@@ -84,5 +94,46 @@ router.post('/callback', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
+// ============================================
+// STRIPE PAYMENT ROUTES
+// ============================================
+
+/**
+ * Create payment intent
+ * POST /api/payments/stripe/create-intent
+ */
+router.post('/stripe/create-intent', auth, createPaymentIntent);
+
+/**
+ * Get payment details
+ * GET /api/payments/stripe/:paymentId
+ */
+router.get('/stripe/:paymentId', auth, getPayment);
+
+/**
+ * Get payment history
+ * GET /api/payments/stripe/history
+ */
+router.get('/stripe/history', auth, getPaymentHistory);
+
+/**
+ * Cancel payment
+ * POST /api/payments/stripe/:paymentId/cancel
+ */
+router.post('/stripe/:paymentId/cancel', auth, cancelPayment);
+
+/**
+ * Generate invoice
+ * POST /api/payments/stripe/:paymentId/invoice
+ */
+router.post('/stripe/:paymentId/invoice', auth, generateInvoice);
+
+/**
+ * Stripe webhook handler
+ * POST /api/payments/stripe/webhook
+ * Note: This should NOT have the `auth` middleware since Stripe needs to hit this endpoint directly
+ */
+router.post('/stripe/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 
 module.exports = router;

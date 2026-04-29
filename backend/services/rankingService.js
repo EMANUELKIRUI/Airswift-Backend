@@ -1,33 +1,31 @@
 const Application = require("../models/ApplicationMongoose");
-const Notification = require("../models/Notification");
+const Job = require("../models/Job");
 
 /**
- * Rank candidates for a specific job based on AI scores
- * @param {String} jobId - Job ID to rank candidates for
- * @returns {Promise<Array>} Sorted array of ranked applications
+ * Rank candidates for a specific job based on their AI scores
+ * @param {string} jobId - The job ID
+ * @returns {Promise<Array>} Sorted and ranked applications
  */
 exports.rankCandidates = async (jobId) => {
   try {
-    const apps = await Application.find({ jobId }).sort({ "aiScore.total": -1 });
+    const applications = await Application.find({ jobId })
+      .populate("userId", "name email")
+      .populate("jobId", "title company");
 
-    if (apps.length === 0) {
-      console.log(`No applications found for job ${jobId}`);
-      return [];
-    }
-
-    // Update rank for each application
-    const updatePromises = apps.map(async (app, index) => {
-      app.rank = index + 1;
-      await app.save();
-      return app;
+    // Sort by total AI score in descending order
+    const sorted = applications.sort((a, b) => {
+      const scoreA = a.aiScore?.total || 0;
+      const scoreB = b.aiScore?.total || 0;
+      return scoreB - scoreA;
     });
 
-    const rankedApps = await Promise.all(updatePromises);
+    // Assign rank to each application
+    for (let i = 0; i < sorted.length; i++) {
+      sorted[i].rank = i + 1;
+      await sorted[i].save();
+    }
 
-    // Log ranking completion
-    console.log(`✅ Ranked ${rankedApps.length} candidates for job ${jobId}`);
-
-    return rankedApps;
+    return sorted;
   } catch (error) {
     console.error("Error ranking candidates:", error);
     throw error;
@@ -35,22 +33,25 @@ exports.rankCandidates = async (jobId) => {
 };
 
 /**
- * Get top N candidates globally or for a specific job
- * @param {Number} limit - Number of top candidates to return
- * @param {String} jobId - Optional job ID to filter by
- * @returns {Promise<Array>} Array of top candidates
+ * Get top candidates across all jobs or for a specific job
+ * @param {string} jobId - Optional job ID to filter by
+ * @param {number} limit - Number of top candidates to return (default 20)
+ * @returns {Promise<Array>} Top ranked candidates
  */
-exports.getTopCandidates = async (limit = 20, jobId = null) => {
+exports.getTopCandidates = async (jobId, limit = 20) => {
   try {
-    const filter = jobId ? { jobId } : {};
-
-    const topCandidates = await Application.find(filter)
-      .sort({ "aiScore.total": -1, rank: 1 })
+    const query = Application.find()
+      .sort({ "aiScore.total": -1 })
       .limit(limit)
-      .populate("userId", "name email phone profilePicture")
-      .populate("jobId", "title location");
+      .populate("userId", "name email phone location")
+      .populate("jobId", "title company salary");
 
-    return topCandidates;
+    if (jobId) {
+      query.where({ jobId });
+    }
+
+    const candidates = await query.exec();
+    return candidates;
   } catch (error) {
     console.error("Error fetching top candidates:", error);
     throw error;
@@ -58,127 +59,112 @@ exports.getTopCandidates = async (limit = 20, jobId = null) => {
 };
 
 /**
- * Calculate candidate AI score from multiple factors
- * @param {Object} candidateData - Candidate data with skills, experience, etc.
- * @returns {Object} AI score breakdown
+ * Calculate and update AI score for an application
+ * Usually called after CV parsing/analysis
+ * @param {string} applicationId - Application ID
+ * @param {object} scoreData - Score breakdown { skills, experience, communication }
+ * @returns {Promise<object>} Updated application
  */
-exports.calculateAIScore = (candidateData) => {
+exports.updateAIScore = async (applicationId, scoreData) => {
   try {
-    const {
-      skills = [],
-      experience = 0,
-      communicationRating = 0,
-      projectsCount = 0,
-      educationLevel = 0,
-    } = candidateData;
+    const { skills = 0, experience = 0, communication = 0 } = scoreData;
+    
+    // Calculate total as average of all scores
+    const total = Math.round((skills + experience + communication) / 3);
 
-    // Skills score (0-30 points)
-    const skillsScore = Math.min(skills.length * 5, 30);
+    const application = await Application.findByIdAndUpdate(
+      applicationId,
+      {
+        "aiScore.skills": Math.min(100, Math.max(0, skills)),
+        "aiScore.experience": Math.min(100, Math.max(0, experience)),
+        "aiScore.communication": Math.min(100, Math.max(0, communication)),
+        "aiScore.total": Math.min(100, Math.max(0, total)),
+      },
+      { new: true }
+    );
 
-    // Experience score (0-30 points) - 5 points per year, max 30
-    const experienceScore = Math.min(experience * 3, 30);
-
-    // Communication score (0-20 points)
-    const communicationScore = Math.min(communicationRating, 20);
-
-    // Projects/Portfolio score (0-15 points)
-    const projectsScore = Math.min(projectsCount * 3, 15);
-
-    // Education score (0-5 points)
-    const educationScore = educationLevel > 0 ? 5 : 0;
-
-    const totalScore = skillsScore + experienceScore + communicationScore + projectsScore + educationScore;
-
-    return {
-      total: Math.round(totalScore),
-      skills: skillsScore,
-      experience: experienceScore,
-      communication: communicationScore,
-      projects: projectsScore,
-      education: educationScore,
-    };
+    return application;
   } catch (error) {
-    console.error("Error calculating AI score:", error);
+    console.error("Error updating AI score:", error);
     throw error;
   }
 };
 
 /**
- * Notify admins about top candidates
- * @param {String} jobId - Job ID
- * @param {Number} topCount - Number of top candidates to notify about
+ * Get ranking statistics for a job
+ * @param {string} jobId - The job ID
+ * @returns {Promise<object>} Statistics like average score, median, etc.
  */
-exports.notifyAdminsAboutTopCandidates = async (jobId, topCount = 5) => {
+exports.getRankingStats = async (jobId) => {
   try {
-    const topCandidates = await exports.getTopCandidates(topCount, jobId);
+    const applications = await Application.find({ jobId });
 
-    if (topCandidates.length === 0) {
-      return;
+    if (applications.length === 0) {
+      return {
+        total: 0,
+        averageScore: 0,
+        highestScore: 0,
+        lowestScore: 0,
+        medianScore: 0,
+      };
     }
 
-    const candidateNames = topCandidates
-      .map((app, idx) => `${idx + 1}. ${app.userId?.name || "Unknown"}`)
-      .join("\n");
+    const scores = applications
+      .map(app => app.aiScore?.total || 0)
+      .sort((a, b) => a - b);
 
-    // Create notification for all admins
-    const admins = await require("../models/User").find({ role: "admin" });
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const median =
+      scores.length % 2 === 0
+        ? (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2
+        : scores[Math.floor(scores.length / 2)];
 
-    const notifications = admins.map((admin) => ({
-      userId: admin._id,
-      title: "Top Candidates Ready",
-      message: `Top ${topCount} candidates ranked for this job:\n${candidateNames}`,
-      type: "system",
-      link: `/admin/jobs/${jobId}/candidates`,
-    }));
-
-    await Notification.insertMany(notifications);
-
-    // Emit real-time notification
-    if (global.io) {
-      admins.forEach((admin) => {
-        global.io.to(`user_${admin._id}`).emit("notification", {
-          title: "Top Candidates Ready",
-          message: `New top candidates available for review`,
-          type: "system",
-          jobId,
-        });
-      });
-    }
-
-    console.log(`✅ Admin notifications sent for job ${jobId}`);
+    return {
+      total: applications.length,
+      averageScore: Math.round(average),
+      highestScore: Math.max(...scores),
+      lowestScore: Math.min(...scores),
+      medianScore: Math.round(median),
+      scoreDistribution: {
+        excellent: scores.filter(s => s >= 80).length,
+        good: scores.filter(s => s >= 60 && s < 80).length,
+        average: scores.filter(s => s >= 40 && s < 60).length,
+        poor: scores.filter(s => s < 40).length,
+      },
+    };
   } catch (error) {
-    console.error("Error notifying admins:", error);
+    console.error("Error getting ranking stats:", error);
+    throw error;
   }
 };
 
 /**
- * Get ranking statistics for a job
- * @param {String} jobId - Job ID
- * @returns {Promise<Object>} Ranking statistics
+ * Bulk update scores and re-rank candidates
+ * Useful after batch CV analysis
+ * @param {Array} updates - Array of { applicationId, scores }
+ * @returns {Promise<Array>} Updated applications
  */
-exports.getRankingStats = async (jobId) => {
+exports.bulkUpdateAndRank = async (updates) => {
   try {
-    const apps = await Application.find({ jobId });
+    const results = [];
 
-    const scores = apps.map((app) => app.aiScore?.total || 0);
-    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b) / scores.length) : 0;
-    const maxScore = Math.max(...scores);
-    const minScore = Math.min(...scores);
+    for (const update of updates) {
+      const app = await this.updateAIScore(
+        update.applicationId,
+        update.scores
+      );
+      results.push(app);
+    }
 
-    return {
-      totalCandidates: apps.length,
-      averageScore: avgScore,
-      maxScore,
-      minScore,
-      scoreDistribution: {
-        excellent: apps.filter((a) => a.aiScore?.total >= 80).length,
-        good: apps.filter((a) => (a.aiScore?.total || 0) >= 60 && (a.aiScore?.total || 0) < 80).length,
-        average: apps.filter((a) => (a.aiScore?.total || 0) >= 40 && (a.aiScore?.total || 0) < 60).length,
-        poor: apps.filter((a) => (a.aiScore?.total || 0) < 40).length,
-      },
-    };
+    // Get the job ID from first application to re-rank
+    if (results.length > 0) {
+      const jobId = results[0].jobId;
+      await this.rankCandidates(jobId);
+    }
+
+    return results;
   } catch (error) {
-    console.error("Error calculating ranking stats:", error);
+    console.error("Error in bulk update and rank:", error);
     throw error;
   }
 };

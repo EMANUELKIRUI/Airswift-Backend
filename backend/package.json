@@ -36,11 +36,13 @@
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.15.0",
     "pg": "^8.11.3",
-    "redis": "^4.6.8",
+    "redis": "^4.7.1",
     "sequelize": "^6.32.1",
     "sib-api-v3-sdk": "^8.5.0",
     "socket.io": "^4.7.5",
-    "sqlite3": "^5.1.6"
+    "socket.io-redis": "^5.4.0",
+    "sqlite3": "^5.1.6",
+    "stripe": "^22.1.0"
   },
   "devDependencies": {
     "jest": "^29.6.2",
