@@ -42,9 +42,14 @@ api.interceptors.request.use(
     console.log('📤 API REQUEST INTERCEPTOR:');
     console.log('   URL:', config.url);
     console.log('   Method:', config.method.toUpperCase());
+    console.log('   Content-Type:', config.headers['Content-Type']);
     console.log('   Token in localStorage:', token ? '✓ EXISTS' : '✗ MISSING');
     if (token) {
       console.log('   ✅ Authorization header set: Bearer [token]');
+    }
+    if (config.data) {
+      console.log('   📦 Request body:', config.data);
+      console.log('   📦 Body type:', typeof config.data);
     }
 
     return config;

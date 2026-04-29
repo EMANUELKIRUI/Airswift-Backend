@@ -63,10 +63,24 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    console.log("REGISTER BODY:", req.body);
+    console.log("🔍 REGISTER REQUEST:");
+    console.log("  Headers:", req.headers);
+    console.log("  Content-Type:", req.headers['content-type']);
+    console.log("  Body:", req.body);
+    console.log("  Body keys:", Object.keys(req.body || {}));
 
     if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "Name, email and password are required" });
+      const missingFields = [];
+      if (!name) missingFields.push('name');
+      if (!email) missingFields.push('email');
+      if (!password) missingFields.push('password');
+      
+      console.error("❌ Missing required fields:", missingFields);
+      return res.status(400).json({ 
+        success: false,
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        missingFields 
+      });
     }
 
     const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
