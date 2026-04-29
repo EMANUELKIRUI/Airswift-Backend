@@ -15,6 +15,10 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  fileType: {
+    type: String,
+    default: null,
+  },
   fileName: {
     type: String,
     default: null,
@@ -47,6 +51,10 @@ const documentSchema = new mongoose.Schema({
   reviewedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    default: null,
+  },
+  feedback: {
+    type: String,
     default: null,
   },
 }, { timestamps: true });

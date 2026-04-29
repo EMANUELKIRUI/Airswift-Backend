@@ -98,6 +98,13 @@ io.on("connection", (socket) => {
   if (socket.user?.id) {
     socket.join(`user_${socket.user.id}`);
     console.log(`Socket ${socket.id} auto-joined user room: user_${socket.user.id}`);
+
+    User.findByIdAndUpdate(socket.user.id, {
+      isOnline: true,
+      lastSeen: new Date(),
+    }).catch((err) => {
+      console.error('Socket presence update error:', err.message);
+    });
   }
 
   // 🔥 USER-SPECIFIC ROOMS
@@ -129,6 +136,15 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+
+    if (socket.user?.id) {
+      User.findByIdAndUpdate(socket.user.id, {
+        isOnline: false,
+        lastSeen: new Date(),
+      }).catch((err) => {
+        console.error('Socket presence update error:', err.message);
+      });
+    }
   });
 
   // Auto-join admin room for admin users

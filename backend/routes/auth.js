@@ -54,6 +54,7 @@ router.post("/resend-otp", otpRateLimiter, resendOTP);
 router.post("/login", loginLimiter, loginUser);
 // router.post("/admin-login", adminLogin); // Removed - admin uses regular login
 router.post("/send-login-otp", sendLoginOTP);
+router.get("/activate/:token", verifyEmailToken);
 router.post("/verify-login-otp", verifyLoginOTP);
 router.post("/forgot-password", forgotPassword);
 router.put("/change-password", verifyToken, changePassword);

@@ -210,6 +210,185 @@ const getUserPayments = async (req, res) => {
   }
 };
 
+/**
+ * Create Stripe Payment Intent
+ * POST /api/payment/stripe/intent
+ */
+const createStripePaymentIntent = async (req, res) => {
+  try {
+    const { amount, paymentType, description } = req.body;
+    const stripe = require("../config/stripe");
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Invalid amount" });
+    }
+
+    if (!paymentType) {
+      return res.status(400).json({ message: "Payment type is required" });
+    }
+
+    const user = req.user;
+
+    // Create Stripe payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: "usd",
+      metadata: {
+        userId: user.id,
+        paymentType,
+        userEmail: user.email,
+      },
+      description: description || `${paymentType} for ${user.name}`,
+    });
+
+    // Save pending payment to database
+    const payment = await Payment.create({
+      user_id: user.id,
+      amount,
+      service_type: paymentType,
+      status: "pending",
+      checkoutRequestId: paymentIntent.id,
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount,
+      paymentType,
+      paymentId: payment._id || payment.id,
+    });
+  } catch (error) {
+    console.error("Stripe payment intent error:", error);
+    res.status(500).json({
+      message: "Failed to create payment intent",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Confirm Stripe Payment
+ * POST /api/payment/stripe/confirm
+ */
+const confirmStripePayment = async (req, res) => {
+  try {
+    const { paymentIntentId, paymentId } = req.body;
+    const stripe = require("../config/stripe");
+
+    if (!paymentIntentId || !paymentId) {
+      return res.status(400).json({ message: "Payment intent ID and payment ID are required" });
+    }
+
+    // Retrieve payment intent from Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== "succeeded") {
+      return res.status(400).json({
+        message: "Payment not completed",
+        status: paymentIntent.status,
+      });
+    }
+
+    // Update payment status in database
+    const payment = await Payment.findByIdAndUpdate(
+      paymentId,
+      {
+        status: "completed",
+        completedAt: new Date(),
+        transactionId: paymentIntent.id,
+      },
+      { new: true }
+    );
+
+    // Send confirmation email
+    const user = await User.findById(req.user.id);
+    if (user && user.email) {
+      await sendEmail(
+        user.email,
+        "Payment Confirmation - Airswift",
+        `<h2>Payment Received</h2>
+        <p>Your payment of $${payment.amount} has been received successfully.</p>
+        <p>Transaction ID: ${paymentIntent.id}</p>
+        <p>Thank you!</p>`
+      );
+    }
+
+    // Emit real-time payment success
+    if (global.io && req.user.id) {
+      global.io.to(`user_${req.user.id}`).emit("payment_success", {
+        userId: req.user.id,
+        amount: payment.amount,
+        status: payment.status,
+        paymentId: payment._id || payment.id,
+      });
+    }
+
+    // Log successful payment
+    await auditLogger.logAction(
+      req.user.id,
+      "STRIPE_PAYMENT_COMPLETED",
+      `Stripe payment completed: $${payment.amount}`,
+      req.ip,
+      { paymentId: payment._id || payment.id, transactionId: paymentIntent.id }
+    );
+
+    res.json({
+      message: "Payment confirmed successfully",
+      payment,
+    });
+  } catch (error) {
+    console.error("Stripe payment confirmation error:", error);
+    res.status(500).json({
+      message: "Failed to confirm payment",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get Payment Details
+ * GET /api/payment/stripe/:paymentId
+ */
+const getStripePaymentDetails = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const stripe = require("../config/stripe");
+
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // Check authorization
+    if (payment.user_id.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    // Retrieve payment intent from Stripe
+    if (payment.checkoutRequestId) {
+      const paymentIntent = await stripe.paymentIntents.retrieve(payment.checkoutRequestId);
+
+      res.json({
+        payment,
+        stripeDetails: {
+          status: paymentIntent.status,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          created: paymentIntent.created,
+        },
+      });
+    } else {
+      res.json({ payment });
+    }
+  } catch (error) {
+    console.error("Get payment error:", error);
+    res.status(500).json({
+      message: "Failed to fetch payment details",
+      error: error.message,
+    });
+  }
+};
+
 // Get all payments (admin only) with pagination
 const getAllPayments = async (req, res) => {
   try {
@@ -298,5 +477,8 @@ module.exports = {
   mpesaCallback,
   getUserPayments,
   getAllPayments,
-  updatePaymentStatus
+  updatePaymentStatus,
+  createStripePaymentIntent,
+  confirmStripePayment,
+  getStripePaymentDetails,
 };

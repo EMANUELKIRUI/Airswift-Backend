@@ -69,6 +69,19 @@ const userSchema = new mongoose.Schema(
     },
     lastModifiedAt: Date,
     bio: String,
+    cvUrl: String,
+    profile: {
+      phone: String,
+      location: String,
+      skills: [String],
+    },
+    activationToken: String,
+    activationExpires: Date,
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+    lastSeen: Date,
   },
   { timestamps: true }
 );

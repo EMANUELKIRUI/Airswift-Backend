@@ -31,6 +31,7 @@ exports.uploadDocument = async (req, res) => {
       userId,
       type,
       fileUrl: req.file.path || req.file.location, // Multer path or S3 location
+      fileType: req.file.mimetype,
       fileName: req.file.originalname,
       fileSize: req.file.size,
       mimeType: req.file.mimetype,
@@ -149,7 +150,7 @@ exports.getDocument = async (req, res) => {
 exports.reviewDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, rejectionReason } = req.body;
+    const { status, rejectionReason, feedback } = req.body;
     const adminId = req.user.id;
 
     // Validate status
@@ -162,6 +163,7 @@ exports.reviewDocument = async (req, res) => {
       {
         status,
         rejectionReason: status === "rejected" ? rejectionReason : null,
+        feedback: feedback || null,
         reviewedAt: new Date(),
         reviewedBy: adminId,
       },
@@ -188,7 +190,7 @@ exports.reviewDocument = async (req, res) => {
     const notificationMessage =
       status === "approved"
         ? `Your ${document.type} document has been approved`
-        : `Your ${document.type} document was rejected: ${rejectionReason}`;
+        : `Your ${document.type} document was rejected${feedback ? `: ${feedback}` : rejectionReason ? `: ${rejectionReason}` : '.'}`;
 
     const notification = await Notification.create({
       userId: document.userId,

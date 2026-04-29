@@ -103,6 +103,8 @@ const registerUser = async (req, res) => {
 
       existingUser.verificationToken = hashedToken;
       existingUser.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      existingUser.activationToken = hashedToken;
+      existingUser.activationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
       existingUser.otp = null;
       existingUser.otpExpires = null;
 
@@ -143,6 +145,8 @@ const registerUser = async (req, res) => {
       isVerified: false,
       verificationToken: hashedToken,
       verificationTokenExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+      activationToken: hashedToken,
+      activationExpires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       otp: null,
       otpExpires: null
     });
@@ -362,7 +366,7 @@ const resendVerificationEmail = async (req, res) => {
 
 const verifyEmailToken = async (req, res) => {
   try {
-    const { token } = req.query;
+    const token = req.query.token || req.params.token;
 
     if (!token) {
       return res.status(400).json({ message: "Token is required" });
@@ -374,8 +378,16 @@ const verifyEmailToken = async (req, res) => {
       .digest("hex");
 
     const user = await User.findOne({
-      verificationToken: hashedToken,
-      verificationTokenExpires: { $gt: Date.now() }
+      $or: [
+        {
+          verificationToken: hashedToken,
+          verificationTokenExpires: { $gt: Date.now() },
+        },
+        {
+          activationToken: hashedToken,
+          activationExpires: { $gt: Date.now() },
+        },
+      ],
     });
 
     if (!user) {
@@ -385,6 +397,8 @@ const verifyEmailToken = async (req, res) => {
     user.isVerified = true;
     user.verificationToken = null;
     user.verificationTokenExpires = null;
+    user.activationToken = null;
+    user.activationExpires = null;
     user.otp = null;
     user.otpExpires = null;
 
@@ -544,6 +558,8 @@ const loginUser = async (req, res) => {
 
       user.verificationToken = hashedToken;
       user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+      user.activationToken = hashedToken;
+      user.activationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
       user.otp = null;
       user.otpExpires = null;
 
