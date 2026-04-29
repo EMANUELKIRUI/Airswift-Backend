@@ -22,6 +22,7 @@ const {
   // adminLogin // Removed - admin uses regular login
 } = require("../controllers/authController");
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
+const { logRegisterFailure } = require("../middleware/registerFailureLogger");
 const { findUserById } = require("../utils/userHelpers");
 
 // Rate limiter for login attempts
@@ -43,7 +44,7 @@ const otpRateLimiter = rateLimit({
 });
 
 // ✅ AUTHENTICATION ROUTES
-router.post("/register", registerUser);
+router.post("/register", logRegisterFailure, registerUser);
 router.post("/verify-registration-otp", verifyRegistrationOTP);
 router.post("/verify-otp", verifyOtp);
 router.get("/verify-email", verifyEmailToken);
