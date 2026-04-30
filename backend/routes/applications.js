@@ -90,17 +90,37 @@ router.post('/', protect, permit('apply_jobs'), upload.fields([
     console.log("FILES:", req.files);
     console.log("BODY:", req.body);
 
-    if (!req.files || !req.files.cv) {
-      return res.status(400).json({ message: "CV is required" });
+    // 🔒 BACKEND SAFETY: Validate all files are present
+    if (!req.files) {
+      return res.status(400).json({ message: "No files uploaded" });
     }
 
-    if (!req.files.passport) {
-      return res.status(400).json({ message: "Passport is required" });
+    if (!req.files.cv || !req.files.cv[0]) {
+      return res.status(400).json({ message: "CV file is required" });
     }
 
-    if (!req.files.nationalId) {
-      return res.status(400).json({ message: "National ID is required" });
+    if (!req.files.passport || !req.files.passport[0]) {
+      return res.status(400).json({ message: "Passport file is required" });
     }
+
+    if (!req.files.nationalId || !req.files.nationalId[0]) {
+      return res.status(400).json({ message: "National ID file is required" });
+    }
+
+    // 🔒 BACKEND SAFETY: Validate file types and sizes
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    [
+      { file: req.files.cv[0], name: 'CV' },
+      { file: req.files.passport[0], name: 'Passport' },
+      { file: req.files.nationalId[0], name: 'National ID' },
+    ].forEach(({ file, name }) => {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        return res.status(400).json({ message: `${name} file type not allowed. Only PDF and images.` });
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return res.status(413).json({ message: `${name} exceeds 5MB limit` });
+      }
+    });
 
     const { jobId, phone } = req.body;
     if (!jobId) {
@@ -162,24 +182,37 @@ router.post('/create', protect, permit('apply_jobs'), upload.fields([
     console.log("📦 BODY:", req.body);
     console.log("📁 FILES:", req.files);
 
-    // ✅ SAFE CHECK (prevents crash)
-    if (!req.files || !req.files.cv || req.files.cv.length === 0) {
-      return res.status(400).json({
-        error: "CV file is required",
-      });
+    // 🔒 BACKEND SAFETY: Validate all files are present
+    if (!req.files) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    if (!req.files.cv || req.files.cv.length === 0) {
+      return res.status(400).json({ error: "CV file is required" });
     }
 
     if (!req.files.passport || req.files.passport.length === 0) {
-      return res.status(400).json({
-        error: "Passport file is required",
-      });
+      return res.status(400).json({ error: "Passport file is required" });
     }
 
     if (!req.files.nationalId || req.files.nationalId.length === 0) {
-      return res.status(400).json({
-        error: "National ID file is required",
-      });
+      return res.status(400).json({ error: "National ID file is required" });
     }
+
+    // 🔒 BACKEND SAFETY: Validate file types and sizes
+    const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    [
+      { file: req.files.cv[0], name: 'CV' },
+      { file: req.files.passport[0], name: 'Passport' },
+      { file: req.files.nationalId[0], name: 'National ID' },
+    ].forEach(({ file, name }) => {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        return res.status(400).json({ error: `${name} file type not allowed` });
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return res.status(413).json({ error: `${name} exceeds 5MB limit` });
+      }
+    });
 
     const { jobId, phone } = req.body;
     if (!jobId) {

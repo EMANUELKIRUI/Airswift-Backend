@@ -75,14 +75,29 @@ api.interceptors.response.use(
 
     console.error('❌ API ERROR:', error.response?.data || error);
 
-    // Handle 401 Unauthorized - redirect to login
+    // Handle 401 Unauthorized - improved handling
     if (status === 401) {
-      console.warn('🔐 Unauthorized - clearing auth and redirecting to login');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      console.warn('🔐 Unauthorized response received - token may be invalid or expired');
+      console.warn('⚠️  Attempting token refresh before clearing storage...');
       
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      // Don't immediately remove token - let refresh logic handle it
+      // This prevents aggressive auto-logout on transient token issues
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!accessToken || !refreshToken) {
+        console.error('❌ No tokens available - clearing auth and redirecting to login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      } else {
+        console.warn('⚠️  Tokens still available - refresh attempt may be in progress');
+        // Allow retry logic to attempt refresh
       }
     }
 

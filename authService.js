@@ -297,11 +297,18 @@ class AuthService {
 
       if (error.response?.status === 401) {
         console.log('🔄 Token invalid, attempting refresh...');
-        const refreshResult = await this.refreshToken();
-        if (refreshResult.success) {
-          // Retry fetching profile
-          return this.getProfile();
-        } else {
+        try {
+          const refreshResult = await this.refreshToken();
+          if (refreshResult.success) {
+            // Retry fetching profile after successful refresh
+            console.log('✅ Token refreshed, retrying profile fetch...');
+            return this.getProfile();
+          } else {
+            console.warn('⚠️  Token refresh failed, logging out...');
+            this.logout();
+          }
+        } catch (refreshError) {
+          console.error('❌ Token refresh threw error:', refreshError.message);
           this.logout();
         }
       }
