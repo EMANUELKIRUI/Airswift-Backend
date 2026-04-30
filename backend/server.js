@@ -1,6 +1,7 @@
 const { loadEnv } = require("./config/env");
 loadEnv();
 
+const mongoose = require("mongoose");
 const express = require("express");
 const http = require("http");
 const path = require('path');
