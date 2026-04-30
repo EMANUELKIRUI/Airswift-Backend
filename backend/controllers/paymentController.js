@@ -481,11 +481,6 @@ module.exports = {
   getUserPayments,
   getAllPayments,
   updatePaymentStatus,
-<<<<<<< HEAD
-  createStripePaymentIntent,
-  confirmStripePayment,
-  getStripePaymentDetails,
-=======
   // Stripe payment functions
   createPaymentIntent,
   getPayment,
@@ -493,7 +488,6 @@ module.exports = {
   handleWebhook,
   cancelPayment,
   generateInvoice,
->>>>>>> 24736de (🚀 feat: Add enterprise features - AI Ranking, JWT Refresh, Stripe Payments, RBAC, Redis Scaling, Mobile Support)
 };
 
 // ============================================
