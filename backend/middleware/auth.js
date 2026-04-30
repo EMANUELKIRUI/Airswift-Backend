@@ -134,16 +134,16 @@ const isAdmin = (req, res, next) => {
 // Alias for compatibility with different imports
 const authorizeRoles = authorize;
 
-// Clean exports
 const protect = authMiddleware;
 
-module.exports = { 
-  authMiddleware, 
-  verifyToken, 
-  protect,
-  verifyRole, 
-  authorize,
-  authorizeRoles,
-  permit,
-  isAdmin,
-};
+// Export the middleware function as the default callable export, and preserve named exports as properties.
+const auth = authMiddleware;
+auth.verifyToken = verifyToken;
+auth.protect = protect;
+auth.verifyRole = verifyRole;
+auth.authorize = authorize;
+auth.authorizeRoles = authorizeRoles;
+auth.permit = permit;
+auth.isAdmin = isAdmin;
+
+module.exports = auth;
