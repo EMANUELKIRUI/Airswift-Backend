@@ -138,6 +138,7 @@ const protect = authMiddleware;
 
 // Export the middleware function as the default callable export, and preserve named exports as properties.
 const auth = authMiddleware;
+auth.authMiddleware = authMiddleware;
 auth.verifyToken = verifyToken;
 auth.protect = protect;
 auth.verifyRole = verifyRole;
