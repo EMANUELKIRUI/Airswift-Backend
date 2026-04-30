@@ -22,6 +22,7 @@ function loadEnv() {
     "EMAIL_HOST",
     "EMAIL_USER",
     "EMAIL_PASS",
+    "STRIPE_SECRET_KEY",
   ];
 
   const missing = requiredVars.filter((key) => !process.env[key]);
