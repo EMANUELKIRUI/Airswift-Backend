@@ -115,7 +115,7 @@ class AuthService {
 
         // Reconnect socket with new token
         console.log('🔌 Reconnecting socket with token...');
-        const socket = reconnectSocketConnection();
+        const socket = reconnectSocketConnection(response.data.token);
         if (socket) {
           console.log('✅ Socket reconnected:', socket.id);
         }
@@ -211,8 +211,8 @@ class AuthService {
       if (response.data.token && response.data.user) {
         this.storeToken(response.data.token, response.data.user);
 
-        // Reconnect socket
-        reconnectSocketConnection();
+        // Reconnect socket with the new token
+        reconnectSocketConnection(response.data.token);
 
         return {
           success: true,
@@ -250,7 +250,7 @@ class AuthService {
         console.log('✅ Token refreshed successfully');
 
         // Reconnect socket with new token
-        reconnectSocketConnection();
+        reconnectSocketConnection(response.data.token);
 
         return {
           success: true,
