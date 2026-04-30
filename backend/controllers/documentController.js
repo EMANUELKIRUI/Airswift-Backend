@@ -17,9 +17,14 @@ exports.uploadDocument = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Validate file type - accept PDF only
-    if (!req.file.mimetype || !req.file.mimetype.includes("pdf")) {
-      return res.status(400).json({ message: "Only PDF files are allowed" });
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
+    if (!req.file.mimetype || !allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({ message: 'Invalid document type. Only PDF, DOC, and DOCX files are allowed.' });
     }
 
     if (!type || !["passport", "cv", "certificate", "cover_letter", "photo"].includes(type)) {
