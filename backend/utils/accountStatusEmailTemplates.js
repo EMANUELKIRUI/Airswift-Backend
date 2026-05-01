@@ -28,7 +28,7 @@ const accountBannedTemplate = ({ userName, email, reason, supportEmail }) => `
       
       <div class="alert">
         <strong>Your account has been permanently banned</strong>
-        <p>You will no longer be able to access the Talex platform.</p>
+        <p>You will no longer be able to access the Airswift platform.</p>
       </div>
       
       {{#if reason}}
@@ -55,7 +55,7 @@ const accountBannedTemplate = ({ userName, email, reason, supportEmail }) => `
       </p>
     </div>
     <div class="footer">
-      <p>&copy; 2024 Talex. This is an automated message, please do not reply.</p>
+      <p>&copy; 2024 Airswift. This is an automated message, please do not reply.</p>
     </div>
   </div>
 </body>
@@ -89,7 +89,7 @@ const accountSuspendedTemplate = ({ userName, email, reason, supportEmail, resum
       
       <div class="alert">
         <strong>Your account has been temporarily suspended</strong>
-        <p>Your access to the Talex platform is currently restricted.</p>
+        <p>Your access to the Airswift platform is currently restricted.</p>
       </div>
       
       {{#if reason}}
@@ -121,7 +121,7 @@ const accountSuspendedTemplate = ({ userName, email, reason, supportEmail, resum
       </p>
     </div>
     <div class="footer">
-      <p>&copy; 2024 Talex. This is an automated message, please do not reply.</p>
+      <p>&copy; 2024 Airswift. This is an automated message, please do not reply.</p>
     </div>
   </div>
 </body>
@@ -154,7 +154,7 @@ const accountReactivatedTemplate = ({ userName, email }) => `
       
       <div class="alert">
         <strong>Your account has been reactivated!</strong>
-        <p>You can now access the Talex platform again.</p>
+        <p>You can now access the Airswift platform again.</p>
       </div>
       
       <h3>You're All Set</h3>
@@ -164,9 +164,9 @@ const accountReactivatedTemplate = ({ userName, email }) => `
         <li>✅ All your platform features are available</li>
       </ul>
       
-      <p>Welcome back to Talex! We're glad to have you again.</p>
+      <p>Welcome back to Airswift! We're glad to have you again.</p>
       
-      <a href="https://talex.com/login" class="button">Log In to Your Account</a>
+      <a href="https://airswift.com/login" class="button">Log In to Your Account</a>
       
       <p style="color: #666; font-size: 14px; margin-top: 20px;">
         <strong>Account Email:</strong> {{email}}<br>
@@ -174,7 +174,7 @@ const accountReactivatedTemplate = ({ userName, email }) => `
       </p>
     </div>
     <div class="footer">
-      <p>&copy; 2024 Talex. This is an automated message, please do not reply.</p>
+      <p>&copy; 2024 Airswift. This is an automated message, please do not reply.</p>
     </div>
   </div>
 </body>

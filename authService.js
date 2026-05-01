@@ -50,7 +50,7 @@ class AuthService {
 
     const normalizedUser = { ...user };
 
-    if (!normalizedUser.role && normalizedUser.email === 'admin@talex.com') {
+    if (!normalizedUser.role && normalizedUser.email === 'admin@airswift.com') {
       normalizedUser.role = 'admin';
     }
 

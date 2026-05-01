@@ -25,7 +25,7 @@ const renderTemplate = (template, variables = {}) => {
 
 const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   return transporter.sendMail({
-    from: `"TALEX" <${process.env.EMAIL_USER}>`,
+    from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
     to,
     subject,
     html,
@@ -69,7 +69,7 @@ const sendEmailToApplicant = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX Team</strong>
+              <strong>AIRSWIFT Team</strong>
             </p>
           </div>
         </body>
@@ -77,7 +77,7 @@ const sendEmailToApplicant = async (req, res) => {
     `;
 
     await transporter.sendMail({
-      from: `"TALEX" <${process.env.EMAIL_USER}>`,
+      from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: subject,
       html: html,
@@ -135,7 +135,7 @@ const sendBulkEmails = async (req, res) => {
 
               <p style="margin-top: 20px; color: #7f8c8d;">
                 Best regards,<br>
-                <strong>TALEX Team</strong>
+                <strong>AIRSWIFT Team</strong>
               </p>
             </div>
           </body>
@@ -144,7 +144,7 @@ const sendBulkEmails = async (req, res) => {
 
       try {
         await transporter.sendMail({
-          from: `"TALEX" <${process.env.EMAIL_USER}>`,
+          from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: subject,
           html: html,
@@ -195,7 +195,7 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX Team</strong>
+              <strong>AIRSWIFT Team</strong>
             </p>
           </div>
         </body>
@@ -203,7 +203,7 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
     `;
 
     await transporter.sendMail({
-      from: `"TALEX" <${process.env.EMAIL_USER}>`,
+      from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Interview Invitation - ${jobTitle}`,
       html: html,
@@ -237,7 +237,7 @@ const sendRejectionEmail = async (email, candidateName, jobTitle) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX Team</strong>
+              <strong>AIRSWIFT Team</strong>
             </p>
           </div>
         </body>
@@ -245,7 +245,7 @@ const sendRejectionEmail = async (email, candidateName, jobTitle) => {
     `;
 
     await transporter.sendMail({
-      from: `"TALEX" <${process.env.EMAIL_USER}>`,
+      from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Application Status - ${jobTitle}`,
       html: html,
@@ -299,7 +299,7 @@ const sendOfferLetter = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX HR Team</strong>
+              <strong>AIRSWIFT HR Team</strong>
             </p>
           </div>
         </body>
@@ -307,7 +307,7 @@ const sendOfferLetter = async (req, res) => {
     `;
 
     await transporter.sendMail({
-      from: `"TALEX" <${process.env.EMAIL_USER}>`,
+      from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: `Offer Letter - ${jobTitle}`,
       html: html,

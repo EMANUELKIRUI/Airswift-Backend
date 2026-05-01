@@ -8,7 +8,7 @@ const connectDB = async () => {
       process.env.MONGODB_URI ||
       process.env.MONGO_URI ||
       process.env.DATABASE_URL ||
-      'mongodb://localhost:27017/talex_dev';
+      'mongodb://localhost:27017/airswift_dev';
 
     console.log('🔌 Connecting to MongoDB...');
     console.log('URI:', uri.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://***:***@'));

@@ -46,7 +46,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
           if (!user) {
             // Determine role based on email
             let role = 'user';
-            if (normalizedEmail === 'admin@talex.com') {
+            if (normalizedEmail === 'admin@airswift.com') {
               role = 'admin';
             }
 
@@ -77,7 +77,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
   );
 }
 
-const ADMIN_EMAILS = ["admin@talex.com"];
+const ADMIN_EMAILS = ["admin@airswift.com"];
 
 // ✅ POST /auth/google - Verify Google token and return JWT
 router.post("/google", async (req, res) => {

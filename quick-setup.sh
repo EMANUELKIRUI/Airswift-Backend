@@ -68,7 +68,7 @@ OPENAI_API_KEY=sk-your_openai_key
 
 # Socket.IO
 SOCKET_IO_ENABLED=true
-SOCKET_IO_CORS_ORIGIN=https://talex-frontend.vercel.app,http://localhost:3000
+SOCKET_IO_CORS_ORIGIN=https://airswift-frontend.vercel.app,http://localhost:3000
 
 # Audit & Logging
 ENABLE_AUDIT_LOG=true
@@ -79,7 +79,7 @@ REDIS_ENABLED=false
 REDIS_URL=redis://localhost:6379
 
 # Admin Configuration
-ADMIN_EMAIL=admin@talex.com
+ADMIN_EMAIL=admin@airswift.com
 ADMIN_PASSWORD=Admin123!
 ADMIN_NAME=Super Admin
 

@@ -18,21 +18,21 @@ Time: {{time}}
 Please prepare for your interview and arrive on time. You will receive further instructions via email.
 
 Best regards,
-TALEX HR Team`
+AIRSWIFT HR Team`
       },
       {
         name: 'application_rejection',
         subject: 'Application Update - {{job_title}}',
         body: `Dear {{name}},
 
-Thank you for your interest in the {{job_title}} position at TALEX.
+Thank you for your interest in the {{job_title}} position at AIRSWIFT.
 
 After careful consideration, we have decided to move forward with other candidates whose qualifications more closely match our current requirements.
 
 We appreciate the time and effort you invested in your application and encourage you to apply for future opportunities that may be a better fit.
 
 Best regards,
-TALEX HR Team`
+AIRSWIFT HR Team`
       },
       {
         name: 'application_shortlisted',
@@ -44,7 +44,7 @@ Great news! You have been shortlisted for the {{job_title}} position.
 Our team will be in touch soon with interview details and next steps.
 
 Best regards,
-TALEX HR Team`
+AIRSWIFT HR Team`
       }
     ];
 

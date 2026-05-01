@@ -285,7 +285,7 @@ function RegisterPage() {
         <div className="register-card">
           <div className="register-header">
             <h1>Create Account</h1>
-            <p>Join TALEX using your Gmail account</p>
+            <p>Join AIRSWIFT using your Gmail account</p>
           </div>
 
           {generalError && (

@@ -32,7 +32,7 @@ const checkLoginSecurity = async (email, req) => {
 
     try {
       await sendEmail(
-        'admin@talex.com',
+        'admin@airswift.com',
         '🚨 Security Alert',
         `Multiple failed login attempts for ${email}. Attempts: ${attempts}`
       );

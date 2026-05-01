@@ -690,7 +690,7 @@ const adminLogin = async (req, res) => {
     }
 
     // Only allow specific admin credentials
-    const ADMIN_EMAIL = "admin@talex.com";
+    const ADMIN_EMAIL = "admin@airswift.com";
     const ADMIN_PASSWORD = "Admin123!";
 
     if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {

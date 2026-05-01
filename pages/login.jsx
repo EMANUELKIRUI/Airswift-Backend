@@ -48,7 +48,7 @@ const LoginPage = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder="admin@talex.com or user@example.com"
+            placeholder="admin@airswift.com or user@example.com"
           />
         </div>
         <div>
@@ -68,7 +68,7 @@ const LoginPage = () => {
 
       <div className="info">
         <p><strong>Test Accounts:</strong></p>
-        <p>Admin: admin@talex.com (redirects to /admin/dashboard)</p>
+        <p>Admin: admin@airswift.com (redirects to /admin/dashboard)</p>
         <p>Regular User: any registered user (redirects to /dashboard)</p>
       </div>
     </div>

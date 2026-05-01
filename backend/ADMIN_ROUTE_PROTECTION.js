@@ -190,7 +190,7 @@ const getAllUsers = async (req, res) => {
 /**
  * 1. Login to get token:
  * POST /api/auth/login
- * Body: { email: "admin@talex.com", password: "..." }
+ * Body: { email: "admin@airswift.com", password: "..." }
  * Response: { token: "eyJhbGciOiJIUzI1NiIs...", user: {...} }
  * 
  * 2. Use token to access admin route:

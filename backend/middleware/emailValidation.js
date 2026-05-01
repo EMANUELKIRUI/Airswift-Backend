@@ -153,7 +153,7 @@ const registerWithGmailValidation = async (req, res) => {
     // Return success response
     res.status(201).json({
       success: true,
-      message: '✅ Registration successful! Welcome to TALEX.',
+      message: '✅ Registration successful! Welcome to AIRSWIFT.',
       token,
       user: {
         id: newUser._id,

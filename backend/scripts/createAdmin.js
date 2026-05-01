@@ -12,7 +12,7 @@ const createAdmin = async () => {
     console.log("🔐 Creating Admin Account...\n");
 
     // Admin credentials from environment variables
-    const adminEmail = process.env.ADMIN_EMAIL || "admin@talex.com";
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@airswift.com";
     const adminPassword = process.env.ADMIN_PASSWORD || "Admin123!";
     const adminName = process.env.ADMIN_NAME || "Super Admin";
 

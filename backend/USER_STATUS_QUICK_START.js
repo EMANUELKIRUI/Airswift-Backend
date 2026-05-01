@@ -56,7 +56,7 @@
  * 
  * POST /api/auth/login
  * {
- *   "email": "admin@talex.com",
+ *   "email": "admin@airswift.com",
  *   "password": "password"
  * }
  * 
@@ -296,7 +296,7 @@
  *     userName: user.name,
  *     email: user.email,
  *     reason: req.body.reason,
- *     supportEmail: 'support@talex.com'
+ *     supportEmail: 'support@airswift.com'
  *   });
  *   
  *   await sendEmail(user.email, 'Account Banned', html);

@@ -20,7 +20,7 @@ const promoteToAdmin = async () => {
       serverSelectionTimeoutMS: 5000,
     });
 
-    const email = process.argv[2] || "admin@talex.com";
+    const email = process.argv[2] || "admin@airswift.com";
     
     console.log(`🔄 Promoting ${email} to admin...`);
 

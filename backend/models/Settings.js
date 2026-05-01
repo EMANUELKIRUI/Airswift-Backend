@@ -7,7 +7,7 @@ const path = require('path');
 // Mongoose schema for production (MongoDB Atlas)
 const settingsSchema = new mongoose.Schema({
   singleton: { type: Boolean, default: true, unique: true, sparse: true },
-  platformName: { type: String, default: 'Talex' },
+  platformName: { type: String, default: 'Airswift' },
   currency: { type: String, default: 'USD' },
   maxJobsPerDay: { type: Number, default: 50 },
   maxApplicationsPerDay: { type: Number, default: 100 },
@@ -31,7 +31,7 @@ const SettingsSequelize = sequelize.define('Settings', {
     primaryKey: true,
     autoIncrement: true,
   },
-  platformName: { type: DataTypes.STRING, defaultValue: 'Talex' },
+  platformName: { type: DataTypes.STRING, defaultValue: 'Airswift' },
   currency: { type: DataTypes.STRING, defaultValue: 'USD' },
   maxJobsPerDay: { type: DataTypes.INTEGER, defaultValue: 50 },
   maxApplicationsPerDay: { type: DataTypes.INTEGER, defaultValue: 100 },
@@ -60,7 +60,7 @@ class FileSettings {
     } catch (error) {
       // Default settings
       this.cache = {
-        platformName: 'Talex',
+        platformName: 'Airswift',
         currency: 'USD',
         maxJobsPerDay: 50,
         maxApplicationsPerDay: 100,

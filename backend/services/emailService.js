@@ -28,7 +28,7 @@ const sendEmail = async (to, subject, htmlContent) => {
       });
 
       const info = await transporter.sendMail({
-        from: `"TALEX" <${process.env.EMAIL_USER}>`,
+        from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
         to,
         subject,
         html: htmlContent,
@@ -106,7 +106,7 @@ const sendOTPEmail = async (email, otp) => {
 <html>
 <head></head>
 <body>
-  <h2>TALEX Verification</h2>
+  <h2>AIRSWIFT Verification</h2>
   <p>Your OTP is: <strong>${otp}</strong></p>
   <p>Expires in 10 minutes</p>
 </body>
@@ -153,7 +153,7 @@ const sendInterviewInvitation = async (email, candidateName, jobTitle, interview
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX Team</strong>
+              <strong>AIRSWIFT Team</strong>
             </p>
           </div>
         </body>
@@ -199,7 +199,7 @@ const sendEmailToApplicant = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX Team</strong>
+              <strong>AIRSWIFT Team</strong>
             </p>
           </div>
         </body>
@@ -261,7 +261,7 @@ const sendBulkEmails = async (req, res) => {
 
               <p style="margin-top: 20px; color: #7f8c8d;">
                 Best regards,<br>
-                <strong>TALEX Team</strong>
+                <strong>AIRSWIFT Team</strong>
               </p>
             </div>
           </body>
@@ -333,7 +333,7 @@ const sendOfferLetter = async (req, res) => {
 
             <p style="margin-top: 20px; color: #7f8c8d;">
               Best regards,<br>
-              <strong>TALEX HR Team</strong>
+              <strong>AIRSWIFT HR Team</strong>
             </p>
           </div>
         </body>

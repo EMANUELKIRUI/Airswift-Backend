@@ -381,8 +381,8 @@ const generateOffer = async (req, res) => {
     doc.moveDown(2);
 
     doc.text('Sincerely,');
-    doc.text('TALEX HR Team');
-    doc.text('hr@talex.com');
+    doc.text('AIRSWIFT HR Team');
+    doc.text('hr@airswift.com');
 
     doc.end();
 
@@ -1241,7 +1241,7 @@ const banUser = async (req, res) => {
     // Send ban notification email when possible
     try {
       const { sendEmail } = require('../utils/email');
-      await sendEmail(user.email, 'Account Banned - Talex Platform', `<h2>Your account has been banned</h2><p>${reason || 'Your account has been banned by an administrator.'}</p>`, {
+      await sendEmail(user.email, 'Account Banned - Airswift Platform', `<h2>Your account has been banned</h2><p>${reason || 'Your account has been banned by an administrator.'}</p>`, {
         type: 'ban',
         sentBy: req.user.id,
         req,

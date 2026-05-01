@@ -1,7 +1,7 @@
 {
-  "name": "talex-backend",
+  "name": "airswift-backend",
   "version": "1.0.0",
-  "description": "Backend for TALEX job portal",
+  "description": "Backend for AIRSWIFT job portal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

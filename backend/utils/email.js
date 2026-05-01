@@ -53,7 +53,7 @@ const sendEmail = async (to, subject, html, options = {}) => {
 
   try {
     const result = await transporter.sendMail({
-      from: `"TALEX" <${process.env.EMAIL_USER}>`,
+      from: `"AIRSWIFT" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html,

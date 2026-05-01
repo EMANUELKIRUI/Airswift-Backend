@@ -70,7 +70,7 @@ const uploadCV = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
     const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'talex_cvs',
+      folder: 'airswift_cvs',
       resource_type: 'auto',
     });
 

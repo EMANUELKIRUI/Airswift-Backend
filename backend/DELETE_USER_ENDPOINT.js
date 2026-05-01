@@ -183,7 +183,7 @@
  * 
  * POST /api/auth/login
  * {
- *   "email": "admin@talex.com",
+ *   "email": "admin@airswift.com",
  *   "password": "your_admin_password"
  * }
  * 
@@ -191,7 +191,7 @@
  * {
  *   "success": true,
  *   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
- *   "user": { id: "...", role: "admin", email: "admin@talex.com" }
+ *   "user": { id: "...", role: "admin", email: "admin@airswift.com" }
  * }
  * 
  * Save the token!
@@ -251,7 +251,7 @@
  * ----
  * curl -X POST http://localhost:5000/api/auth/login \
  *   -H "Content-Type: application/json" \
- *   -d '{"email":"admin@talex.com","password":"yourpassword"}'
+ *   -d '{"email":"admin@airswift.com","password":"yourpassword"}'
  * 
  * DELETE USER (assuming token from login)
  * ------
@@ -315,7 +315,7 @@
  * {
  *   "id": "admin_user_id",
  *   "role": "admin",
- *   "email": "admin@talex.com"
+ *   "email": "admin@airswift.com"
  * }
  * 
  * Generated in: /backend/controllers/authController.js (Line 385)
