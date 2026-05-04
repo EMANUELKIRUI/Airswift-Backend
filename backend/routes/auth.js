@@ -19,6 +19,7 @@ const {
   changePassword,
   refreshToken,
   logout,
+  googleLogin,
   // adminLogin // Removed - admin uses regular login
 } = require("../controllers/authController");
 const { verifyToken, authorizeRoles } = require("../middleware/auth");
@@ -132,5 +133,8 @@ router.get("/debug", async (req, res) => {
 router.get("/profile", verifyToken, (req, res) => {
   res.json({ message: "Protected data", user: req.user });
 });
+
+// ✅ GOOGLE LOGIN - NextAuth callback endpoint
+router.post("/google-login", googleLogin);
 
 module.exports = router;

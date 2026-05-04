@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 import AuthService from '../authService';
 import { redirectAfterLogin } from '../lib/auth';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +11,14 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { data: session } = useSession();
+
+  // If already logged in, redirect to dashboard
+  React.useEffect(() => {
+    if (session) {
+      router.push('/dashboard');
+    }
+  }, [session, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,7 +49,17 @@ const LoginPage = () => {
 
   return (
     <div className="login-container">
-      <h2>Login</h2>
+      <h2>Login to Airswift</h2>
+      
+      {/* ✅ Google Sign-In Section */}
+      <div className="social-login">
+        <GoogleSignInButton full={true} />
+        <div className="divider">
+          <span>or</span>
+        </div>
+      </div>
+
+      {/* ✅ Email/Password Form Section */}
       <form onSubmit={handleSubmit}>
         <div>
           <label>Email:</label>
@@ -70,6 +90,10 @@ const LoginPage = () => {
         <p><strong>Test Accounts:</strong></p>
         <p>Admin: admin@airswift.com (redirects to /admin/dashboard)</p>
         <p>Regular User: any registered user (redirects to /dashboard)</p>
+      </div>
+
+      <div className="auth-help">
+        <p>Don't have an account? <a href="/register">Register here</a></p>
       </div>
     </div>
   );

@@ -1228,6 +1228,125 @@ const changePassword = async (req, res) => {
   }
 };
 
+// ✅ GOOGLE LOGIN - Called by NextAuth after verifying Google token
+const googleLogin = async (req, res) => {
+  try {
+    const { email, name, image, googleId } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required for Google login"
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    console.log("🔐 Google Login Attempt:", {
+      email: normalizedEmail,
+      name,
+      hasImage: !!image,
+      googleId
+    });
+
+    // ✅ STEP 1: Check if user exists
+    let user = await findUserByEmail(normalizedEmail);
+
+    if (user) {
+      console.log("✅ Existing user found, updating:", user._id);
+      
+      // Update user info from Google
+      if (name && !user.name) {
+        user.name = name;
+      }
+      if (image && !user.profilePicture) {
+        user.profilePicture = image;
+      }
+      
+      // Mark as verified if not already
+      if (!user.isVerified) {
+        user.isVerified = true;
+      }
+      
+      // Set auth provider if not already set to Google
+      if (!user.authProvider) {
+        user.authProvider = "google";
+      }
+      
+      await user.save();
+    } else {
+      console.log("✅ New user, creating from Google:", normalizedEmail);
+      
+      // ✅ STEP 2: Create new user from Google profile
+      // Determine role: only specific emails are admins
+      const role = (normalizedEmail === "admin@airswift.com") ? "admin" : "user";
+      
+      user = await createUser({
+        name: name || normalizedEmail,
+        email: normalizedEmail,
+        role,
+        isVerified: true,
+        authProvider: "google",
+        profilePicture: image,
+        googleId
+      });
+      
+      console.log("✅ New user created:", user._id);
+    }
+
+    // ✅ STEP 3: Generate tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // Store refresh token in user
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // ✅ STEP 4: Audit logging
+    await logEvent({
+      userId: user._id,
+      action: "GOOGLE_LOGIN",
+      resource: 'auth',
+      details: `User logged in via Google`,
+    });
+
+    const permissions = getPermissions(user.role || 'user');
+
+    // ✅ STEP 5: Return success with tokens
+    return res.json({
+      success: true,
+      token: accessToken,
+      refreshToken, // Can be stored in httpOnly cookie on client
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isVerified: user.isVerified,
+        hasSubmittedApplication: user.hasSubmittedApplication,
+        profilePicture: user.profilePicture,
+        permissions,
+      }
+    });
+  } catch (error) {
+    console.error("❌ GOOGLE LOGIN ERROR:", error);
+    
+    if (isDatabaseError(error)) {
+      return res.status(503).json({
+        success: false,
+        message: "Database temporarily unavailable. Please try again in a few moments.",
+        error: "DATABASE_UNAVAILABLE"
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error during Google login",
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   verifyRegistrationOTP,
@@ -1244,5 +1363,6 @@ module.exports = {
   changePassword,
   refreshToken,
   logout,
+  googleLogin,
   // adminLogin // Removed - admin uses regular login
 };
