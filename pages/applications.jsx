@@ -1,81 +1,91 @@
 import React, { useEffect, useState } from 'react';
-import UserLayout from '../components/UserLayout';
-import api from '../api';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 
-const Applications = () => {
+export default function ApplicationsPage() {
+  const router = useRouter();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [token, setToken] = useState('');
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    const userData = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
 
-  const fetchApplications = async () => {
+    if (!userData || !savedToken) {
+      router.push('/login');
+      return;
+    }
+
+    const parsedUser = JSON.parse(userData);
+    
+    // Only admins can view applications
+    if (parsedUser.role !== 'admin') {
+      router.push('/dashboard');
+      return;
+    }
+
+    setUser(parsedUser);
+    setToken(savedToken);
+    fetchApplications(savedToken);
+  }, [router]);
+
+  const fetchApplications = async (authToken) => {
     try {
-      const response = await api.get('/applications/my');
-      setApplications(response.data.applications || response.data);
-    } catch (error) {
-      console.error('Error fetching applications:', error);
+      const response = await fetch('/api/admin/applications', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch applications');
+      const data = await response.json();
+      setApplications(data);
+    } catch (err) {
+      setError('Failed to load applications');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusClasses = {
-      pending: 'status-pending',
-      reviewed: 'status-reviewed',
-      approved: 'status-approved',
-      rejected: 'status-rejected',
-    };
-    return statusClasses[status] || 'status-default';
-  };
+  if (loading) return <div style={{ padding: '20px' }}>Loading...</div>;
 
-  if (loading) {
-    return (
-      <UserLayout>
-        <div className="loading">Loading applications...</div>
-      </UserLayout>
-    );
-  }
+  if (!user || user.role !== 'admin') return null;
 
   return (
-    <UserLayout>
-      <div className="applications-page">
-        <h1>📂 My Applications</h1>
-        {applications.length === 0 ? (
-          <p>No applications yet.</p>
-        ) : (
-          <table className="applications-table">
-            <thead>
-              <tr>
-                <th>Job Title</th>
-                <th>Date Applied</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app) => (
-                <tr key={app._id}>
-                  <td>{app.job?.title || 'N/A'}</td>
-                  <td>{new Date(app.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <span className={`status-badge ${getStatusBadge(app.status)}`}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn-view">View</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+    <div style={{ padding: '20px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <Link href="/dashboard">← Back to Dashboard</Link>
       </div>
-    </UserLayout>
-  );
-};
 
-export default Applications;
+      <h1>Job Applications</h1>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      {applications.length === 0 ? (
+        <p>No applications yet</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #ddd' }}>
+              <th style={{ padding: '10px', textAlign: 'left' }}>Job</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>Applicant Email</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>Status</th>
+              <th style={{ padding: '10px', textAlign: 'left' }}>Applied On</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applications.map(app => (
+              <tr key={app.id} style={{ borderBottom: '1px solid #ddd' }}>
+                <td style={{ padding: '10px' }}>{app.job?.title || 'N/A'}</td>
+                <td style={{ padding: '10px' }}>{app.user?.email || 'N/A'}</td>
+                <td style={{ padding: '10px' }}>{app.status}</td>
+                <td style={{ padding: '10px' }}>{new Date(app.createdAt).toLocaleDateString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

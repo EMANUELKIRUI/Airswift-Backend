@@ -17,13 +17,11 @@ const Job = sequelize.define('Job', {
   },
   location: {
     type: DataTypes.STRING,
-  },
-  created_by: {
-    type: DataTypes.INTEGER,
     allowNull: false,
   },
 }, {
   timestamps: true,
+  underscored: false,
 });
 
 module.exports = Job;

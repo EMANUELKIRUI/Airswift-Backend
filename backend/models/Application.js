@@ -7,21 +7,23 @@ const Application = sequelize.define('Application', {
     primaryKey: true,
     autoIncrement: true,
   },
-  job_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Jobs',
-      key: 'id',
-    },
-  },
-  user_id: {
+  userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
       model: 'Users',
       key: 'id',
     },
+    field: 'userId'
+  },
+  jobId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Jobs',
+      key: 'id',
+    },
+    field: 'jobId'
   },
   status: {
     type: DataTypes.ENUM('applied', 'reviewed', 'rejected', 'accepted'),
@@ -29,53 +31,7 @@ const Application = sequelize.define('Application', {
   },
 }, {
   timestamps: true,
-});
-
-module.exports = Application;
-  },
-  cv: {
-    type: DataTypes.STRING,
-  },
-  passport_url: {
-    type: DataTypes.STRING,
-  },
-  passport: {
-    type: DataTypes.STRING,
-  },
-  national_id_url: {
-    type: DataTypes.STRING,
-  },
-  nationalId: {
-    type: DataTypes.STRING,
-  },
-  certificate_urls: {
-    type: DataTypes.JSON,
-  },
-  submittedAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-  score: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-  },
-  skills: {
-    type: DataTypes.JSON,
-  },
-  zoom_meet_url: {
-    type: DataTypes.STRING,
-  },
-  interview_attended: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false,
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
-}, {
-  timestamps: true,
-  underscored: true, // 🔥 THIS FIXES IT
+  underscored: false,
 });
 
 module.exports = Application;

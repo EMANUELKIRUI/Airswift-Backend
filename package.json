@@ -1,16 +1,20 @@
 {
+  "name": "airswift",
+  "version": "1.0.0",
+  "description": "Airswift MVP - Simple Job Portal",
   "scripts": {
-    "clean": "rm -rf node_modules backend/node_modules",
-    "run": "cd backend && npm run dev",
-    "start": "cd backend && npm start"
+    "dev": "concurrently \"cd backend && npm run dev\" \"next dev\"",
+    "build": "next build",
+    "start": "next start",
+    "backend": "cd backend && npm run dev",
+    "frontend": "next dev"
   },
   "dependencies": {
-    "axios": "^1.15.2",
-    "chalk": "^5.6.2",
-    "form-data": "^4.0.5",
-    "json2csv": "^6.0.0-alpha.2",
-    "next-auth": "^4.24.5",
-    "react-hot-toast": "^2.6.0",
-    "socket.io-client": "^4.8.3"
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
   }
 }

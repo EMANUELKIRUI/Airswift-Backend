@@ -4,11 +4,11 @@ const Job = require('./Job');
 const Application = require('./Application');
 
 // Associations
-Application.belongsTo(Job, { foreignKey: 'job_id' });
-Application.belongsTo(User, { foreignKey: 'user_id' });
+Application.belongsTo(Job, { foreignKey: 'jobId' });
+Application.belongsTo(User, { foreignKey: 'userId' });
 
-Job.hasMany(Application, { foreignKey: 'job_id' });
-User.hasMany(Application, { foreignKey: 'user_id' });
+Job.hasMany(Application, { foreignKey: 'jobId' });
+User.hasMany(Application, { foreignKey: 'userId' });
 
 module.exports = {
   sequelize,

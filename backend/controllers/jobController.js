@@ -1,286 +1,44 @@
-const Joi = require('joi');
-const mongoose = require('mongoose');
-const { Op } = require('sequelize');
-const { Job, JobCategory, Application, User } = require('../models');
-const JobMongoose = require('../models/JobMongoose');
+const Job = require('../models/Job');
+const User = require('../models/User');
 
-const jobSchema = Joi.object({
-  title: Joi.string().required(),
-  description: Joi.string().required(),
-  category_id: Joi.number().integer().required(),
-  salary_min: Joi.number().integer(),
-  salary_max: Joi.number().integer(),
-  location: Joi.string(),
-  requirements: Joi.string(),
-  expiry_date: Joi.date(),
-});
-
-const getJobCategories = async (req, res) => {
+exports.getJobs = async (req, res) => {
   try {
-    const categories = await JobCategory.findAll({
-      attributes: ['id', 'name', 'description'],
-      order: [['name', 'ASC']],
-    });
-    res.json({
-      success: true,
-      data: categories,
-    });
-  } catch (error) {
-    console.error('getJobCategories error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-    });
-  }
-};
-
-const getJobs = async (req, res) => {
-  try {
-    const { category, search, sort } = req.query;
-    const orderDirection = sort?.toLowerCase() === 'za' ? -1 : 1;
-
-    if (mongoose.connection.readyState === 1) {
-      const filter = { status: 'active' };
-      if (category) {
-        filter.category = { $regex: category, $options: 'i' };
-      }
-      if (search) {
-        filter.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { skills: { $in: [new RegExp(search, 'i')] } },
-        ];
-      }
-
-      const jobs = await JobMongoose.find(filter)
-        .sort({ title: orderDirection })
-        .select('title location')
-        .lean();
-
-      const formattedJobs = jobs.map((job) => ({
-        _id: job._id.toString(),
-        title: job.title,
-        location: job.location,
-      }));
-
-      return res.json({ success: true, data: formattedJobs });
-    }
-
-    const where = { status: 'active' };
-    if (category) {
-      if (!Number.isNaN(Number(category))) {
-        where.category_id = Number(category);
-      } else {
-        const categoryRecord = await JobCategory.findOne({ where: { name: category } });
-        if (categoryRecord) where.category_id = categoryRecord.id;
-      }
-    }
-
-    if (search) {
-      where[Op.or] = [
-        { title: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
-      ];
-    }
-
-    const order = [];
-    if (sort?.toLowerCase() === 'za') {
-      order.push(['title', 'DESC']);
-    } else {
-      order.push(['title', 'ASC']);
-    }
-
     const jobs = await Job.findAll({
-      where,
-      order,
-      attributes: ['id', 'title', 'location'],
+      attributes: ['id', 'title', 'description', 'location', 'createdAt'],
+      order: [['createdAt', 'DESC']]
     });
-
-    const formattedJobs = jobs.map((job) => ({
-      _id: job.id.toString(),
-      title: job.title,
-      location: job.location,
-    }));
-
-    res.json({ success: true, data: formattedJobs });
-  } catch (error) {
-    console.error('getJobs error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-};
-
-const getJobById = async (req, res) => {
-  try {
-    const job = await Job.findByPk(req.params.id, {
-      include: [{ model: JobCategory, as: 'category', attributes: ['id', 'name'] }],
-    });
-    if (!job) return res.status(404).json({ message: 'Job not found' });
-
-    res.json(job);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const createJob = async (req, res) => {
-  try {
-    const { error } = jobSchema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.details[0].message });
-
-    const category = await JobCategory.findByPk(req.body.category_id);
-    if (!category) return res.status(400).json({ message: 'Invalid category_id' });
-
-    const job = await Job.create({ ...req.body, created_by: req.user.id });
-    res.status(201).json(job);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const updateJob = async (req, res) => {
-  try {
-    const { error } = jobSchema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.details[0].message });
-
-    if (req.body.category_id) {
-      const category = await JobCategory.findByPk(req.body.category_id);
-      if (!category) return res.status(400).json({ message: 'Invalid category_id' });
-    }
-
-    const [updated] = await Job.update(req.body, { where: { id: req.params.id } });
-    if (!updated) return res.status(404).json({ message: 'Job not found' });
-
-    const job = await Job.findByPk(req.params.id);
-    res.json(job);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const deleteJob = async (req, res) => {
-  try {
-    const deleted = await Job.destroy({ where: { id: req.params.id } });
-    if (!deleted) return res.status(404).json({ message: 'Job not found' });
-
-    res.json({ message: 'Job deleted' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const getAllJobsAdmin = async (req, res) => {
-  try {
-    const jobs = await Job.findAll({ include: [{ model: JobCategory, as: 'category', attributes: ['id', 'name'] }] });
     res.json(jobs);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Failed to fetch jobs', error: error.message });
   }
 };
 
-const createJobCategory = async (req, res) => {
+exports.createJob = async (req, res) => {
   try {
-    const schema = Joi.object({
-      name: Joi.string().required(),
-      description: Joi.string().optional(),
+    const { title, description, location } = req.body;
+    const userId = req.user.id;
+
+    // Check if user is admin
+    const user = await User.findByPk(userId);
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can create jobs' });
+    }
+
+    if (!title || !description || !location) {
+      return res.status(400).json({ message: 'Title, description, and location required' });
+    }
+
+    const job = await Job.create({
+      title,
+      description,
+      location
     });
 
-    const { error } = schema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.details[0].message });
-
-    const [category, created] = await JobCategory.findOrCreate({ where: { name: req.body.name }, defaults: { description: req.body.description } });
-    if (!created) return res.status(400).json({ message: 'Category already exists' });
-
-    res.status(201).json(category);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const updateJobCategory = async (req, res) => {
-  try {
-    const schema = Joi.object({
-      name: Joi.string().required(),
-      description: Joi.string().optional(),
+    res.status(201).json({
+      message: 'Job created successfully',
+      job
     });
-    const { error } = schema.validate(req.body);
-    if (error) return res.status(400).json({ message: error.details[0].message });
-
-    const [updated] = await JobCategory.update(req.body, { where: { id: req.params.id } });
-    if (!updated) return res.status(404).json({ message: 'Job category not found' });
-
-    const category = await JobCategory.findByPk(req.params.id);
-    res.json(category);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Failed to create job', error: error.message });
   }
 };
-
-const deleteJobCategory = async (req, res) => {
-  try {
-    const deleted = await JobCategory.destroy({ where: { id: req.params.id } });
-    if (!deleted) return res.status(404).json({ message: 'Job category not found' });
-    res.json({ message: 'Job category deleted' });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const getJobCategoryDashboard = async (req, res) => {
-  try {
-    const categories = await JobCategory.findAll({
-      include: [{ model: Job, attributes: [] }],
-      attributes: ['id', 'name', [Job.sequelize.fn('COUNT', Job.sequelize.col('Jobs.id')), 'job_count']],
-      group: ['JobCategory.id'],
-      order: [['name', 'ASC']],
-    });
-    res.json({ categories });
-  } catch (error) {
-    console.error('getJobCategoryDashboard error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-const getInterviewPipeline = async (req, res) => {
-  try {
-    const applications = await Application.findAll({
-      include: [
-        { model: Job, attributes: ['id', 'title'] },
-      ],
-    });
-
-    const userIds = [...new Set(applications.map((app) => app.user_id).filter(Boolean))];
-    const users = await User.find({ _id: { $in: userIds } }).lean();
-    const userMap = users.reduce((acc, user) => ({ ...acc, [user._id.toString()]: user }), {});
-
-    const pipeline = applications.map((app) => ({
-      application_id: app.id,
-      applicant: userMap[app.user_id]
-        ? { id: userMap[app.user_id]._id, name: userMap[app.user_id].name, email: userMap[app.user_id].email }
-        : null,
-      job: app.Job ? { id: app.Job.id, title: app.Job.title } : null,
-      status: app.status,
-      interview_attended: app.interview_attended,
-      zoom_meet_url: app.zoom_meet_url,
-    }));
-
-    res.json({ pipeline });
-  } catch (error) {
-    console.error('getInterviewPipeline error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-module.exports = {
-  getJobs,
-  getJobById,
-  createJob,
-  updateJob,
-  deleteJob,
-  getAllJobsAdmin,
-  getJobCategories,
-  createJobCategory,
-  updateJobCategory,
-  deleteJobCategory,
-  getJobCategoryDashboard,
-  getInterviewPipeline,
-}; 

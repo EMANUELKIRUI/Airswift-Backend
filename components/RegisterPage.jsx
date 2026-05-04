@@ -3,12 +3,22 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import '../styles/LoginPage.css';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    role: 'user'
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,27 +26,27 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        setError(data.message || 'Login failed');
+        setError(data.message || 'Registration failed');
         return;
       }
 
-      // Save token and user info
+      // Save token
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect based on role
+      router.push(data.user.role === 'admin' ? '/admin-dashboard' : '/dashboard');
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError('Registration failed. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -46,8 +56,8 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>Login to Airswift</h1>
-        <p>Access the job portal</p>
+        <h1>Create Account</h1>
+        <p>Join Airswift as a job seeker</p>
 
         {error && <div className="error-message">{error}</div>}
 
@@ -56,8 +66,9 @@ export default function LoginPage() {
             <label>Email</label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
               required
               placeholder="you@example.com"
             />
@@ -67,20 +78,21 @@ export default function LoginPage() {
             <label>Password</label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
               required
-              placeholder="Your password"
+              placeholder="At least 6 characters"
             />
           </div>
 
           <button type="submit" disabled={loading} className="submit-btn">
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
 
-        <p className="register-link">
-          Don't have an account? <Link href="/register">Register</Link>
+        <p className="login-link">
+          Already have an account? <Link href="/login">Login</Link>
         </p>
       </div>
     </div>

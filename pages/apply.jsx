@@ -1,123 +1,96 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import UserLayout from '../components/UserLayout';
-import api from '../api';
+import Link from 'next/link';
 
-const Apply = () => {
-  const [jobs, setJobs] = useState([]);
-  const [formData, setFormData] = useState({
-    jobId: '',
-    coverLetter: '',
-    cv: null,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+export default function ApplyPage() {
   const router = useRouter();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [token, setToken] = useState('');
 
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    const userData = localStorage.getItem('user');
+    const savedToken = localStorage.getItem('token');
 
-  const fetchJobs = async () => {
-    try {
-      const response = await api.get('/jobs');
-      setJobs(response.data.jobs || response.data);
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
+    if (!userData || !savedToken) {
+      router.push('/login');
+      return;
     }
-  };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+    setToken(savedToken);
+    fetchJobs(savedToken);
+  }, [router]);
 
-  const handleFileChange = (e) => {
-    setFormData({ ...formData, cv: e.target.files[0] });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
+  const fetchJobs = async (authToken) => {
     try {
-      const data = new FormData();
-      data.append('job_id', formData.jobId);
-      data.append('cover_letter', formData.coverLetter);
-      if (formData.cv) {
-        data.append('cv', formData.cv);
-      }
-
-      await api.post('/applications', data, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await fetch('/api/jobs', {
+        headers: { 'Authorization': `Bearer ${authToken}` }
       });
 
-      router.push('/applications');
+      if (!response.ok) throw new Error('Failed to fetch jobs');
+      const data = await response.json();
+      setJobs(data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Application submission failed');
+      setError('Failed to load jobs');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleApply = async (jobId) => {
+    try {
+      const response = await fetch('/api/applications/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ jobId })
+      });
+
+      if (response.ok) {
+        alert('Application submitted!');
+      } else {
+        alert('Failed to apply');
+      }
+    } catch (err) {
+      alert('Error applying for job');
+      console.error(err);
+    }
+  };
+
+  if (loading) return <div style={{ padding: '20px' }}>Loading jobs...</div>;
+
   return (
-    <UserLayout>
-      <div className="apply-page">
-        <h1>📝 Submit Your Application</h1>
-        <form onSubmit={handleSubmit} className="application-form">
-          <div className="form-group">
-            <label htmlFor="jobId">Select Job</label>
-            <select
-              id="jobId"
-              name="jobId"
-              value={formData.jobId}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Choose a job...</option>
-              {jobs.map((job) => (
-                <option key={job._id} value={job._id}>
-                  {job.title} - {job.company}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="coverLetter">Cover Letter</label>
-            <textarea
-              id="coverLetter"
-              name="coverLetter"
-              value={formData.coverLetter}
-              onChange={handleInputChange}
-              placeholder="Tell us why you're interested in this position..."
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="cv">CV/Resume</label>
-            <input
-              type="file"
-              id="cv"
-              accept=".pdf,.doc,.docx"
-              onChange={handleFileChange}
-              required
-            />
-          </div>
-
-          {error && <div className="error">{error}</div>}
-
-          <button type="submit" disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit Application'}
-          </button>
-        </form>
+    <div style={{ padding: '20px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <Link href="/dashboard">← Back to Dashboard</Link>
       </div>
-    </UserLayout>
-  );
-};
+      
+      <h1>Available Jobs</h1>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-export default Apply;
+      {jobs.length === 0 ? (
+        <p>No jobs available</p>
+      ) : (
+        <div>
+          {jobs.map(job => (
+            <div key={job.id} style={{
+              border: '1px solid #ddd',
+              padding: '15px',
+              marginBottom: '10px',
+              borderRadius: '5px'
+            }}>
+              <h3>{job.title}</h3>
+              <p>{job.description}</p>
+              <p><strong>Location:</strong> {job.location}</p>
+              <button onClick={() => handleApply(job.id)}>Apply Now</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
