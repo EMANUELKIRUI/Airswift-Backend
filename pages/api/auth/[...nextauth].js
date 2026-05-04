@@ -66,24 +66,30 @@ export const authOptions = {
             googleId: profile.sub,
           });
 
-          if (response.data.success) {
+          // ✅ FIX: Handle different response formats from backend
+          const data = response.data || response;
+          const isSuccess = data.success || !!data.token;
+          const token = data.token || data.accessToken;
+
+          if (isSuccess && token) {
             // ✅ STEP 2: Store the backend token for API calls
             if (typeof window === "undefined") {
               // Server-side only: store token in session/database
-              user.backendToken = response.data.token;
-              user.role = response.data.user.role;
-              user.userId = response.data.user.id || response.data.user._id;
+              user.backendToken = token;
+              user.role = data.user?.role || "user";
+              user.userId = data.user?.id || data.user?._id;
             }
             console.log("✅ Google SignIn Successful");
             return true;
           } else {
-            console.error("❌ Backend rejected Google login:", response.data.error);
+            console.error("❌ Backend rejected Google login:", data.error || data.message);
             return false;
           }
         }
         return true;
       } catch (error) {
         console.error("❌ Error during Google SignIn:", error.message);
+        console.error("❌ Full error:", error);
         return false;
       }
     },

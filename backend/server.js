@@ -487,6 +487,14 @@ app.options("*", cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// ✅ FIX: Add COOP header to allow Google Sign-In popup
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public'))); // put favicon.ico here
 app.use(cookieParser());
 app.use(express.json());
