@@ -16,68 +16,22 @@ const Application = sequelize.define('Application', {
     },
   },
   user_id: {
-    type: DataTypes.STRING,
+    type: DataTypes.INTEGER,
     allowNull: false,
     references: {
       model: 'Users',
       key: 'id',
     },
   },
-  name: {
-    type: DataTypes.STRING,
-  },
-  email: {
-    type: DataTypes.STRING,
-  },
   status: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    defaultValue: 'pending',
-    validate: {
-      isIn: [[
-        'pending',
-        'approved',
-        'rejected'
-      ]]
-    }
+    type: DataTypes.ENUM('applied', 'reviewed', 'rejected', 'accepted'),
+    defaultValue: 'applied',
   },
-  documentsVerified: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-  },
-  notes: {
-    type: DataTypes.TEXT,
-  },
-  phone: {
-    type: DataTypes.STRING,
-  },
-  national_id: {
-    type: DataTypes.STRING,
-  },
-  cv_path: {
-    type: DataTypes.STRING,
-  },
-  passport_path: {
-    type: DataTypes.STRING,
-  },
-  national_id_path: {
-    type: DataTypes.STRING,
-  },
-  cover_letter: {
-    type: DataTypes.TEXT,
-  },
-  cv_url: {
-    type: DataTypes.STRING,
-  },
-  cvUrl: {
-    type: DataTypes.VIRTUAL,
-    get() {
-      return this.getDataValue('cv_url');
-    },
-    set(value) {
-      this.setDataValue('cv_url', value);
-    },
+}, {
+  timestamps: true,
+});
+
+module.exports = Application;
   },
   cv: {
     type: DataTypes.STRING,

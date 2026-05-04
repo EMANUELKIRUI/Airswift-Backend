@@ -1,96 +1,39 @@
-const mongoose = require("mongoose");
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+const bcrypt = require('bcryptjs');
 
-// Mongoose schema for production (MongoDB Atlas)
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-    },
-    password: {
-      type: String,
-    },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user"
-    },
-    roleString: {
-      // Keep for backward compatibility
-      type: String,
-      enum: ["user", "admin", "recruiter"],
-      default: "user"
-    },
-    permissions: [String], // Denormalized permissions for fast JWT encoding
-    status: {
-      type: String,
-      default: "active",
-      enum: ["active", "suspended", "banned"],
-    },
-    hasSubmittedApplication: {
-      type: Boolean,
-      default: false,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    verificationToken: String,
-    verificationTokenExpires: Date,
-    otp: String,
-    otpExpires: Date,
-    resendCount: {
-      type: Number,
-      default: 0,
-    },
-    lastOtpSentAt: Date,
-    lastOtpSent: Date,
-    resetToken: String,
-    resetTokenExpiry: Date,
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
-    refreshToken: String,
-    lastIP: String,
-    authProvider: {
-      type: String,
-      default: "local",
-    },
-    profilePicture: String,
-    firebaseUid: String,
-    phone: String,
-    location: String,
-    cv: String,
-    skills: [String],
-    education: String,
-    experience: String,
-    draft: mongoose.Schema.Types.Mixed,
-    lastModifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
-    lastModifiedAt: Date,
-    bio: String,
-    cvUrl: String,
-    profile: {
-      phone: String,
-      location: String,
-      skills: [String],
-    },
-    activationToken: String,
-    activationExpires: Date,
-    isOnline: {
-      type: Boolean,
-      default: false,
-    },
-    lastSeen: Date,
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
   },
-  { timestamps: true }
-);
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+    lowercase: true,
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  role: {
+    type: DataTypes.ENUM('user', 'admin'),
+    defaultValue: 'user',
+  },
+}, {
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(user.password, salt);
+    },
+  },
+});
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

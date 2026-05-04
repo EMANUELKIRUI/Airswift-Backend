@@ -15,41 +15,15 @@ const Job = sequelize.define('Job', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  category_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'JobCategories',
-      key: 'id',
-    },
-  },
-  salary_min: {
-    type: DataTypes.INTEGER,
-  },
-  salary_max: {
-    type: DataTypes.INTEGER,
-  },
   location: {
-    type: DataTypes.STRING, // Canada province
-  },
-  requirements: {
-    type: DataTypes.TEXT,
-  },
-  status: {
-    type: DataTypes.ENUM('active', 'closed'),
-    defaultValue: 'active',
-  },
-  expiry_date: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
   },
   created_by: {
-    type: DataTypes.INTEGER, // admin_id
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
-  created_at: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-  },
+}, {
+  timestamps: true,
 });
 
 module.exports = Job;
