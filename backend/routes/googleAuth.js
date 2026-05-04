@@ -143,6 +143,7 @@ router.post("/google", async (req, res) => {
     const jwtToken = generateAccessToken(user);
 
     return res.json({
+      success: true,
       token: jwtToken,
       user: {
         id: user._id,

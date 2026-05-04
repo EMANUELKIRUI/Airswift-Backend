@@ -16,6 +16,7 @@ class AuthService {
     try {
       const normalizedUser = this.normalizeUser(user);
       localStorage.setItem('token', token);
+      localStorage.setItem('accessToken', token);
       localStorage.setItem('user', JSON.stringify(normalizedUser));
 
       if (normalizedUser?.role === 'admin') {
@@ -35,7 +36,7 @@ class AuthService {
    */
   static getToken() {
     try {
-      return localStorage.getItem('token');
+      return localStorage.getItem('token') || localStorage.getItem('accessToken');
     } catch (error) {
       console.error('❌ Error retrieving token:', error);
       return null;
@@ -107,22 +108,23 @@ class AuthService {
 
       console.log('✅ Login successful');
 
-      if (response.data.token && response.data.user) {
+      const token = response.data.token || response.data.accessToken;
+      if (token && response.data.user) {
         const normalizedUser = this.normalizeUser(response.data.user);
 
         // Store token and normalized user
-        this.storeToken(response.data.token, normalizedUser);
+        this.storeToken(token, normalizedUser);
 
         // Reconnect socket with new token
         console.log('🔌 Reconnecting socket with token...');
-        const socket = reconnectSocketConnection(response.data.token);
+        const socket = reconnectSocketConnection(token);
         if (socket) {
           console.log('✅ Socket reconnected:', socket.id);
         }
 
         const loginResult = {
           success: true,
-          token: response.data.token,
+          token,
           user: normalizedUser,
         };
 
@@ -157,6 +159,7 @@ class AuthService {
 
       // Clear token and user data
       localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       localStorage.removeItem('adminToken');
 
@@ -243,18 +246,19 @@ class AuthService {
 
       const response = await api.post('/auth/refresh');
 
-      if (response.data.token) {
+      const token = response.data.token || response.data.accessToken;
+      if (token) {
         const user = this.getUser();
-        this.storeToken(response.data.token, user);
+        this.storeToken(token, user);
 
         console.log('✅ Token refreshed successfully');
 
         // Reconnect socket with new token
-        reconnectSocketConnection(response.data.token);
+        reconnectSocketConnection(token);
 
         return {
           success: true,
-          token: response.data.token,
+          token,
         };
       }
 
