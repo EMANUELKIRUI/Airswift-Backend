@@ -2,7 +2,14 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const { sequelize } = require('./config/database');
+const sequelize = require('./config/database');
+
+const requiredEnvVars = ['JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter((key) => !process.env[key]);
+if (missingEnvVars.length) {
+  console.error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
 
 // Middleware
 const authMiddleware = require('./middleware/authMiddleware');
