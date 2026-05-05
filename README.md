@@ -165,7 +165,9 @@ const transporter = nodemailer.createTransport({
 
 ## Default Admin Credentials
 
-A default admin user is created on startup if it does not already exist:
+A default admin user is created on startup if it does not already exist.
+
+The account is seeded from `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` in your backend environment.
 
 - Email: `emanuelkirui1@gmail.com`
 - Password: `Ee0795565529@`
@@ -177,6 +179,7 @@ A default admin user is created on startup if it does not already exist:
 - `POST https://airswift-backend.onrender.com/api/auth/verify-otp` - Verify email with OTP
 - `POST https://airswift-backend.onrender.com/api/auth/resend-otp` - Resend OTP for registration
 - `POST https://airswift-backend.onrender.com/api/auth/login` - Login user (returns JWT token)
+- `POST https://airswift-backend.onrender.com/api/auth/admin-login` - Alias route for admin login (same auth flow)
 - `GET https://airswift-backend.onrender.com/api/auth/me` - Get current user profile (requires JWT)
 - `POST https://airswift-backend.onrender.com/api/auth/send-login-otp` - Send login OTP
 - `POST https://airswift-backend.onrender.com/api/auth/verify-login-otp` - Verify login OTP

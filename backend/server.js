@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./config/database');
+const { createDefaultAdmin } = require('./utils/adminSeed');
 
 const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter((key) => !process.env[key]);
@@ -53,8 +54,15 @@ app.use((err, req, res, next) => {
 // Database sync and start server
 const PORT = process.env.PORT || 5000;
 
-sequelize.sync({ alter: true }).then(() => {
+sequelize.sync({ alter: true }).then(async () => {
   console.log('✓ Database synced');
+  try {
+    await createDefaultAdmin();
+    console.log('✓ Default admin check complete');
+  } catch (error) {
+    console.error('✗ Default admin creation failed:', error);
+  }
+
   app.listen(PORT, () => {
     console.log(`✓ Server running on port ${PORT}`);
   });
