@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import styles from '../styles/LoginPage.module.css';
+import { getApiEndpoint } from '../lib/apiConfig';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -26,8 +27,7 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/api/auth/register`, {
+      const response = await fetch(getApiEndpoint('/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

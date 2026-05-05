@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import styles from '../styles/LoginPage.module.css';
+import { getApiEndpoint } from '../lib/apiConfig';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,8 +17,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/api/auth/login`, {
+      const response = await fetch(getApiEndpoint('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
