@@ -23,7 +23,7 @@ export const useLogin = () => {
 
     try {
       // Call backend login endpoint
-      const response = await api.post('/auth/login', {
+      const response = await api.post('/api/auth/login', {
         email,
         password,
       });

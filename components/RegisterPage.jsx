@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import api from '../api';
 import '../styles/LoginPage.css';
 
 export default function RegisterPage() {
@@ -26,29 +27,22 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      });
+      const response = await api.post('/api/auth/register', formData);
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        setError(data.message || 'Registration failed');
-        return;
+      const { token, user } = response.data;
+
+      if (!token || !user) {
+        throw new Error('Invalid registration response from server');
       }
 
       // Save token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       
       // Redirect based on role
-      router.push(data.user.role === 'admin' ? '/admin-dashboard' : '/dashboard');
+      router.push(user.role === 'admin' ? '/admin-dashboard' : '/dashboard');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
