@@ -22,8 +22,18 @@ const applicationRoutes = require('./routes/applications');
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Middleware - Configure CORS to handle credentials
+const corsOptions = {
+  origin: [
+    'https://airswift-frontend.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
