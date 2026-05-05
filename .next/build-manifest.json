@@ -1,0 +1,65 @@
+{
+  "pages": {
+    "/": [
+      "static/chunks/0ubz7c4juv-78.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/0.1zvy-p68li1.css",
+      "static/chunks/turbopack-0ue92-6wlphzp.js"
+    ],
+    "/_app": [
+      "static/chunks/09~~28a-74_by.js",
+      "static/chunks/0nvf0ywebvb48.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/0_pjey_je9y0k.css",
+      "static/chunks/turbopack-0b34tijrokzgu.js"
+    ],
+    "/_error": [
+      "static/chunks/0soa5q91zf5rq.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/turbopack-02n-mxfcfg255.js"
+    ],
+    "/applications": [
+      "static/chunks/08ezu1c8mu5rg.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/turbopack-07agkjrr3wysi.js"
+    ],
+    "/apply": [
+      "static/chunks/0kzwl2kg5ey7l.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/turbopack-0pc8kpg~dv8l-.js"
+    ],
+    "/dashboard": [
+      "static/chunks/0.4d7-~p00w56.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/turbopack-03dq86mxd622x.js"
+    ],
+    "/login": [
+      "static/chunks/0yb_.ghtq-1fr.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/0mgk0y7e97gf..css",
+      "static/chunks/turbopack-0ulfdevdedsxk.js"
+    ],
+    "/register": [
+      "static/chunks/0i26-dq-vurhv.js",
+      "static/chunks/10uep2pbg.vll.js",
+      "static/chunks/00lg5qc~bmt51.js",
+      "static/chunks/0mgk0y7e97gf..css",
+      "static/chunks/turbopack-021qx98b8~8he.js"
+    ]
+  },
+  "devFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [
+    "static/rtKGnzSftVb0cEMZHC3Wg/_buildManifest.js",
+    "static/rtKGnzSftVb0cEMZHC3Wg/_ssgManifest.js",
+    "static/rtKGnzSftVb0cEMZHC3Wg/_clientMiddlewareManifest.js"
+  ],
+  "rootMainFiles": []
+}

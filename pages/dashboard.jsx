@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import '../styles/LoginPage.css';
 
 export default function Dashboard() {
   const router = useRouter();
