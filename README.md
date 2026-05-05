@@ -170,7 +170,7 @@ A default admin user is created on startup if it does not already exist.
 The account is seeded from `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` in your backend environment.
 
 - Email: `emanuelkirui1@gmail.com`
-- Password: `Ee0795565529@`
+- Password: `Admin254@`
 
 ## API Endpoints
 

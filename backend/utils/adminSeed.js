@@ -1,7 +1,7 @@
 const User = require('../models/User');
 
 const ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || process.env.ADMIN_EMAIL || 'emanuelkirui1@gmail.com').trim().toLowerCase();
-const ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Ee0795565529@';
+const ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Admin254@';
 const ADMIN_NAME = process.env.DEFAULT_ADMIN_NAME || process.env.ADMIN_NAME || 'Airswift Admin';
 
 const createDefaultAdmin = async () => {
